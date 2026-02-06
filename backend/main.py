@@ -83,10 +83,12 @@ async def login(request: LoginRequest):
     if not verify_password(request.password, kullanici["sifre_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email veya şifre hatalı"
+            detail="Email veya şifre hatalı",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    access_token = create_access_token(data={"sub": kullanici["id"]})
+    # Token oluştur (UUID'yi string'e çevir)
+    access_token = create_access_token(data={"sub": str(kullanici["id"])})
     kullanici_safe = {k: v for k, v in kullanici.items() if k != "sifre_hash"}
     
     return {
@@ -143,10 +145,11 @@ async def sira_al(request: SiraAlRequest):
         return SiraAlResponse(
             sira_id=sira["id"],
             numara=sira["numara"],
+            tarih=sira["olusturulma"],
             kuyruk_ad=kuyruk["ad"],
-            servis_ad=servis["ad"],
-            oncelik=sira["oncelik"],
-            tahmini_bekleme_dk=tahmini_bekleme if tahmini_bekleme > 0 else None,
+            kuyruk_kod=kuyruk["kod"],
+            bekleyen_sayisi=bekleyen_sayisi,
+            tahmini_sure_dk=tahmini_bekleme if tahmini_bekleme > 0 else None,
             mesaj=mesaj
         )
     
@@ -164,6 +167,19 @@ async def bekleyen_siralar(
     Öncelik sırasına göre (VIP önce)
     """
     siralar = db.get_bekleyen_siralar(kuyruk_id)
+    return siralar
+
+
+@app.get("/api/sira/bekleyen/{firma_id}", response_model=List[SiraResponse])
+async def bekleyen_siralar_by_firma(
+    firma_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Firmaya ait tüm bekleyen sıraları listele
+    """
+    siralar = db.get_tum_bekleyen_siralar(firma_id)
+    print(f"\n[DEBUG] Bekleyenler: {siralar}\n")
     return siralar
 
 
@@ -239,6 +255,50 @@ async def kuyruk_listele(servis_id: str):
             "vip_bekleyen_sayisi": vip_bekleyen
         })
     
+    return result
+
+
+@app.get("/api/kuyruklar/firma/{firma_id}", response_model=List[KuyrukResponse])
+async def kuyruk_listele_by_firma(firma_id: str):
+    """Firmaya ait tüm kuyrukları listele"""
+    kuyruklar = db.get_kuyruklar_by_firma(firma_id)
+    result = []
+    for kuyruk in kuyruklar:
+        bekleyen = len(db.get_bekleyen_siralar(kuyruk["id"]))
+        result.append({
+            **kuyruk,
+            "bekleyen_sayisi": bekleyen,
+            "vip_bekleyen_sayisi": 0 
+        })
+    return result
+
+
+@app.get("/api/kuyruklar/{id}", response_model=List[KuyrukResponse])
+async def kuyruk_listele_generic(id: str):
+    print(f"DEBUG: Kuyruk isteği geldi. ID: {id}")
+    
+    # Önce servis ID mi diye bak
+    kuyruklar = db.get_kuyruklar(id)
+    print(f"DEBUG: Servis ID ({id}) sorgusu sonucu (Yerel): {len(kuyruklar)} kayıt")
+    
+    if not kuyruklar:
+        print(f"DEBUG: Servis bulunamadı, Firma ID olarak deneniyor: {id}")
+        kuyruklar = db.get_kuyruklar_by_firma(id)
+        print(f"DEBUG: Firma ID sorgusu sonucu: {len(kuyruklar)} kayıt")
+        
+    result = []
+    for kuyruk in kuyruklar:
+        bekleyen = len(db.get_bekleyen_siralar(kuyruk["id"]))
+        # DEBUG LOG
+        print(f"DEBUG: İşlenen Kuyruk: {kuyruk.get('ad')}, ID: {kuyruk.get('id')}, ServisID: {kuyruk.get('servis_id')}")
+        
+        result.append({
+            **kuyruk,
+            "bekleyen_sayisi": bekleyen,
+            "vip_bekleyen_sayisi": 0
+        })
+        
+    print(f"DEBUG: Dönen toplam sonuç: {len(result)}")
     return result
 
 

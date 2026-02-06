@@ -142,7 +142,7 @@
         // Çağrıları yükle
         async function cagrilariGuncelle() {
             try {
-                const data = await apiCall(`/tv/son-cagrilar/${FIRMA_ID}?limit=5`);
+                const data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=5`);
 
                 const container = document.getElementById('cagrilar');
 
@@ -161,9 +161,9 @@
                         <div class="cagri-item" style="animation-delay: ${index * 0.1}s;">
                             <div class="cagri-numara">${cagri.numara}</div>
                             <div class="cagri-detay">
-                                <div class="cagri-departman">${cagri.departman}</div>
-                                ${cagri.oda_no ?
-                            `<div class="cagri-oda">📍 Oda ${cagri.oda_no}</div>` :
+                                <div class="cagri-departman">${cagri.servis}</div>
+                                ${cagri.konum ?
+                            `<div class="cagri-oda">📍 ${cagri.konum}</div>` :
                             ''}
                             </div>
                         </div>

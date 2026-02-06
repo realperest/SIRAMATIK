@@ -4,12 +4,20 @@ const API_URL = 'http://localhost:8000/api';
 
 // API çağrısı yardımcı fonksiyonu
 async function apiCall(endpoint, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+
+    // Token varsa ekle
+    const token = localStorage.getItem('token');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
         const response = await fetch(`${API_URL}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
+            headers: headers,
             ...options
         });
 
@@ -38,7 +46,7 @@ function showToast(message, type = 'success') {
     toast.textContent = message;
     toast.style.cssText = `
         position: fixed;
-        top: 20px;
+        bottom: 20px;
         right: 20px;
         padding: 15px 25px;
         background: ${type === 'success' ? '#4CAF50' : '#f44336'};

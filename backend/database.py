@@ -42,7 +42,10 @@ class Database:
             # SELECT sorguları için sonuçları döndür
             if result.returns_rows:
                 columns = result.keys()
-                return [dict(zip(columns, row)) for row in result.fetchall()]
+                print(f"DEBUG SQL KEYS: {columns}") # LOG
+                data = [dict(zip(columns, row)) for row in result.fetchall()]
+                session.commit() # RETURNING kullanan INSERT/UPDATE için commit şart!
+                return data
             
             session.commit()
             return []
@@ -159,6 +162,14 @@ class Database:
         )
         return result[0] if result else None
     
+    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """ID ile kullanıcı bul"""
+        result = self.execute_query(
+            "SELECT * FROM kullanicilar WHERE id = :user_id",
+            {"user_id": user_id}
+        )
+        return result[0] if result else None
+    
     def create_user(self, email: str, ad_soyad: str, sifre_hash: str, 
                     firma_id: str, rol: str = 'staff') -> Dict:
         """Yeni kullanıcı oluştur"""
@@ -187,10 +198,32 @@ class Database:
             JOIN servisler sv ON s.servis_id = sv.id
             WHERE s.firma_id = :firma_id 
             AND s.durum IN ('calling', 'serving')
+            AND s.cagirilma > (NOW() - INTERVAL '30 seconds')
             ORDER BY s.cagirilma DESC
             LIMIT :limit
         """, {"firma_id": firma_id, "limit": limit})
 
+
+    def get_tum_bekleyen_siralar(self, firma_id: str) -> List[Dict]:
+        """Firmaya ait tüm bekleyen sıraları getir"""
+        return self.execute_query("""
+            SELECT s.* 
+            FROM siralar s
+            JOIN kuyruklar k ON s.kuyruk_id = k.id
+            JOIN servisler sv ON k.servis_id = sv.id
+            WHERE sv.firma_id = :firma_id 
+            AND s.durum = 'waiting'
+            ORDER BY s.oncelik DESC, s.olusturulma ASC
+        """, {"firma_id": firma_id})
+        
+    def get_kuyruklar_by_firma(self, firma_id: str) -> List[Dict]:
+        """Firmaya ait tüm kuyrukları getir"""
+        return self.execute_query("""
+            SELECT k.*, sv.id as servis_id, sv.ad as servis_ad
+            FROM kuyruklar k
+            JOIN servisler sv ON k.servis_id = sv.id
+            WHERE sv.firma_id = :firma_id
+        """, {"firma_id": firma_id})
 
 # Global database instance
 db = Database()

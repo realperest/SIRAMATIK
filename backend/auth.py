@@ -7,25 +7,35 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from config import settings
 from database import db
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT Bearer token
 security = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Şifreyi doğrula"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Şifreyi doğrula (bcrypt)"""
+    try:
+        if isinstance(plain_password, str):
+            plain_password = plain_password.encode('utf-8')
+        if isinstance(hashed_password, str):
+            hashed_password = hashed_password.encode('utf-8')
+            
+        return bcrypt.checkpw(plain_password, hashed_password)
+    except Exception as e:
+        print(f"Auth error: {e}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Şifreyi hashle"""
-    return pwd_context.hash(password)
+    """Şifreyi hashle (bcrypt)"""
+    if isinstance(password, str):
+        password = password.encode('utf-8')
+    
+    hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+    return hashed.decode('utf-8')
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -47,7 +57,8 @@ def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
-    except JWTError:
+    except JWTError as e:
+        print(f"DEBUG: JWT Hatası: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token geçersiz veya süresi dolmuş",
@@ -61,14 +72,19 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     payload = decode_token(token)
     
     kullanici_id: str = payload.get("sub")
+    print(f"DEBUG: Token ID: {kullanici_id}, Tipi: {type(kullanici_id)}")
+    
     if kullanici_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Kullanıcı bilgisi bulunamadı"
         )
     
-    kullanici = db.get_kullanici(kullanici_id)
+    kullanici = db.get_user_by_id(kullanici_id)
+    print(f"DEBUG: Kullanıcı Bulundu mu?: {kullanici is not None}")
+    
     if kullanici is None:
+        print(f"DEBUG: Kullanıcı bulunamadı ID: {kullanici_id}") # Ekstra log
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Kullanıcı bulunamadı"
@@ -79,7 +95,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 async def get_current_active_user(current_user: dict = Depends(get_current_user)):
     """Aktif kullanıcıyı getir"""
-    if not current_user.get("aktif"):
+    # Veritabanında aktif kolonu yoksa varsayılan True kabul edelim
+    if not current_user.get("aktif", True):
         raise HTTPException(status_code=400, detail="Kullanıcı aktif değil")
     return current_user
 

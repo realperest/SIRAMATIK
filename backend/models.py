@@ -2,9 +2,10 @@
 Sıramatik - Pydantic Modeller
 Request/Response şemaları - Kuyruk Sistemi + VIP
 """
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
+import uuid
 
 
 # --- AUTH MODELS ---
@@ -30,12 +31,13 @@ class SiraAlRequest(BaseModel):
 
 
 class SiraAlResponse(BaseModel):
-    sira_id: str
+    sira_id: str | uuid.UUID
     numara: str
+    tarih: datetime
     kuyruk_ad: str
-    servis_ad: str
-    oncelik: int
-    tahmini_bekleme_dk: Optional[int] = None
+    kuyruk_kod: str
+    bekleyen_sayisi: int
+    tahmini_sure_dk: Optional[int] = None
     mesaj: str
 
 
@@ -45,7 +47,7 @@ class SiraCagirRequest(BaseModel):
 
 
 class SiraResponse(BaseModel):
-    id: str
+    id: str | uuid.UUID
     numara: str
     durum: str
     oncelik: int
@@ -56,7 +58,8 @@ class SiraResponse(BaseModel):
 # --- KUYRUK MODELS ---
 
 class KuyrukResponse(BaseModel):
-    id: str
+    id: str | uuid.UUID
+    servis_id: str | uuid.UUID # EKLENDİ
     ad: str
     kod: str
     aciklama: Optional[str] = None
@@ -64,19 +67,17 @@ class KuyrukResponse(BaseModel):
     bekleyen_sayisi: Optional[int] = 0
     vip_bekleyen_sayisi: Optional[int] = 0
 
-
 class KuyrukCreateRequest(BaseModel):
     servis_id: str
     ad: str
     kod: str
-    aciklama: Optional[str] = None
     oncelik: int = 0
 
 
 # --- SERVIS MODELS ---
 
 class ServisResponse(BaseModel):
-    id: str
+    id: str | uuid.UUID
     ad: str
     kod: str
     aciklama: Optional[str] = None
@@ -98,7 +99,9 @@ class EkranCagriResponse(BaseModel):
     servis: str
     konum: Optional[str] = None
     oncelik: int
-    cagirilma: datetime
+    cagirilma: Optional[datetime] = None  # Boş olabilir
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- İSTATİSTİK MODELS ---

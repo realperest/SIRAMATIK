@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doktor Paneli - Sıramatik</title>
+    <title>Hizmet Veren Paneli - Sıramatik</title>
     <link rel="stylesheet" href="static/style.css">
     <style>
         body {
@@ -166,11 +166,11 @@
     <!-- Login Formu -->
     <div id="login-screen">
         <div class="login-form">
-            <h2>🏥 Doktor Girişi</h2>
+            <h2>🔐 Personel Girişi</h2>
             <form id="login-form">
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" id="email" required value="dr.ahmet@demo.com">
+                    <input type="email" id="email" required value="admin@demo.com">
                 </div>
                 <div class="form-group">
                     <label>Şifre</label>
@@ -181,7 +181,7 @@
                 </button>
             </form>
             <p style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 14px;">
-                Demo: dr.ahmet@demo.com / admin123
+                Demo: admin@demo.com / admin123
             </p>
         </div>
     </div>
@@ -189,17 +189,21 @@
     <!-- Ana Panel -->
     <div id="main-panel" style="display: none;">
         <div class="header">
-            <h1>👨‍⚕️ Doktor Paneli</h1>
-            <div class="user-info">
-                <div class="name" id="user-name"></div>
-                <div class="role" id="user-role"></div>
+            <h1>🧑‍💼 Hizmet Veren Paneli</h1>
+            <div class="user-info" style="display: flex; align-items: center; gap: 15px;">
+                <div>
+                    <div class="name" id="user-name"></div>
+                    <div class="role" id="user-role"></div>
+                </div>
+                <button onclick="logout()" class="btn"
+                    style="background: #e74c3c; color: white; padding: 5px 15px; font-size: 14px;">Çıkış</button>
             </div>
         </div>
 
         <div class="stats">
             <div class="stat-card">
                 <div class="number" id="stat-bekleyen">0</div>
-                <div class="label">Bekleyen Hasta</div>
+                <div class="label">Bekleyen İşlem</div>
             </div>
             <div class="stat-card">
                 <div class="number" id="stat-bugun">0</div>
@@ -208,7 +212,7 @@
         </div>
 
         <div class="sira-listesi">
-            <h2 style="margin-bottom: 20px;">Bekleyen Hastalar</h2>
+            <h2 style="margin-bottom: 20px;">Bekleyen Sıralar</h2>
             <div id="sira-liste-container"></div>
         </div>
     </div>
@@ -217,7 +221,12 @@
     <script>
         let currentUser = null;
         let token = null;
-        const DEPARTMAN_ID = ''; // Giriş yapınca set edilecek
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.reload();
+        }
 
         // Login
         document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -262,28 +271,28 @@
 
         // Sıraları yükle
         async function siralariYukle() {
-            // Demo için Kardiyoloji departmanı
-            const departmanId = ''; // Gerçekte kullanıcının departmanından gelecek
-
             try {
-                // Basitleştirilmiş: Tüm bekleyen sıraları göster
-                const siralar = []; // await apiCall ile gerçek veri gelecek
+                // Bekleyen sıralar
+                const siralar = await apiCall(`/sira/bekleyen/${currentUser.firma_id}`);
+                console.log('Backendden gelen veriler:', siralar); // LOG
 
                 const container = document.getElementById('sira-liste-container');
+
+                // ... (Liste oluşturma kodu aynı)
 
                 if (siralar.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="icon">✅</div>
-                            <h3>Bekleyen hasta yok</h3>
-                            <p>Tüm hastalar muayene edildi</p>
+                            <h3>Bekleyen işlem yok</h3>
+                            <p>Tüm sıralar tamamlandı</p>
                         </div>
                     `;
                 } else {
                     container.innerHTML = siralar.map(sira => `
                         <div class="sira-item slide-in">
                             <div class="sira-info">
-                                <div class="numara">${sira.numara}</div>
+                                <div class="numara" style="color: black !important;">${sira.numara || 'HATA'}</div>
                                 <div class="zaman">${formatTarih(sira.olusturulma)}</div>
                             </div>
                             <div class="sira-actions">
@@ -298,35 +307,39 @@
                 document.getElementById('stat-bekleyen').textContent = siralar.length;
 
             } catch (error) {
-                showToast('Sıralar yüklenemedi: ' + error.message, 'error');
+                if (error.message.includes('Not authenticated') || error.message.includes('401')) {
+                    showToast('Oturum süresi doldu, tekrar giriş yapılıyor...', 'warning');
+                    setTimeout(logout, 1500);
+                } else {
+                    showToast('Sıralar yüklenemedi: ' + error.message, 'error');
+                }
             }
         }
 
         // Hasta çağır
         async function hastaCagir(siraId, numara) {
-            const odaNo = prompt('Oda numarası (opsiyonel):');
+            const odaNo = prompt('Lütfen masa/gişe/oda numaranızı giriniz:');
 
             try {
                 showLoading(true);
 
                 await apiCall(`/sira/cagir/${siraId}`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    },
                     body: JSON.stringify({
                         kullanici_id: currentUser.id,
-                        oda_no: odaNo || null
+                        konum: odaNo || null // Backend 'konum' bekliyor
                     })
                 });
 
                 showLoading(false);
-                showToast(`${numara} numaralı hasta çağrıldı!`, 'success');
+                showToast(`${numara} numaralı sıra çağrıldı!`, 'success');
                 siralariYukle();
 
             } catch (error) {
+                console.error(error);
                 showLoading(false);
-                showToast('Çağrı başarısız: ' + error.message, 'error');
+                const msg = error.message || JSON.stringify(error);
+                showToast('Çağrı başarısız: ' + msg, 'error');
             }
         }
 

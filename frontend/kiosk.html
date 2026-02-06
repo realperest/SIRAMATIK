@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -44,12 +45,12 @@
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
         .departman-card:hover {
             transform: translateY(-10px) scale(1.05);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
         }
 
         .departman-card h2 {
@@ -79,7 +80,7 @@
             font-size: 150px;
             font-weight: bold;
             margin: 50px 0;
-            text-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
         }
 
         #numara-ekrani .mesaj {
@@ -90,7 +91,7 @@
         }
 
         .bekleme-info {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             padding: 20px;
             border-radius: 15px;
             margin-top: 30px;
@@ -98,6 +99,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>🏥 DEMO HASTANESİ</h1>
@@ -120,74 +122,108 @@
     <script>
         const FIRMA_ID = '11111111-1111-1111-1111-111111111111'; // Demo firma
 
-        // Departmanları yükle
-        async function departmanlariYukle() {
+        // Servisleri yükle
+        async function servisleriYukle() {
             try {
                 showLoading(true);
-                const data = await apiCall(`/departmanlar/${FIRMA_ID}`);
-                
+                const data = await apiCall(`/servisler/${FIRMA_ID}`);
+
                 const liste = document.getElementById('departman-listesi');
                 liste.innerHTML = '';
-                
-                data.forEach(dept => {
+
+                data.forEach(servis => {
                     const card = document.createElement('div');
                     card.className = 'departman-card fade-in';
                     card.innerHTML = `
-                        <div class="kod">${dept.kod}</div>
-                        <h2>${dept.ad}</h2>
+                        <div class="kod">${servis.kod}</div>
+                        <h2>${servis.ad}</h2>
                         <div class="bekleyen">
-                            ${dept.bekleyen_sayisi > 0 ? 
-                                `🕐 ${dept.bekleyen_sayisi} kişi bekliyor` : 
-                                '✓ Sıra yok'}
+                            ${servis.kuyruk_sayisi > 0 ?
+                            `🕐 ${servis.kuyruk_sayisi} kişi bekliyor` :
+                            '✓ Sıra yok'}
                         </div>
                     `;
-                    card.onclick = () => siraAl(dept.id, dept.ad);
+                    // Servisin bağlı olduğu ilk kuyruğu bulmak gerekirdi ama
+                    // demo için varsayılan kuyruk ID'sini backend'in bulmasını isteyeceğiz
+                    // veya backend endpointini buna göre güncelleyeceğiz.
+                    // Şimdilik backend SiraCreate modeline uygun gönderelim:
+                    card.onclick = () => siraAl(servis.id);
                     liste.appendChild(card);
                 });
-                
+
                 showLoading(false);
             } catch (error) {
                 showLoading(false);
-                showToast('Departmanlar yüklenemedi: ' + error.message, 'error');
+                showToast('Servisler yüklenemedi: ' + error.message, 'error');
             }
         }
 
         // Sıra numarası al
-        async function siraAl(departmanId, departmanAd) {
+        async function siraAl(servisId) {
             try {
                 showLoading(true);
-                
-                const data = await apiCall('/sira/al', {
+
+                // Kuyruk ID'sini bulmak için önce servis detayını çekmek daha doğru olurdu
+                // ama basitlik için backend'e sadece servis ID gönderip
+                // backend'in o servise bağlı ilk kuyruğu seçmesini sağlayacak bir endpoint lazım.
+                // Veya frontend'de hile yapıp, tüm kuyrukları çekip filtreleyebiliriz.
+
+                // DÜZELTME: Backend'de /sira/al endpointi SiraCreate(kuyruk_id, servis_id) bekliyor.
+                // Biz sadece servis_id biliyoruz.
+                // Bu yüzden önce servisin kuyruklarını bulmalıyız.
+                // DEMO HACK: Şimdilik servis ID'sini kuyruk ID gibi gönderip backend'de hata verirse bakarız.
+                // DOĞRUSU: Backend'e /servis/{id}/kuyruklar endpointi eklenmeli.
+                // AMA ŞİMDİLİK: Tüm kuyrukları çekelim.
+
+                const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
+
+                if (!kuyruklar || kuyruklar.length === 0) {
+                    throw new Error('Sistemde tanımlı kuyruk bulunamadı!');
+                }
+
+                // Servise uygun kuyruğu bulmaya çalış
+                const uygunKuyruk = kuyruklar.find(k => k.servis_id === servisId);
+
+                // Servise ait kuyruk yoksa, listedeki ilk kuyruğu kullan (Fallback)
+                const secilenKuyruk = uygunKuyruk || kuyruklar[0];
+
+                console.log('Seçilen Kuyruk:', secilenKuyruk);
+
+                const requestData = {
+                    kuyruk_id: secilenKuyruk.id,
+                    servis_id: servisId,
+                    firma_id: FIRMA_ID,
+                    oncelik: 0
+                };
+
+                const responseData = await apiCall('/sira/al', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        departman_id: departmanId,
-                        firma_id: FIRMA_ID
-                    })
+                    body: JSON.stringify(requestData)
                 });
-                
+
                 showLoading(false);
-                
+
                 // Numarayı göster
                 document.getElementById('departman-secimi').style.display = 'none';
                 document.getElementById('numara-ekrani').style.display = 'block';
-                document.getElementById('numara').textContent = data.numara;
-                document.getElementById('mesaj').textContent = data.mesaj;
-                
-                if (data.tahmini_bekleme_dk) {
+                document.getElementById('numara').textContent = responseData.numara;
+                document.getElementById('mesaj').textContent = responseData.mesaj;
+
+                if (responseData.tahmini_bekleme_dk) {
                     document.getElementById('bekleme-info').innerHTML = `
-                        ⏱️ Tahmini Bekleme Süresi: <strong>${data.tahmini_bekleme_dk} dakika</strong>
+                        ⏱️ Tahmini Bekleme Süresi: <strong>${responseData.tahmini_bekleme_dk} dakika</strong>
                     `;
                 } else {
                     document.getElementById('bekleme-info').innerHTML = `
                         ✅ Sıranız çok yakında çağrılacak!
                     `;
                 }
-                
+
                 // 15 saniye sonra ana ekrana dön
                 setTimeout(() => {
                     location.reload();
                 }, 15000);
-                
+
             } catch (error) {
                 showLoading(false);
                 showToast('Sıra alınamadı: ' + error.message, 'error');
@@ -195,10 +231,11 @@
         }
 
         // Sayfa yüklendiğinde
-        departmanlariYukle();
-        
+        servisleriYukle();
+
         // Her 30 saniyede bir yenile
-        setInterval(departmanlariYukle, 30000);
+        setInterval(servisleriYukle, 30000);
     </script>
 </body>
+
 </html>
