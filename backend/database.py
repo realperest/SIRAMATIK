@@ -1,0 +1,196 @@
+"""
+Sıramatik - Veritabanı Bağlantısı
+SQLAlchemy ile Siramatik Schema Desteği
+YAPLUS yönteminden esinlenildi
+"""
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
+from typing import Optional, List, Dict, Any
+import os
+from dotenv import load_dotenv
+
+# .env dosyasını yükle
+load_dotenv()
+
+# Supabase bağlantı bilgileri
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+# SQLAlchemy için PostgreSQL bağlantı URL'i
+# YAPLUS yöntemi: aws-1 pooler + search_path
+DB_URL = "postgresql://postgres.wyursjdrnnjabpfeucyi:qk4SEnyhu3NUk2@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
+
+# Engine oluştur - search_path ile siramatik schema'yı belirt
+connect_args = {"options": "-c search_path=siramatik,public"}
+engine = create_engine(DB_URL, echo=False, connect_args=connect_args)
+
+
+class Database:
+    """Veritabanı yöneticisi - SQLAlchemy ile siramatik schema"""
+    
+    def __init__(self):
+        self.engine = engine
+    
+    def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
+        """SQL sorgusu çalıştır"""
+        with Session(self.engine) as session:
+            # Her session'da search_path'i garantile
+            session.execute(text("SET search_path TO siramatik, public;"))
+            
+            result = session.execute(text(query), params or {})
+            
+            # SELECT sorguları için sonuçları döndür
+            if result.returns_rows:
+                columns = result.keys()
+                return [dict(zip(columns, row)) for row in result.fetchall()]
+            
+            session.commit()
+            return []
+    
+    # --- FİRMALAR ---
+    
+    def get_firma(self, firma_id: str) -> Optional[Dict]:
+        """Firma bilgisini getir"""
+        result = self.execute_query(
+            "SELECT * FROM firmalar WHERE id = :firma_id",
+            {"firma_id": firma_id}
+        )
+        return result[0] if result else None
+    
+    def get_all_firmalar(self) -> List[Dict]:
+        """Tüm firmaları getir"""
+        return self.execute_query("SELECT * FROM firmalar WHERE aktif = true ORDER BY ad")
+    
+    # --- SERVİSLER ---
+    
+    def get_servisler(self, firma_id: str) -> List[Dict]:
+        """Firmaya ait servisleri getir"""
+        return self.execute_query(
+            "SELECT * FROM servisler WHERE firma_id = :firma_id AND aktif = true ORDER BY ad",
+            {"firma_id": firma_id}
+        )
+    
+    def get_servis(self, servis_id: str) -> Optional[Dict]:
+        """Servis bilgisini getir"""
+        result = self.execute_query(
+            "SELECT * FROM servisler WHERE id = :servis_id",
+            {"servis_id": servis_id}
+        )
+        return result[0] if result else None
+    
+    # --- KUYRUKLAR ---
+    
+    def get_kuyruklar(self, servis_id: str) -> List[Dict]:
+        """Servise ait kuyrukları getir"""
+        return self.execute_query(
+            "SELECT * FROM kuyruklar WHERE servis_id = :servis_id AND aktif = true ORDER BY kod",
+            {"servis_id": servis_id}
+        )
+    
+    def get_kuyruk(self, kuyruk_id: str) -> Optional[Dict]:
+        """Kuyruk bilgisini getir"""
+        result = self.execute_query(
+            "SELECT * FROM kuyruklar WHERE id = :kuyruk_id",
+            {"kuyruk_id": kuyruk_id}
+        )
+        return result[0] if result else None
+    
+    # --- SIRALAR ---
+    
+    def create_sira(self, kuyruk_id: str, servis_id: str, firma_id: str, 
+                    oncelik: int = 0, notlar: str = None) -> Dict:
+        """Yeni sıra oluştur"""
+        result = self.execute_query("""
+            INSERT INTO siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara)
+            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, 
+                    yeni_sira_numarasi(:kuyruk_id, :oncelik))
+            RETURNING *
+        """, {
+            "kuyruk_id": kuyruk_id,
+            "servis_id": servis_id,
+            "firma_id": firma_id,
+            "oncelik": oncelik,
+            "notlar": notlar
+        })
+        return result[0] if result else None
+    
+    def get_bekleyen_siralar(self, kuyruk_id: str) -> List[Dict]:
+        """Bekleyen sıraları getir (öncelik sırasına göre)"""
+        return self.execute_query("""
+            SELECT * FROM siralar 
+            WHERE kuyruk_id = :kuyruk_id AND durum = 'waiting'
+            ORDER BY oncelik DESC, olusturulma ASC
+        """, {"kuyruk_id": kuyruk_id})
+    
+    def cagir_sira(self, sira_id: str, kullanici_id: str, konum: str = None) -> Dict:
+        """Sırayı çağır"""
+        result = self.execute_query("""
+            UPDATE siralar 
+            SET durum = 'calling', 
+                cagiran_kullanici_id = :kullanici_id,
+                konum = :konum,
+                cagirilma = NOW()
+            WHERE id = :sira_id
+            RETURNING *
+        """, {
+            "sira_id": sira_id,
+            "kullanici_id": kullanici_id,
+            "konum": konum
+        })
+        return result[0] if result else None
+    
+    def tamamla_sira(self, sira_id: str) -> Dict:
+        """Sırayı tamamla"""
+        result = self.execute_query("""
+            UPDATE siralar 
+            SET durum = 'completed', tamamlanma = NOW()
+            WHERE id = :sira_id
+            RETURNING *
+        """, {"sira_id": sira_id})
+        return result[0] if result else None
+    
+    # --- KULLANICILAR ---
+    
+    def get_user_by_email(self, email: str) -> Optional[Dict]:
+        """Email ile kullanıcı bul"""
+        result = self.execute_query(
+            "SELECT * FROM kullanicilar WHERE email = :email",
+            {"email": email}
+        )
+        return result[0] if result else None
+    
+    def create_user(self, email: str, ad_soyad: str, sifre_hash: str, 
+                    firma_id: str, rol: str = 'staff') -> Dict:
+        """Yeni kullanıcı oluştur"""
+        result = self.execute_query("""
+            INSERT INTO kullanicilar (email, ad_soyad, sifre_hash, firma_id, rol)
+            VALUES (:email, :ad_soyad, :sifre_hash, :firma_id, :rol)
+            RETURNING *
+        """, {
+            "email": email,
+            "ad_soyad": ad_soyad,
+            "sifre_hash": sifre_hash,
+            "firma_id": firma_id,
+            "rol": rol
+        })
+        return result[0] if result else None
+    
+    # --- EKRAN ---
+    
+    def get_son_cagrilar(self, firma_id: str, limit: int = 5) -> List[Dict]:
+        """Son çağrılan sıraları getir (ekran için)"""
+        return self.execute_query("""
+            SELECT s.*, k.ad as kuyruk_ad, k.kod as kuyruk_kod,
+                   sv.ad as servis_ad
+            FROM siralar s
+            JOIN kuyruklar k ON s.kuyruk_id = k.id
+            JOIN servisler sv ON s.servis_id = sv.id
+            WHERE s.firma_id = :firma_id 
+            AND s.durum IN ('calling', 'serving')
+            ORDER BY s.cagirilma DESC
+            LIMIT :limit
+        """, {"firma_id": firma_id, "limit": limit})
+
+
+# Global database instance
+db = Database()

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Ekranı - Sıramatik</title>
+    <link rel="stylesheet" href="static/style.css">
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a2e;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin: 0;
+        }
+
+        .header .subtitle {
+            font-size: 24px;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+
+        .cagri-listesi {
+            padding: 40px;
+        }
+
+        .cagri-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            margin: 25px 0;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .cagri-numara {
+            font-size: 96px;
+            font-weight: bold;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .cagri-detay {
+            text-align: right;
+        }
+
+        .cagri-departman {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        .cagri-oda {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .zaman {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            font-size: 32px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 100px 20px;
+            font-size: 36px;
+            color: #7f8c8d;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .cagri-item:first-child {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="zaman" id="saat"></div>
+
+    <div class="header">
+        <h1>🏥 DEMO HASTANESİ</h1>
+        <div class="subtitle">Sıra Çağrı Sistemi</div>
+    </div>
+
+    <div class="cagri-listesi" id="cagrilar"></div>
+
+    <script src="static/app.js"></script>
+    <script>
+        const FIRMA_ID = '11111111-1111-1111-1111-111111111111';
+
+        // Saati güncelle
+        function saatGuncelle() {
+            const now = new Date();
+            document.getElementById('saat').textContent = now.toLocaleTimeString('tr-TR');
+        }
+        setInterval(saatGuncelle, 1000);
+        saatGuncelle();
+
+        // Çağrıları yükle
+        async function cagrilariGuncelle() {
+            try {
+                const data = await apiCall(`/tv/son-cagrilar/${FIRMA_ID}?limit=5`);
+
+                const container = document.getElementById('cagrilar');
+
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div style="font-size: 96px; margin-bottom: 30px;">⏳</div>
+                            <div>Henüz çağrı yapılmadı</div>
+                            <div style="font-size: 24px; margin-top: 20px; opacity: 0.7;">
+                                Lütfen bekleyiniz...
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = data.map((cagri, index) => `
+                        <div class="cagri-item" style="animation-delay: ${index * 0.1}s;">
+                            <div class="cagri-numara">${cagri.numara}</div>
+                            <div class="cagri-detay">
+                                <div class="cagri-departman">${cagri.departman}</div>
+                                ${cagri.oda_no ?
+                            `<div class="cagri-oda">📍 Oda ${cagri.oda_no}</div>` :
+                            ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+            } catch (error) {
+                console.error('Çağrılar yüklenemedi:', error);
+            }
+        }
+
+        // İlk yükleme
+        cagrilariGuncelle();
+
+        // Her 2 saniyede bir güncelle
+        setInterval(cagrilariGuncelle, 2000);
+    </script>
+</body>
+
+</html>

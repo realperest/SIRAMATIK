@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sıra Numarası Al - Sıramatik</title>
+    <link rel="stylesheet" href="static/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 24px;
+            opacity: 0.9;
+        }
+
+        .departman-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .departman-card {
+            background: white;
+            color: #667eea;
+            padding: 40px 30px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .departman-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .departman-card h2 {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .departman-card .kod {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #764ba2;
+        }
+
+        .departman-card .bekleyen {
+            font-size: 18px;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        #numara-ekrani {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        #numara-ekrani .numara {
+            font-size: 150px;
+            font-weight: bold;
+            margin: 50px 0;
+            text-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        #numara-ekrani .mesaj {
+            font-size: 28px;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .bekleme-info {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 30px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏥 DEMO HASTANESİ</h1>
+        <p>Sıra Numarası Alma Sistemi</p>
+    </div>
+
+    <div id="departman-secimi">
+        <h2 style="font-size: 36px; margin-bottom: 40px;">Hangi Bölüme Gideceksiniz?</h2>
+        <div class="departman-grid" id="departman-listesi"></div>
+    </div>
+
+    <div id="numara-ekrani">
+        <h2 style="font-size: 42px;">Sıra Numaranız</h2>
+        <div class="numara" id="numara"></div>
+        <div class="mesaj" id="mesaj"></div>
+        <div class="bekleme-info" id="bekleme-info"></div>
+    </div>
+
+    <script src="static/app.js"></script>
+    <script>
+        const FIRMA_ID = '11111111-1111-1111-1111-111111111111'; // Demo firma
+
+        // Departmanları yükle
+        async function departmanlariYukle() {
+            try {
+                showLoading(true);
+                const data = await apiCall(`/departmanlar/${FIRMA_ID}`);
+                
+                const liste = document.getElementById('departman-listesi');
+                liste.innerHTML = '';
+                
+                data.forEach(dept => {
+                    const card = document.createElement('div');
+                    card.className = 'departman-card fade-in';
+                    card.innerHTML = `
+                        <div class="kod">${dept.kod}</div>
+                        <h2>${dept.ad}</h2>
+                        <div class="bekleyen">
+                            ${dept.bekleyen_sayisi > 0 ? 
+                                `🕐 ${dept.bekleyen_sayisi} kişi bekliyor` : 
+                                '✓ Sıra yok'}
+                        </div>
+                    `;
+                    card.onclick = () => siraAl(dept.id, dept.ad);
+                    liste.appendChild(card);
+                });
+                
+                showLoading(false);
+            } catch (error) {
+                showLoading(false);
+                showToast('Departmanlar yüklenemedi: ' + error.message, 'error');
+            }
+        }
+
+        // Sıra numarası al
+        async function siraAl(departmanId, departmanAd) {
+            try {
+                showLoading(true);
+                
+                const data = await apiCall('/sira/al', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        departman_id: departmanId,
+                        firma_id: FIRMA_ID
+                    })
+                });
+                
+                showLoading(false);
+                
+                // Numarayı göster
+                document.getElementById('departman-secimi').style.display = 'none';
+                document.getElementById('numara-ekrani').style.display = 'block';
+                document.getElementById('numara').textContent = data.numara;
+                document.getElementById('mesaj').textContent = data.mesaj;
+                
+                if (data.tahmini_bekleme_dk) {
+                    document.getElementById('bekleme-info').innerHTML = `
+                        ⏱️ Tahmini Bekleme Süresi: <strong>${data.tahmini_bekleme_dk} dakika</strong>
+                    `;
+                } else {
+                    document.getElementById('bekleme-info').innerHTML = `
+                        ✅ Sıranız çok yakında çağrılacak!
+                    `;
+                }
+                
+                // 15 saniye sonra ana ekrana dön
+                setTimeout(() => {
+                    location.reload();
+                }, 15000);
+                
+            } catch (error) {
+                showLoading(false);
+                showToast('Sıra alınamadı: ' + error.message, 'error');
+            }
+        }
+
+        // Sayfa yüklendiğinde
+        departmanlariYukle();
+        
+        // Her 30 saniyede bir yenile
+        setInterval(departmanlariYukle, 30000);
+    </script>
+</body>
+</html>
