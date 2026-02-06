@@ -5,7 +5,7 @@
 -- ============================================
 
 -- 1. Otomatik sıra numarası üretme (kuyruk bazlı)
-CREATE OR REPLACE FUNCTION siramatik.yeni_sira_numarasi(p_kuyruk_id UUID, p_oncelik INT DEFAULT 0)
+CREATE OR REPLACE FUNCTION siramatik.yeni_sira_numarasi(p_kuyruk_id INTEGER, p_oncelik INT DEFAULT 0)
 RETURNS VARCHAR AS $$
 DECLARE
     kuyruk_kodu VARCHAR(10);
@@ -45,7 +45,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION siramatik.yeni_sira_numarasi IS 'Kuyruk için otomatik sıra numarası üretir. Öncelikli sıralar VIP öneki alır.';
 
 -- 2. Bekleyen sıra sayısını getir (önceliğe göre)
-CREATE OR REPLACE FUNCTION siramatik.bekleyen_sira_sayisi(p_kuyruk_id UUID, p_oncelik INT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION siramatik.bekleyen_sira_sayisi(p_kuyruk_id INTEGER, p_oncelik INT DEFAULT NULL)
 RETURNS INT AS $$
 BEGIN
     IF p_oncelik IS NULL THEN
@@ -72,9 +72,9 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION siramatik.bekleyen_sira_sayisi IS 'Kuyruktaki bekleyen sayısını döndürür. Öncelik belirtilirse sadece o önceliği sayar.';
 
 -- 3. Sıradaki kişiyi getir (öncelik sırasına göre)
-CREATE OR REPLACE FUNCTION siramatik.siradaki_kisi(p_kuyruk_id UUID)
+CREATE OR REPLACE FUNCTION siramatik.siradaki_kisi(p_kuyruk_id INTEGER)
 RETURNS TABLE (
-    sira_id UUID,
+    sira_id INTEGER,
     numara VARCHAR,
     oncelik INT,
     olusturulma TIMESTAMPTZ
@@ -99,7 +99,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION siramatik.siradaki_kisi IS 'Kuyruktaki sıradaki kişiyi getirir (öncelik > zaman sırası)';
 
 -- 4. Ortalama bekleme süresi (dakika)
-CREATE OR REPLACE FUNCTION siramatik.ortalama_bekleme_suresi(p_kuyruk_id UUID, p_gun_sayisi INT DEFAULT 7)
+CREATE OR REPLACE FUNCTION siramatik.ortalama_bekleme_suresi(p_kuyruk_id INTEGER, p_gun_sayisi INT DEFAULT 7)
 RETURNS INT AS $$
 DECLARE
     ort_saniye NUMERIC;
@@ -119,7 +119,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION siramatik.ortalama_bekleme_suresi IS 'Son N gündeki ortalama bekleme süresini dakika olarak döndürür';
 
 -- 5. Günlük kuyruk istatistikleri
-CREATE OR REPLACE FUNCTION siramatik.gunluk_istatistikler(p_firma_id UUID, p_tarih DATE DEFAULT CURRENT_DATE)
+CREATE OR REPLACE FUNCTION siramatik.gunluk_istatistikler(p_firma_id INTEGER, p_tarih DATE DEFAULT CURRENT_DATE)
 RETURNS TABLE (
     servis_ad VARCHAR,
     kuyruk_ad VARCHAR,

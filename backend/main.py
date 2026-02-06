@@ -22,9 +22,14 @@ from models import (
     SiraCagirRequest,
     SiraResponse,
     KuyrukResponse,
+    KuyrukCreateRequest,
     ServisResponse,
+    ServisCreateRequest,
     EkranCagriResponse,
-    IstatistikResponse
+    IstatistikResponse,
+    DeviceResponse,
+    DeviceUpdateRequest,
+    UserResponse
 )
 
 # FastAPI uygulaması
@@ -159,7 +164,7 @@ async def sira_al(request: SiraAlRequest):
 
 @app.get("/api/sira/bekleyenler/{kuyruk_id}", response_model=List[SiraResponse])
 async def bekleyen_siralar(
-    kuyruk_id: str,
+    kuyruk_id: int,
     current_user: dict = Depends(get_current_active_user)
 ):
     """
@@ -172,7 +177,7 @@ async def bekleyen_siralar(
 
 @app.get("/api/sira/bekleyen/{firma_id}", response_model=List[SiraResponse])
 async def bekleyen_siralar_by_firma(
-    firma_id: str,
+    firma_id: int,
     current_user: dict = Depends(get_current_active_user)
 ):
     """
@@ -185,7 +190,7 @@ async def bekleyen_siralar_by_firma(
 
 @app.post("/api/sira/cagir/{sira_id}")
 async def sira_cagir(
-    sira_id: str,
+    sira_id: int,
     request: SiraCagirRequest,
     current_user: dict = Depends(get_current_active_user)
 ):
@@ -210,7 +215,7 @@ async def sira_cagir(
 
 @app.post("/api/sira/tamamla/{sira_id}")
 async def sira_tamamla(
-    sira_id: str,
+    sira_id: int,
     current_user: dict = Depends(get_current_active_user)
 ):
     """
@@ -237,7 +242,7 @@ async def sira_tamamla(
 # ============================================
 
 @app.get("/api/kuyruklar/{servis_id}", response_model=List[KuyrukResponse])
-async def kuyruk_listele(servis_id: str):
+async def kuyruk_listele(servis_id: int):
     """
     Kiosk ekranında kuyruk seçimi için
     Public endpoint
@@ -259,7 +264,7 @@ async def kuyruk_listele(servis_id: str):
 
 
 @app.get("/api/kuyruklar/firma/{firma_id}", response_model=List[KuyrukResponse])
-async def kuyruk_listele_by_firma(firma_id: str):
+async def kuyruk_listele_by_firma(firma_id: int):
     """Firmaya ait tüm kuyrukları listele"""
     kuyruklar = db.get_kuyruklar_by_firma(firma_id)
     result = []
@@ -274,7 +279,7 @@ async def kuyruk_listele_by_firma(firma_id: str):
 
 
 @app.get("/api/kuyruklar/{id}", response_model=List[KuyrukResponse])
-async def kuyruk_listele_generic(id: str):
+async def kuyruk_listele_generic(id: int):
     print(f"DEBUG: Kuyruk isteği geldi. ID: {id}")
     
     # Önce servis ID mi diye bak
@@ -307,7 +312,7 @@ async def kuyruk_listele_generic(id: str):
 # ============================================
 
 @app.get("/api/servisler/{firma_id}", response_model=List[ServisResponse])
-async def servis_listele(firma_id: str):
+async def servis_listele(firma_id: int):
     """
     Firma servislerini listele
     Public endpoint
@@ -330,7 +335,7 @@ async def servis_listele(firma_id: str):
 # ============================================
 
 @app.get("/api/ekran/son-cagrilar/{firma_id}", response_model=List[EkranCagriResponse])
-async def ekran_son_cagrilar(firma_id: str, limit: int = 5):
+async def ekran_son_cagrilar(firma_id: int, limit: int = 5):
     """
     Ekranda son çağrılan numaraları göster
     Public endpoint
@@ -349,6 +354,101 @@ async def ekran_son_cagrilar(firma_id: str, limit: int = 5):
         })
     
     return result
+
+
+# ============================================
+# ADMIN ENDPOINTS
+# ============================================
+
+@app.get("/api/admin/stats/{firma_id}", response_model=IstatistikResponse)
+async def admin_stats(
+    firma_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Admin paneli için genel istatistikler"""
+    stats = db.get_firma_istatistikleri(firma_id)
+    return IstatistikResponse(
+        toplam_sira=stats.get("toplam_sira", 0),
+        vip_sira=stats.get("vip_sira", 0),
+        bekleyen=stats.get("bekleyen", 0),
+        cagirildi=stats.get("cagirildi", 0),
+        tamamlandi=stats.get("tamamlandi", 0)
+    )
+
+
+@app.get("/api/admin/cihazlar/{firma_id}", response_model=List[dict])
+async def admin_cihazlar(
+    firma_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Firmaya ait cihazları listele"""
+    return db.get_cihazlar(firma_id)
+
+
+@app.put("/api/admin/cihaz/{cihaz_id}")
+async def update_cihaz(
+    cihaz_id: int,
+    request: DeviceUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Cihaz bilgilerini güncelle (Bölüm/Hizmet ataması)"""
+    update_data = request.model_dump(exclude_unset=True)
+    cihaz = db.update_cihaz(cihaz_id, update_data)
+    
+    if not cihaz:
+        raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+        
+    return {"success": True, "cihaz": cihaz}
+
+
+# --- SERVIS CRUD ---
+
+@app.post("/api/admin/servis")
+async def create_servis(
+    request: ServisCreateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    return db.create_servis(request.firma_id, request.ad, request.kod, request.aciklama)
+
+@app.put("/api/admin/servis/{servis_id}")
+async def update_servis(
+    servis_id: int,
+    request: dict, # flexibility for partial updates
+    current_user: dict = Depends(get_current_active_user)
+):
+    return db.update_servis(servis_id, request)
+
+@app.delete("/api/admin/servis/{servis_id}")
+async def delete_servis(
+    servis_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    return db.delete_servis(servis_id)
+
+
+# --- KUYRUK CRUD ---
+
+@app.post("/api/admin/kuyruk")
+async def create_kuyruk(
+    request: KuyrukCreateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    return db.create_kuyruk(request.servis_id, request.ad, request.kod, request.oncelik)
+
+@app.put("/api/admin/kuyruk/{kuyruk_id}")
+async def update_kuyruk(
+    kuyruk_id: int,
+    request: dict,
+    current_user: dict = Depends(get_current_active_user)
+):
+    return db.update_kuyruk(kuyruk_id, request)
+
+@app.delete("/api/admin/kuyruk/{kuyruk_id}")
+async def delete_kuyruk(
+    kuyruk_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    return db.delete_kuyruk(kuyruk_id)
 
 
 # ============================================

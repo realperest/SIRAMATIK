@@ -1,8 +1,8 @@
-
 import requests
 import json
 
-URL = "http://localhost:8000/api/sira/bekleyen/11111111-1111-1111-1111-111111111111"
+FIRMA_ID = 1
+URL = f"http://localhost:8000/api/sira/bekleyen/{FIRMA_ID}"
 
 # Login önce (token için)
 LOGIN_URL = "http://localhost:8000/api/auth/login"

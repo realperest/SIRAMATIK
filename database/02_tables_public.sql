@@ -2,6 +2,9 @@
 -- SIRAMATIK TABLOLAR (INTEGER ID VERSIYONU)
 -- ============================================
 
+CREATE SCHEMA IF NOT EXISTS siramatik;
+SET search_path TO siramatik;
+
 -- 1. FİRMALAR
 CREATE TABLE firmalar (
     id SERIAL PRIMARY KEY, -- 1, 2, 3...
@@ -98,7 +101,7 @@ CREATE TABLE cihazlar (
     aktif BOOLEAN DEFAULT true,
     olusturulma TIMESTAMPTZ DEFAULT NOW(),
     
-    CONSTRAINT valid_tip CHECK (tip IN ('button', 'kiosk', 'screen1', 'screen2', 'tablet'))
+    CONSTRAINT valid_tip CHECK (tip IN ('button', 'kiosk', 'screen1', 'screen2', 'tablet', 'pc'))
 );
 
 -- 7. CİHAZ OLAYLARI

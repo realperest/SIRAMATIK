@@ -24,14 +24,14 @@ class TokenResponse(BaseModel):
 # --- SIRA MODELS ---
 
 class SiraAlRequest(BaseModel):
-    kuyruk_id: str
-    servis_id: str
-    firma_id: str
+    kuyruk_id: int
+    servis_id: int
+    firma_id: int
     oncelik: int = 0  # 0: Normal, 1-9: VIP
 
 
 class SiraAlResponse(BaseModel):
-    sira_id: str | uuid.UUID
+    sira_id: int
     numara: str
     tarih: datetime
     kuyruk_ad: str
@@ -42,12 +42,12 @@ class SiraAlResponse(BaseModel):
 
 
 class SiraCagirRequest(BaseModel):
-    kullanici_id: str
+    kullanici_id: int
     konum: Optional[str] = None  # Oda, gişe, masa no
 
 
 class SiraResponse(BaseModel):
-    id: str | uuid.UUID
+    id: int
     numara: str
     durum: str
     oncelik: int
@@ -58,8 +58,8 @@ class SiraResponse(BaseModel):
 # --- KUYRUK MODELS ---
 
 class KuyrukResponse(BaseModel):
-    id: str | uuid.UUID
-    servis_id: str | uuid.UUID # EKLENDİ
+    id: int
+    servis_id: int # EKLENDİ
     ad: str
     kod: str
     aciklama: Optional[str] = None
@@ -68,7 +68,7 @@ class KuyrukResponse(BaseModel):
     vip_bekleyen_sayisi: Optional[int] = 0
 
 class KuyrukCreateRequest(BaseModel):
-    servis_id: str
+    servis_id: int
     ad: str
     kod: str
     oncelik: int = 0
@@ -77,7 +77,7 @@ class KuyrukCreateRequest(BaseModel):
 # --- SERVIS MODELS ---
 
 class ServisResponse(BaseModel):
-    id: str | uuid.UUID
+    id: int
     ad: str
     kod: str
     aciklama: Optional[str] = None
@@ -85,7 +85,7 @@ class ServisResponse(BaseModel):
 
 
 class ServisCreateRequest(BaseModel):
-    firma_id: str
+    firma_id: int
     ad: str
     kod: str
     aciklama: Optional[str] = None
@@ -103,6 +103,37 @@ class EkranCagriResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# --- CİHAZ MODELS ---
+
+class DeviceResponse(BaseModel):
+    id: int
+    firma_id: int
+    servis_id: Optional[int] = None
+    kuyruk_id: Optional[int] = None
+    ad: str
+    mac_adresi: Optional[str] = None
+    tip: str  # 'button', 'kiosk', 'screen1', 'screen2', 'tablet', 'pc'
+    konum: Optional[str] = None
+    aktif: bool
+    son_gorunme: Optional[datetime] = None
+
+class DeviceUpdateRequest(BaseModel):
+    servis_id: Optional[int] = None
+    kuyruk_id: Optional[int] = None
+    ad: Optional[str] = None
+    konum: Optional[str] = None
+    aktif: Optional[bool] = None
+
+# --- KULLANICI MODELS ---
+
+class UserResponse(BaseModel):
+    id: int
+    firma_id: int
+    email: str
+    ad_soyad: str
+    rol: str
+    aktif: bool
 
 # --- İSTATİSTİK MODELS ---
 

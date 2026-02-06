@@ -4,7 +4,7 @@ import json
 import time
 
 API_URL = "http://localhost:8000/api"
-FIRMA_ID = "11111111-1111-1111-1111-111111111111"
+FIRMA_ID = 1
 
 def test_api():
     print("BACKEND API TEST EDİLİYOR...")

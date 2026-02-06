@@ -35,6 +35,22 @@ def reset_database():
             sql = f.read()
             cur.execute(sql)
             
+        print("Eski fonksiyonlar temizleniyor...")
+        cur.execute("""
+            DROP FUNCTION IF EXISTS siramatik.yeni_sira_numarasi(UUID, INT);
+            DROP FUNCTION IF EXISTS siramatik.bekleyen_sira_sayisi(UUID, INT);
+            DROP FUNCTION IF EXISTS siramatik.siradaki_kisi(UUID);
+            DROP FUNCTION IF EXISTS siramatik.ortalama_bekleme_suresi(UUID, INT);
+            DROP FUNCTION IF EXISTS siramatik.gunluk_istatistikler(UUID, DATE);
+            DROP FUNCTION IF EXISTS siramatik.eski_siralari_temizle(INT);
+            -- Yeni tiplerle de sil (temiz baslamak icin)
+            DROP FUNCTION IF EXISTS siramatik.yeni_sira_numarasi(INTEGER, INT);
+            DROP FUNCTION IF EXISTS siramatik.bekleyen_sira_sayisi(INTEGER, INT);
+            DROP FUNCTION IF EXISTS siramatik.siradaki_kisi(INTEGER);
+            DROP FUNCTION IF EXISTS siramatik.ortalama_bekleme_suresi(INTEGER, INT);
+            DROP FUNCTION IF EXISTS siramatik.gunluk_istatistikler(INTEGER, DATE);
+        """)
+
         print("Fonksiyonlar oluşturuluyor (04_functions.sql)...")
         with open("database/04_functions.sql", "r", encoding="utf-8") as f:
             sql = f.read()
@@ -57,8 +73,14 @@ def reset_database():
             
             -- Şifre: admin123 (bcrypt hash)
             INSERT INTO kullanicilar (id, firma_id, email, ad_soyad, rol, sifre_hash) VALUES
-            (1, 1, 'admin@demo.com', 'Admin User', 'admin', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW');
+            (1, 1, 'admin@demo.com', 'Admin User', 'admin', '$2b$12$9RR30EQvGpTJ22F11NkDZuFlWBNB9cY0emCSTVhIQI/4fwxhduDvu');
             
+            -- Cihazlar (PC, Kiosk, TV)
+            INSERT INTO cihazlar (firma_id, servis_id, ad, tip, konum) VALUES
+            (1, 1, 'Banko-1 PC', 'pc', 'Banko 1'),
+            (1, 2, 'Giriş Kiosk', 'kiosk', 'Ana Giriş'),
+            (1, 1, 'TV Ekran 1', 'screen1', 'Bekleme Salonu A');
+
             -- Sequence senkronizasyonu (ID'ler manuel girildiği için)
             SELECT setval('firmalar_id_seq', (SELECT MAX(id) FROM firmalar));
             SELECT setval('servisler_id_seq', (SELECT MAX(id) FROM servisler));

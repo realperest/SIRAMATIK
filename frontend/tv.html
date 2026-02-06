@@ -89,12 +89,12 @@
 
         @keyframes slideIn {
             from {
-                transform: translateX(-100%);
+                transform: translateY(10px);
                 opacity: 0;
             }
 
             to {
-                transform: translateX(0);
+                transform: translateY(0);
                 opacity: 1;
             }
         }
@@ -129,7 +129,7 @@
 
     <script src="static/app.js"></script>
     <script>
-        const FIRMA_ID = '11111111-1111-1111-1111-111111111111';
+        const FIRMA_ID = 1;
 
         // Saati güncelle
         function saatGuncelle() {
@@ -139,10 +139,17 @@
         setInterval(saatGuncelle, 1000);
         saatGuncelle();
 
+        let lastDataJson = '';
+
         // Çağrıları yükle
         async function cagrilariGuncelle() {
             try {
                 const data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=5`);
+
+                // Veri değişikliğini kontrol et
+                const currentDataJson = JSON.stringify(data);
+                if (currentDataJson === lastDataJson) return;
+                lastDataJson = currentDataJson;
 
                 const container = document.getElementById('cagrilar');
 
