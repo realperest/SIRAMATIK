@@ -373,14 +373,11 @@
 
                 if (listError) throw listError;
 
-                // JS Tarafında Tarih Kontrolü (Bugün ve sonrası)
-                const startOfDay = new Date();
-                startOfDay.setHours(0, 0, 0, 0);
-
-                const waitingList = rawList.filter(t => {
-                    const tDate = new Date(t.olusturulma);
-                    return tDate >= startOfDay;
-                });
+                // JS Tarafında Tarih Kontrolü - İPTAL
+                // Önümüzdeki 'waiting' bilet eski tarihli bile olsa, eğer o bilet işleme alınırsa 
+                // sıramızın (count) düştüğünü görebilmemiz için o bileti baştan listeye dahil etmeliyiz.
+                // Aksi takdirde "gizli" bir bilet çağrıldığında bizim sıramız sayısal olarak değişmez.
+                const waitingList = rawList;
 
                 // Listeyi Backend mantığıyla sırala:
                 // 1. Öncelik (Büyük olan öne)
