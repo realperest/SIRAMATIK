@@ -140,10 +140,51 @@
             transform: scale(1.1);
             box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
         }
+
+        /* Aktivasyon Overlay */
+        #activation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .activation-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+            cursor: pointer;
+            margin-top: 20px;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Aktivasyon Katmanı -->
+    <div id="activation-overlay">
+        <div>
+            <div style="font-size: 40px; margin-bottom: 20px;">🔔</div>
+            <h2 style="margin-bottom: 10px;">Sesli Bildirimler</h2>
+            <p style="opacity: 0.8; margin-bottom: 20px;">Sıranız geldiğinde sizi sesli ve görüntülü <br> uyarabilmemiz
+                için onay veriniz.</p>
+            <button class="activation-btn" onclick="startNotifications()">BİLDİRİMLERİ AÇ</button>
+        </div>
+    </div>
     <div class="ticket">
         <div class="header">
             <h2 id="hospital-name">İRMET HOSPITAL</h2>
@@ -186,10 +227,27 @@
         let sessionDurum = 'waiting';
         let notificationPlayed = false;
         let lastCount = -1;
+        let isAudioUnlocked = false;
 
         // Bildirim Sesleri
         const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
         const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'); // Kısa bildirim sesi
+
+        async function startNotifications() {
+            // Sesleri 'unmute' et - Tarayıcı kısıtlamasını aşmak için
+            alertSound.play().then(() => { alertSound.pause(); alertSound.currentTime = 0; }).catch(() => { });
+            tickSound.play().then(() => { tickSound.pause(); tickSound.currentTime = 0; }).catch(() => { });
+
+            isAudioUnlocked = true;
+            const overlay = document.getElementById('activation-overlay');
+            if (overlay) overlay.style.display = 'none';
+
+            // İlk titreşim testi
+            if (navigator.vibrate) navigator.vibrate(50);
+
+            // Takibi başlat
+            updateStatus();
+        }
 
         const bekleyen_url = urlParams.get('bekleyen') || '0';
         lastCount = parseInt(bekleyen_url);
