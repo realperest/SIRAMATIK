@@ -158,9 +158,9 @@
                     .eq('durum', 'waiting')
                     .gte('olusturulma', bugün.toISOString());
 
-                if (response.error) {
-                    console.error("Supabase Hatası:", response.error);
-                    statusEl.textContent = "Hata Detay: " + JSON.stringify(response.error);
+                if (response.error || response.status >= 400) {
+                    console.error("Supabase Hatası:", response);
+                    statusEl.textContent = "Hata: " + (response.error?.message || response.statusText || "Bilinmeyen Hata") + " (" + response.status + ")";
                     return;
                 }
 
