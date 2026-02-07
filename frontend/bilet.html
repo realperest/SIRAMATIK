@@ -241,10 +241,12 @@
         const ticketSpecs = getTicketData();
 
         // Eğer kritik veriler eksikse localStorage'ı temizle
+        let hasValidTicket = true;
         if (!ticketSpecs.kuyruk_id || !ticketSpecs.sira_id ||
             ticketSpecs.kuyruk_id === 'null' || ticketSpecs.sira_id === 'null' ||
             isNaN(parseInt(ticketSpecs.kuyruk_id)) || isNaN(parseInt(ticketSpecs.sira_id))) {
 
+            hasValidTicket = false;
             console.warn("Geçersiz bilet verileri tespit edildi, localStorage temizleniyor...");
 
             // Tüm bilet verilerini temizle
@@ -476,9 +478,13 @@
         }
 
         setInterval(updateTime, 1000);
-        setInterval(updateStatus, 2000); // 2 saniyede bir canlı bekleme sırası güncelle
         updateTime();
-        updateStatus();
+
+        // Sadece geçerli bilet varsa canlı takip başlat
+        if (hasValidTicket) {
+            setInterval(updateStatus, 2000);
+            updateStatus();
+        }
     </script>
 </body>
 
