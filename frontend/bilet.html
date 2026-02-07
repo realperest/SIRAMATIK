@@ -376,7 +376,16 @@
                 if (listError) throw listError;
 
                 // Sadece waiting olanları al (Bizim önümüzde kaç kişi kaldı?)
-                const waitingList = rawList.filter(t => t.durum === 'waiting');
+                // Sadece waiting ve BUGÜN OLUŞTURULANLARI al
+                // (Backend public.siralar'ı temizlediği için artık date kontrolü şart değil ama sağlam olsun)
+                const bugunBaslangic = new Date();
+                bugunBaslangic.setHours(0, 0, 0, 0);
+
+                const waitingList = rawList.filter(t => {
+                    if (t.durum !== 'waiting') return false;
+                    const biletTarihi = new Date(t.olusturulma);
+                    return biletTarihi >= bugunBaslangic;
+                });
 
                 // Listeyi Backend mantığıyla sırala:
                 // 1. Öncelik (Büyük olan öne)
