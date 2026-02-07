@@ -14,10 +14,12 @@
             background: #f0f2f5;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
+            /* Yukarıdan başlasın */
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 15px 20px;
+            /* Üstten az bir boşluk */
         }
 
         .ticket {
@@ -164,6 +166,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
+
+        // URL Maskeleme: Adres satırındaki karmaşık parametreleri gizle
+        if (window.history.replaceState && window.location.search) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        }
+
         const numara = urlParams.get('numara') || '---';
         const kuyruk_ad = urlParams.get('kuyruk') || 'Sıramatik';
         const firma_ad = urlParams.get('firma') || 'İRMET HOSPITAL';
