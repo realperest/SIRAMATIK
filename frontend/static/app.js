@@ -36,9 +36,22 @@ async function apiCall(endpoint, options = {}) {
 }
 
 // Tarih formatlama
-function formatTarih(tarih) {
-    const d = new Date(tarih);
-    return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+function formatTarih(tarihString) {
+    const d = new Date(tarihString);
+    const simdi = new Date();
+
+    const isBugun = d.getDate() === simdi.getDate() &&
+        d.getMonth() === simdi.getMonth() &&
+        d.getFullYear() === simdi.getFullYear();
+
+    const saat = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+    if (isBugun) {
+        return `BUGÜN ${saat}`;
+    } else {
+        const tarih = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return `${tarih} ${saat}`;
+    }
 }
 
 // Toast bildirimi göster
