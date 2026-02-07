@@ -318,15 +318,15 @@
                     if (!notificationPlayed) {
                         notificationPlayed = true;
 
-                        // 2 kez üst üste çalma mantığı
+                        // 3 kez üst üste çalma mantığı
                         let playCount = 0;
                         const playAlert = () => {
-                            if (playCount < 2) {
+                            if (playCount < 3) {
                                 alertSound.pause();
                                 alertSound.currentTime = 0;
                                 alertSound.play().catch(e => console.log("Alarm çalınamadı:", e));
                                 playCount++;
-                                setTimeout(playAlert, 800); // 0.8 saniye arayla 2 kez
+                                setTimeout(playAlert, 800); // 0.8 saniye arayla 3 kez
                             }
                         };
                         playAlert();
