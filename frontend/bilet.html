@@ -299,6 +299,7 @@
 
                 // 1. Kendi bilet bilgilerimizi çekelim (view üzerinden)
                 const myTicket = await _supabase
+                    .schema('siramatik')
                     .from('siralar')
                     .select('durum, oncelik, olusturulma')
                     .eq('id', sid)
@@ -345,6 +346,7 @@
 
                 // (Önceliği yüksek olanlar) + (Aynı öncelik ama daha eski olanlar - Tarihi ISO string olarak değil tam milisaniye ile kıyaslayalım)
                 const ahead = await _supabase
+                    .schema('siramatik')
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
