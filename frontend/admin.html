@@ -7,6 +7,8 @@
     <title>Sıramatik Yönetim Paneli</title>
     <link rel="stylesheet" href="static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <style>
         :root {
             --admin-bg: #0f172a;
@@ -77,6 +79,28 @@
         .nav-item i {
             font-size: 18px;
             width: 24px;
+        }
+
+        .nav-header {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin: 25px 0 10px 20px;
+            font-weight: 700;
+            opacity: 0.6;
+        }
+
+        .chart-container {
+            position: relative;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Main Content */
@@ -326,6 +350,13 @@
             <a onclick="showView('dashboard')" class="nav-item active" id="nav-dashboard">
                 <i class="fas fa-home"></i> Dashboard
             </a>
+
+            <div class="nav-header">RAPORLAR</div>
+            <a onclick="showView('istatistik')" class="nav-item" id="nav-istatistik">
+                <i class="fas fa-chart-line"></i> İstatistikler
+            </a>
+
+            <div class="nav-header">TANIMLAR & AYARLAR</div>
             <a onclick="showView('cihazlar')" class="nav-item" id="nav-cihazlar">
                 <i class="fas fa-desktop"></i> Cihazlar
             </a>
@@ -358,6 +389,53 @@
 
         <!-- DASHBOARD VIEW -->
         <div id="view-dashboard">
+            <!-- Gelişmiş Filtre Çubuğu -->
+            <div class="admin-section" style="margin-bottom: 24px; padding: 20px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">BÖLÜM:</span>
+                        <select id="filter-servis-dashboard" class="action-btn"
+                            style="background: var(--admin-bg); width: 180px;" onchange="loadStats()">
+                            <option value="">Tüm Bölümler</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">PERİYOT:</span>
+                        <select id="filter-period-dashboard" class="action-btn"
+                            style="background: var(--admin-bg); width: 150px;" onchange="loadStats()">
+                            <option value="hour">Günün Saatleri</option>
+                            <option value="weekday">Haftanın Günleri</option>
+                            <option value="monthday">Ayın Günleri</option>
+                            <option value="week">Yılın Haftaları</option>
+                            <option value="month">Yılın Ayları</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">ZAMAN:</span>
+                        <select id="filter-range-dashboard" class="action-btn"
+                            style="background: var(--admin-bg); width: 150px;"
+                            onchange="handleTimeRangeChange('dashboard')">
+                            <option value="today">Bugün</option>
+                            <option value="this_week">Bu Hafta</option>
+                            <option value="this_month">Bu Ay</option>
+                            <option value="this_year">Bu Yıl</option>
+                            <option value="all_time">Tüm Zamanlar</option>
+                            <option value="custom">Tarih Aralığı...</option>
+                        </select>
+                    </div>
+
+                    <div id="custom-dates-dashboard" style="display: none; align-items: center; gap: 10px;">
+                        <input type="date" id="start-date-dashboard" class="action-btn"
+                            style="background: var(--admin-bg); width: 140px;" onchange="loadStats()">
+                        <span style="color: var(--text-muted);">-</span>
+                        <input type="date" id="end-date-dashboard" class="action-btn"
+                            style="background: var(--admin-bg); width: 140px;" onchange="loadStats()">
+                    </div>
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Toplam Hizmet</div>
@@ -368,12 +446,26 @@
                     <div class="stat-value" id="stat-bekleyen" style="color: #6366f1;">0</div>
                 </div>
                 <div class="stat-card">
+                    <div class="stat-label">Çağrılıyor</div>
+                    <div class="stat-value" id="stat-cagirildi" style="color: #6366f1;">0</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-label">Tamamlanan</div>
                     <div class="stat-value" id="stat-tamamlanan" style="color: #22c55e;">0</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">VIP Sıra</div>
                     <div class="stat-value" id="stat-vip" style="color: #a855f7;">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Ort. Bekleme</div>
+                    <div class="stat-value" id="stat-bekleme-sure" style="color: #f59e0b;">0 <span
+                            style="font-size:14px; opacity:0.7;">dk</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Ort. İşlem</div>
+                    <div class="stat-value" id="stat-islem-sure" style="color: #3b82f6;">0 <span
+                            style="font-size:14px; opacity:0.7;">dk</span></div>
                 </div>
             </div>
 
@@ -384,6 +476,107 @@
                 <div id="device-summary-list">
                     <!-- Statik olmayan dinamik liste buraya gelecek -->
                 </div>
+            </div>
+        </div>
+
+        <!-- ISTATISTIK VIEW -->
+        <div id="view-istatistik" style="display: none;">
+            <!-- Gelişmiş Filtre Çubuğu -->
+            <div class="admin-section" style="margin-bottom: 24px; padding: 20px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">BÖLÜM:</span>
+                        <select id="filter-servis-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 180px;" onchange="loadStats()">
+                            <option value="">Tüm Bölümler</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">PERİYOT:</span>
+                        <select id="filter-period-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 150px;" onchange="loadStats()">
+                            <option value="hour">Günün Saatleri</option>
+                            <option value="weekday">Haftanın Günleri</option>
+                            <option value="monthday">Ayın Günleri</option>
+                            <option value="week">Yılın Haftaları</option>
+                            <option value="month">Yılın Ayları</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">ZAMAN:</span>
+                        <select id="filter-range-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 150px;"
+                            onchange="handleTimeRangeChange('stats')">
+                            <option value="today">Bugün</option>
+                            <option value="this_week">Bu Hafta</option>
+                            <option value="this_month">Bu Ay</option>
+                            <option value="this_year">Bu Yıl</option>
+                            <option value="all_time">Tüm Zamanlar</option>
+                            <option value="custom">Tarih Aralığı...</option>
+                        </select>
+                    </div>
+
+                    <div id="custom-dates-stats" style="display: none; align-items: center; gap: 10px;">
+                        <input type="date" id="start-date-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 140px;" onchange="loadStats()">
+                        <span style="color: var(--text-muted);">-</span>
+                        <input type="date" id="end-date-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 140px;" onchange="loadStats()">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 20px; opacity: 0.8; flex: none;">Saatlik Yoğunluk (Bugün)</h3>
+                    <div style="flex: 1; min-height: 0;">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 20px; opacity: 0.8; flex: none;">Bölüm Dağılımı</h3>
+                    <div style="flex: 1; min-height: 0;">
+                        <canvas id="serviceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-section" style="margin-top: 24px;">
+                <div class="section-header">
+                    <h2>Performans Metrikleri</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card" style="background: rgba(255,255,255,0.03);">
+                        <div class="stat-label">En Yoğun Saat</div>
+                        <div id="stat-peak-hour" class="stat-value">-</div>
+                    </div>
+                    <div class="stat-card" style="background: rgba(255,255,255,0.03);">
+                        <div class="stat-label">En Çok İşlem Yapan Bölüm</div>
+                        <div id="stat-top-service" class="stat-value">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="admin-section" style="margin-top: 24px;">
+                <div class="section-header">
+                    <h2>Bugünün Bilet Listesi (Gerçek Veri Kontrolü)</h2>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Bilet No</th>
+                            <th>Bölüm</th>
+                            <th>Saat</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stat-recent-tickets">
+                        <tr>
+                            <td colspan="4" style="text-align:center;">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -599,18 +792,205 @@
                 if (firma && firma.ad) {
                     document.getElementById('firma-name-display').textContent = firma.ad;
                     document.title = firma.ad + " - Yönetim Paneli";
+
+                    // Cihaz heartbeat başlat
+                    bildirCihaz();
+                    setInterval(bildirCihaz, 30000);
                 }
             } catch (err) { }
         }
 
+        async function bildirCihaz() {
+            try {
+                await apiCall('/admin/cihaz/bildir', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        firma_id: parseInt(currentUser.firma_id),
+                        ad: 'ADMIN-' + currentUser.ad_soyad,
+                        tip: 'pc'
+                    })
+                });
+            } catch (err) { }
+        }
+
+        function handleTimeRangeChange(suffix) {
+            const range = document.getElementById(`filter-range-${suffix}`).value;
+            const customDiv = document.getElementById(`custom-dates-${suffix}`);
+            if (range === 'custom') {
+                customDiv.style.display = 'flex';
+            } else {
+                customDiv.style.display = 'none';
+                loadStats();
+            }
+        }
+
+        let hourlyChart = null;
+        let serviceChart = null;
+
         async function loadStats() {
             try {
-                const stats = await apiCall(`/admin/stats/${currentUser.firma_id}`);
-                document.getElementById('stat-toplam').textContent = stats.toplam_sira;
-                document.getElementById('stat-bekleyen').textContent = stats.bekleyen;
-                document.getElementById('stat-tamamlanan').textContent = stats.tamamlandi;
-                document.getElementById('stat-vip').textContent = stats.vip_sira;
-            } catch (err) { }
+                const isStatsView = document.getElementById('view-istatistik').style.display === 'block';
+                const suffix = isStatsView ? 'stats' : 'dashboard';
+
+                const selectedServis = document.getElementById(`filter-servis-${suffix}`)?.value;
+                const period = document.getElementById(`filter-period-${suffix}`)?.value || 'hour';
+                const range = document.getElementById(`filter-range-${suffix}`)?.value || 'today';
+                const start = document.getElementById(`start-date-${suffix}`)?.value;
+                const end = document.getElementById(`end-date-${suffix}`)?.value;
+
+                let url = `/admin/stats/${currentUser.firma_id}?period_type=${period}&time_range=${range}`;
+                if (selectedServis) url += `&servis_id=${selectedServis}`;
+                if (range === 'custom') {
+                    if (start) url += `&start_date=${start}`;
+                    if (end) url += `&end_date=${end}`;
+                }
+
+                const stats = await apiCall(url);
+
+                // Dashboard Metrikleri
+                document.getElementById('stat-toplam').textContent = stats.toplam_sira || 0;
+                document.getElementById('stat-bekleyen').textContent = stats.bekleyen || 0;
+                document.getElementById('stat-cagirildi').textContent = stats.cagirildi || 0;
+                document.getElementById('stat-tamamlanan').textContent = stats.tamamlandi || 0;
+                document.getElementById('stat-vip').textContent = stats.vip_sira || 0;
+
+                const waitEl = document.getElementById('stat-bekleme-sure');
+                const procEl = document.getElementById('stat-islem-sure');
+                if (waitEl) waitEl.innerHTML = `${Math.round(stats.ort_bekleme_dk || 0)} <span style="font-size:14px; opacity:0.7;">dk</span>`;
+                if (procEl) procEl.innerHTML = `${Math.round(stats.ort_islem_dk || 0)} <span style="font-size:14px; opacity:0.7;">dk</span>`;
+
+                // İstatistik Sayfası Metrikleri
+                const peakHourEl = document.getElementById('stat-peak-hour');
+                const topServEl = document.getElementById('stat-top-service');
+                const recentList = document.getElementById('stat-recent-tickets');
+
+                if (peakHourEl && stats.hourly_data.length > 0) {
+                    const maxIdx = stats.hourly_data.indexOf(Math.max(...stats.hourly_data));
+                    peakHourEl.textContent = stats.hourly_labels[maxIdx];
+                }
+
+                if (topServEl && stats.service_data.length > 0) {
+                    const maxIdx = stats.service_data.indexOf(Math.max(...stats.service_data));
+                    topServEl.textContent = stats.service_labels[maxIdx];
+                }
+
+                if (recentList && stats.recent_tickets) {
+                    if (stats.recent_tickets.length === 0) {
+                        recentList.innerHTML = '<tr><td colspan="4" style="text-align:center;">Bugün henüz işlem yok.</td></tr>';
+                    } else {
+                        recentList.innerHTML = stats.recent_tickets.map(t => `
+                            <tr>
+                                <td style="font-weight:700;">${t.numara}</td>
+                                <td>${t.servis_ad}</td>
+                                <td>${t.saat}</td>
+                                <td><span class="status-badge" style="background:${t.durum === 'completed' ? '#22c55e' : (t.durum === 'calling' ? '#6366f1' : '#94a3b8')}; color:white;">${t.durum.toUpperCase()}</span></td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                renderCharts(stats);
+
+            } catch (err) {
+                console.error("Stats load error:", err);
+            }
+        }
+
+        function renderCharts(stats) {
+            if (typeof Chart === 'undefined') return;
+            // Eklentiyi kaydet
+            if (typeof ChartDataLabels !== 'undefined') {
+                Chart.register(ChartDataLabels);
+            }
+
+            const commonOptions = {
+                color: '#fff',
+                font: { weight: 'bold', size: 10 },
+                padding: 4
+            };
+
+            // Saatlik Grafik
+            const ctxHourly = document.getElementById('hourlyChart');
+            if (ctxHourly) {
+                if (hourlyChart) hourlyChart.destroy();
+                hourlyChart = new Chart(ctxHourly, {
+                    type: 'line',
+                    data: {
+                        labels: stats.hourly_labels,
+                        datasets: [{
+                            label: 'Sıra Yoğunluğu',
+                            data: stats.hourly_data,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#6366f1',
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                ...commonOptions,
+                                align: 'top',
+                                anchor: 'end',
+                                formatter: (val) => val > 0 ? val : ''
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: 'rgba(255,255,255,0.5)' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: 'rgba(255,255,255,0.5)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Servis Grafik
+            const ctxService = document.getElementById('serviceChart');
+            if (ctxService) {
+                if (serviceChart) serviceChart.destroy();
+                serviceChart = new Chart(ctxService, {
+                    type: 'doughnut',
+                    data: {
+                        labels: stats.service_labels,
+                        datasets: [{
+                            data: stats.service_data,
+                            backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#94a3b8', padding: 20, usePointStyle: true }
+                            },
+                            datalabels: {
+                                ...commonOptions,
+                                color: '#fff',
+                                formatter: (value, ctx) => {
+                                    let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    let percentage = (value * 100 / sum).toFixed(0) + "%";
+                                    return value > 0 ? value + "\n(" + percentage + ")" : "";
+                                }
+                            }
+                        },
+                        cutout: '70%'
+                    }
+                });
+            }
         }
 
         async function loadServices() {
@@ -621,8 +1001,11 @@
                 // Update selects
                 const dSelect = document.getElementById('edit-servis');
                 const qSelect = document.getElementById('queue-servis-id');
+                const fDash = document.getElementById('filter-servis-dashboard');
+                const fStat = document.getElementById('filter-servis-stats');
 
-                [dSelect, qSelect].forEach(s => {
+                [dSelect, qSelect, fDash, fStat].forEach(s => {
+                    if (!s) return;
                     const first = s.options[0];
                     s.innerHTML = '';
                     if (first) s.appendChild(first);
@@ -746,15 +1129,32 @@
         }
 
         function showView(view) {
-            ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar'].forEach(v => {
+            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar', 'istatistik'];
+            views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.style.display = 'none';
-                document.getElementById(`nav-${v}`).classList.remove('active');
+                const nav = document.getElementById(`nav-${v}`);
+                if (nav) nav.classList.remove('active');
             });
-            document.getElementById(`view-${view}`).style.display = 'block';
-            document.getElementById(`nav-${view}`).classList.add('active');
-            document.getElementById('view-title').textContent = view.charAt(0).toUpperCase() + view.slice(1);
-            if (view === 'dashboard') loadStats();
+
+            const targetView = document.getElementById(`view-${view}`);
+            const targetNav = document.getElementById(`nav-${view}`);
+
+            if (targetView) targetView.style.display = 'block';
+            if (targetNav) targetNav.classList.add('active');
+
+            const titleMap = {
+                'dashboard': 'Genel Bakış',
+                'istatistik': 'Detaylı İstatistikler',
+                'cihazlar': 'Cihaz Yönetimi',
+                'servisler': 'Bölüm Tanımları',
+                'kuyruklar': 'Kuyruk Tanımları',
+                'kullanicilar': 'Personel Yönetimi'
+            };
+
+            document.getElementById('view-title').textContent = titleMap[view] || view;
+
+            if (view === 'dashboard' || view === 'istatistik') loadStats();
         }
 
         function openEditModal(id) {

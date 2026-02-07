@@ -1,26 +1,25 @@
+from backend.database import db
+import json
+from datetime import datetime
 
-from sqlalchemy import create_engine, text
-import os
-from dotenv import load_dotenv
-
-load_dotenv('D:/KODLAMALAR/GITHUB/SIRAMATIK/backend/.env')
-DB_URL = "postgresql://postgres.wyursjdrnnjabpfeucyi:qk4SEnyhu3NUk2@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
-
-engine = create_engine(DB_URL)
-
-def debug_data():
-    with engine.connect() as conn:
-        print("--- SIRAMATIK.SIRALAR DATA (TOP 5) ---")
-        res = conn.execute(text("SELECT id, numara, durum, firma_id, cagirilma FROM siramatik.siralar ORDER BY olusturulma DESC LIMIT 5"))
-        for row in res:
-            print(row)
-            
-        print("\n--- SIRAMATIK.SIRALAR 'calling' STATUS ---")
-        res = conn.execute(text("SELECT id, numara, firma_id FROM siramatik.siralar WHERE durum = 'calling'"))
-        rows = res.fetchall()
-        print(f"Total calling: {len(rows)}")
-        for row in rows:
-            print(row)
+def debug_stats():
+    firma_id = 1
+    # Check total counts
+    totals = db.execute_query("SELECT count(*) as total FROM siramatik.siralar WHERE firma_id = :f", {"f": firma_id})
+    # Check today's date in DB
+    db_date = db.execute_query("SELECT CURRENT_DATE as d, NOW() as n")[0]
+    # Check today's counts
+    today = db.execute_query("SELECT count(*) as total_today FROM siramatik.siralar WHERE firma_id = :f AND DATE(olusturulma) = CURRENT_DATE", {"f": firma_id})
+    
+    # Check some rows
+    rows = db.execute_query("SELECT id, numara, durum, olusturulma FROM siramatik.siralar WHERE firma_id = :f ORDER BY olusturulma DESC LIMIT 5", {"f": firma_id})
+    
+    print(json.dumps({
+        "totals": totals,
+        "db_date": str(db_date),
+        "today_stats": today,
+        "recent_rows": rows
+    }, indent=2, default=str))
 
 if __name__ == "__main__":
-    debug_data()
+    debug_stats()

@@ -153,7 +153,20 @@ class IstatistikResponse(BaseModel):
     bekleyen: int
     cagirildi: int
     tamamlandi: int
-    ortalama_bekleme_dk: Optional[int] = None
+    ort_bekleme_dk: Optional[float] = 0
+    ort_islem_dk: Optional[float] = 0
+    hourly_labels: List[str] = []
+    hourly_data: List[int] = []
+    service_labels: List[str] = []
+    service_data: List[int] = []
+    recent_tickets: List[dict] = []
+
+class DeviceHeartbeatRequest(BaseModel):
+    firma_id: int
+    ad: str
+    tip: str
+    mac: Optional[str] = None
+
 class ServisCreateRequest(BaseModel):
     firma_id: int
     ad: str

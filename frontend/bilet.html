@@ -146,27 +146,17 @@
                 const kid = parseInt(kuyruk_id);
                 if (isNaN(kid)) return;
 
-                const bugün = new Date().toISOString().split('T')[0]; // Sadece YYYY-MM-DD
+                const bugün = new Date();
+                bugün.setHours(0, 0, 0, 0);
 
-                // Supabase sorgusu - .schema() bazen hata verebilir, eğer tablolar public'teyse sorun çıkar
-                // Önce varsayılan şemayı deneyelim, hata alırsak siramatik şemasına geçelim
-                let response = await _supabase
+                // Supabase sorgusu - Şema belirterek direkt siramatik'e bağlanalım
+                const response = await _supabase
+                    .schema('siramatik')
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
                     .gte('olusturulma', bugün.toISOString());
-
-                // Eğer tablo bulunamadı hatası gelirse şemayı belirtelim
-                if (response.error && response.error.message.includes('not found')) {
-                    response = await _supabase
-                        .schema('siramatik')
-                        .from('siralar')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('kuyruk_id', kid)
-                        .eq('durum', 'waiting')
-                        .gte('olusturulma', bugün.toISOString());
-                }
 
                 if (response.error) {
                     console.error("Supabase Hatası:", response.error);

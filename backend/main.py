@@ -32,6 +32,7 @@ from models import (
     IstatistikResponse,
     DeviceResponse,
     DeviceUpdateRequest,
+    DeviceHeartbeatRequest,
     UserResponse
 )
 
@@ -446,17 +447,43 @@ async def ekran_son_cagrilar(firma_id: int, limit: int = 5, servis_id: Optional[
 @app.get("/api/admin/stats/{firma_id}", response_model=IstatistikResponse)
 async def admin_stats(
     firma_id: int,
+    servis_id: Optional[int] = None,
+    period_type: str = "hour",
+    time_range: str = "today",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     current_user: dict = Depends(get_current_active_user)
 ):
-    """Admin paneli için genel istatistikler"""
-    stats = db.get_firma_istatistikleri(firma_id)
+    """Admin paneli için genel istatistikler (Filtreli & Periyotlu)"""
+    stats = db.get_firma_istatistikleri(
+        firma_id, 
+        servis_id=servis_id,
+        period_type=period_type,
+        time_range=time_range,
+        start_date=start_date,
+        end_date=end_date
+    )
     return IstatistikResponse(
         toplam_sira=stats.get("toplam_sira", 0),
         vip_sira=stats.get("vip_sira", 0),
         bekleyen=stats.get("bekleyen", 0),
         cagirildi=stats.get("cagirildi", 0),
-        tamamlandi=stats.get("tamamlandi", 0)
+        tamamlandi=stats.get("tamamlandi", 0),
+        ort_bekleme_dk=stats.get("ort_bekleme_dk", 0),
+        ort_islem_dk=stats.get("ort_islem_dk", 0),
+        hourly_labels=stats.get("hourly_labels", []),
+        hourly_data=stats.get("hourly_data", []),
+        service_labels=stats.get("service_labels", []),
+        service_data=stats.get("service_data", []),
+        recent_tickets=stats.get("recent_tickets", [])
     )
+
+
+@app.post("/api/admin/cihaz/bildir")
+async def cihaz_bildir(request: DeviceHeartbeatRequest):
+    """Cihazdan gelen nabız sinyali"""
+    cihaz = db.cihaz_bildir(request.firma_id, request.ad, request.tip, request.mac)
+    return {"status": "ok", "cihaz": cihaz}
 
 
 @app.get("/api/admin/cihazlar/{firma_id}", response_model=List[dict])

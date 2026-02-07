@@ -395,21 +395,139 @@ class Database:
         result = self.execute_query(query, params)
         return result[0] if result else None
 
+    def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: str = None) -> Dict:
+        """Cihazın aktif olduğunu bildir (Upsert)"""
+        # MAC adresi yoksa Ad üzerinden eşle
+        result = self.execute_query("""
+            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_adresi, aktif, son_gorunme)
+            VALUES (:firma_id, :ad, :tip, :mac, TRUE, NOW())
+            ON CONFLICT (firma_id, mac_adresi) DO UPDATE 
+            SET aktif = TRUE, son_gorunme = NOW(), tip = :tip
+            RETURNING *
+        """, {"firma_id": firma_id, "ad": ad, "tip": tip, "mac": mac or ad})
+        return result[0] if result else None
+
     # --- İSTATİSTİKLER ---
 
-    def get_firma_istatistikleri(self, firma_id: int) -> Dict:
-        """Firma genel istatistiklerini getir"""
-        result = self.execute_query("""
+    def get_firma_istatistikleri(self, firma_id: int, servis_id: Optional[int] = None, 
+                                 period_type: str = "hour", time_range: str = "today",
+                                 start_date: str = None, end_date: str = None) -> Dict:
+        """Firma istatistiklerini getir (Gelişmiş Zaman ve Periyot Filtreli)"""
+        params = {"firma_id": firma_id}
+        
+        # 1. ZAMAN FİLTRESİ OLUŞTUR
+        time_filter = ""
+        if time_range == "today":
+            time_filter = " AND DATE(s.olusturulma) = CURRENT_DATE"
+        elif time_range == "this_week":
+            time_filter = " AND s.olusturulma >= date_trunc('week', CURRENT_DATE)"
+        elif time_range == "this_month":
+            time_filter = " AND s.olusturulma >= date_trunc('month', CURRENT_DATE)"
+        elif time_range == "this_year":
+            time_filter = " AND s.olusturulma >= date_trunc('year', CURRENT_DATE)"
+        elif time_range == "all_time":
+            time_filter = "" # Filtre uygulama
+        elif time_range == "custom" and start_date:
+            time_filter = " AND s.olusturulma::date BETWEEN :start AND :end"
+            params["start"] = start_date
+            params["end"] = end_date or start_date
+        
+        # 2. SERVİS FİLTRESİ
+        service_filter = ""
+        if servis_id:
+            service_filter = " AND s.servis_id = :servis_id"
+            params["servis_id"] = servis_id
+
+        # 3. TEMEL SAYILAR (Kartlar için)
+        base_stats = self.execute_query(f"""
             SELECT 
                 COUNT(*) as toplam_sira,
                 COUNT(*) FILTER (WHERE oncelik > 0) as vip_sira,
                 COUNT(*) FILTER (WHERE durum = 'waiting') as bekleyen,
                 COUNT(*) FILTER (WHERE durum = 'calling') as cagirildi,
-                COUNT(*) FILTER (WHERE durum = 'completed') as tamamlandi
-            FROM siramatik.siralar
-            WHERE firma_id = :firma_id AND DATE(olusturulma) = CURRENT_DATE
-        """, {"firma_id": firma_id})
-        return result[0] if result else {}
+                COUNT(*) FILTER (WHERE durum = 'completed') as tamamlandi,
+                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 END) as ort_bekleme_dk,
+                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (tamamlanma - cagirilma))/60 END) as ort_islem_dk
+            FROM siramatik.siralar s
+            WHERE s.firma_id = :firma_id {time_filter} {service_filter}
+        """, params)[0]
+
+        # 4. PERİYOT GRUPLAMA (Grafik için)
+        group_sql = ""
+        label_format = ""
+        if period_type == "hour":
+            group_sql = "EXTRACT(HOUR FROM s.olusturulma)"
+            label_format = "saat"
+        elif period_type == "weekday":
+            group_sql = "EXTRACT(DOW FROM s.olusturulma)"
+            label_format = "gün" # 0: Pazar, 1: Pazartesi...
+        elif period_type == "monthday":
+            group_sql = "EXTRACT(DAY FROM s.olusturulma)"
+            label_format = "gün"
+        elif period_type == "week":
+            group_sql = "EXTRACT(WEEK FROM s.olusturulma)"
+            label_format = "hafta"
+        elif period_type == "month":
+            group_sql = "EXTRACT(MONTH FROM s.olusturulma)"
+            label_format = "ay"
+        else:
+            group_sql = "EXTRACT(HOUR FROM s.olusturulma)"
+            label_format = "saat"
+
+        periodic_raw = self.execute_query(f"""
+            SELECT {group_sql} as label, COUNT(*) as adet
+            FROM siramatik.siralar s
+            WHERE s.firma_id = :firma_id {time_filter} {service_filter}
+            GROUP BY label ORDER BY label
+        """, params)
+
+        # Label'ları insan diline çevir
+        labels = []
+        data = []
+        
+        day_names = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"]
+        month_names = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
+
+        for item in periodic_raw:
+            val = int(item['label'])
+            if period_type == "weekday":
+                labels.append(day_names[val])
+            elif period_type == "month":
+                labels.append(month_names[val])
+            elif period_type == "hour":
+                labels.append(f"{val:02d}:00")
+            elif period_type == "week":
+                labels.append(f"{val}. Hafta")
+            else:
+                labels.append(str(val))
+            data.append(item['adet'])
+
+        # 5. SERVİS DAĞILIMI
+        service_stats = self.execute_query(f"""
+            SELECT ser.ad, COUNT(s.id) as adet
+            FROM siramatik.servisler ser
+            LEFT JOIN siramatik.siralar s ON ser.id = s.servis_id {time_filter}
+            WHERE ser.firma_id = :firma_id {" AND ser.id = :servis_id" if servis_id else ""}
+            GROUP BY ser.ad
+        """, params)
+
+        # 6. SON BİLETLER
+        recent_tickets = self.execute_query(f"""
+            SELECT s.id, s.numara, s.durum, to_char(s.olusturulma, 'DD.MM HH24:MI') as saat, ser.ad as servis_ad
+            FROM siramatik.siralar s
+            JOIN siramatik.servisler ser ON s.servis_id = ser.id
+            WHERE s.firma_id = :firma_id {time_filter} {service_filter}
+            ORDER BY s.olusturulma DESC LIMIT 10
+        """, params)
+
+        return {
+            **base_stats,
+            "hourly_labels": labels, # Frontend uyumu için aynı keyler
+            "hourly_data": data,
+            "service_labels": [s['ad'] for s in service_stats if s['adet'] > 0],
+            "service_data": [s['adet'] for s in service_stats if s['adet'] > 0],
+            "recent_tickets": recent_tickets
+        }
 
 # Global database instance
 db = Database()

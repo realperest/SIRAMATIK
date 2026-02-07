@@ -306,8 +306,25 @@
         const FIRMA_ID = 1;
 
         // Firma bilgilerini yükle
+        async function bildirCihaz() {
+            try {
+                await apiCall('/admin/cihaz/bildir', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        firma_id: parseInt(FIRMA_ID),
+                        ad: 'KIOSK-' + FIRMA_ID,
+                        tip: 'kiosk'
+                    })
+                });
+            } catch (err) { console.error("Heartbeat error", err); }
+        }
+
         async function initFirma() {
             try {
+                // Heartbeat
+                bildirCihaz();
+                setInterval(bildirCihaz, 30000);
+
                 console.log("Firma bilgileri yükleniyor...");
                 const firma = await apiCall(`/firma/${FIRMA_ID}`);
                 if (firma && firma.ad) {
@@ -442,8 +459,10 @@
                 if (depSecimi) depSecimi.style.display = 'none';
                 if (numEkrani) numEkrani.style.display = 'block';
 
-                // QR Kodunu otomatik oluştur
-                karekodGoster();
+                // DOM'un render olması için yarım saniye bekle (Özellikle uzun isimli servisler için kritik)
+                setTimeout(() => {
+                    karekodGoster();
+                }, 500);
 
             } catch (error) {
                 console.error("Sıra alma hatası:", error);
@@ -508,13 +527,34 @@
 
             try {
                 const qrContainer = document.getElementById('qrcode');
-                qrContainer.innerHTML = '';
+                if (!qrContainer) return;
 
-                // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
-                // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
-                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
+                qrContainer.innerHTML = '<div style="font-size:14px; color:#333;">Hazırlanıyor...</div>';
+
+                // Bilet bilgilerini güvenli al
+                const n = lastSiraResponse.numara || '---';
+                const k = lastSiraResponse.kuyruk_ad || 'Sıra';
+                const b = Math.max(0, (lastSiraResponse.bekleyen_sayisi || 1) - 1);
+                const hEl = document.getElementById('hospital-name');
+                const h = hEl ? hEl.textContent.trim() : "İRMET HOSPITAL";
+                const kid = lastSiraResponse.kuyruk_id || 0;
+
+                // URL'i oluştururken TÜM karakterleri (özellikle Ç, ş, ı, İ) şifrele
+                const safeN = encodeURIComponent(n);
+                const safeH = encodeURIComponent(h);
+                const safeK = encodeURIComponent(k);
+
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${safeN}&kuyruk=${safeK}&bekleyen=${b}&firma=${safeH}&kuyruk_id=${kid}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
+
+                // Temizle ve çiz
+                qrContainer.innerHTML = '';
+
+                if (typeof QRCode === 'undefined') {
+                    qrContainer.innerHTML = '<div style="color:red; font-size:12px;">Kütüphane Hatası!</div>';
+                    return;
+                }
 
                 new QRCode(qrContainer, {
                     text: biletUrl,
@@ -542,6 +582,8 @@
 
             } catch (err) {
                 console.error("QR oluşturma hatası:", err);
+                const qrContainer = document.getElementById('qrcode');
+                if (qrContainer) qrContainer.innerHTML = '<div style="color:red; font-size:12px;">QR Oluşturulamadı</div>';
             }
         }
 

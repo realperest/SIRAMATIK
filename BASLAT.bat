@@ -9,7 +9,7 @@ start "Siramatik Backend" cmd /k "cd backend && python main.py"
 
 echo.
 echo [2/2] Frontend baslatiliyor (Port 3000)...
-start "Siramatik Frontend" cmd /k "cd frontend && python -m http.server 3000"
+start "Siramatik Frontend" cmd /k "cd frontend && python -m http.server 3000 --bind 0.0.0.0"
 
 echo.
 echo ============================================
