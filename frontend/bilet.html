@@ -127,10 +127,13 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+        const bekleyen_url = urlParams.get('bekleyen') || '0';
+
         // İlk verileri URL'den bas
         document.getElementById('ticket-number').textContent = numara;
         document.getElementById('queue-name').textContent = kuyruk_ad;
         document.getElementById('hospital-name').textContent = firma_ad;
+        document.getElementById('wait-info').textContent = `Önünüzde ${bekleyen_url} kişi var`;
 
         async function updateStatus() {
             const statusEl = document.getElementById('wait-info');
@@ -141,15 +144,9 @@
 
             try {
                 const kid = parseInt(kuyruk_id);
-                if (isNaN(kid)) {
-                    statusEl.textContent = "Geçersiz Sıra";
-                    return;
-                }
+                if (isNaN(kid)) return;
 
-                statusEl.textContent = "Güncelleniyor...";
-
-                const bugün = new Date();
-                bugün.setHours(0, 0, 0, 0);
+                const bugün = new Date().toISOString().split('T')[0]; // Sadece YYYY-MM-DD
 
                 // Supabase sorgusu - .schema() bazen hata verebilir, eğer tablolar public'teyse sorun çıkar
                 // Önce varsayılan şemayı deneyelim, hata alırsak siramatik şemasına geçelim
