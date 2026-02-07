@@ -255,8 +255,8 @@
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         // Bildirim Sesleri
-        const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-        const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Çok tiz ve net bildirim sesi
+        const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Çok tiz ve net 'ding' sesi
+        const alertSound = tickSound; // Bitiş alarmı da aynı tiz ses olsun
 
         async function startNotifications() {
             // iOS için ses kilidi açma yöntemi
@@ -315,10 +315,23 @@
                     numEl.style.color = "#22c55e";
 
                     if (!notificationPlayed) {
-                        alertSound.play().catch(e => console.log("Ses çalınamadı:", e));
                         notificationPlayed = true;
+
+                        // 3 kez üst üste çalma mantığı
+                        let playCount = 0;
+                        const playAlert = () => {
+                            if (playCount < 3) {
+                                alertSound.pause();
+                                alertSound.currentTime = 0;
+                                alertSound.play().catch(e => console.log("Alarm çalınamadı:", e));
+                                playCount++;
+                                setTimeout(playAlert, 800); // 0.8 saniye arayla 3 kez
+                            }
+                        };
+                        playAlert();
+
                         if (navigator.vibrate) {
-                            navigator.vibrate([300, 100, 300, 100, 300]); // Güçlü titreşim
+                            navigator.vibrate([300, 100, 300, 100, 300, 100, 300]); // Uzun titreşim
                         }
                     }
                     return;
@@ -330,15 +343,14 @@
                     return;
                 }
 
-                // 2. Gerçek 'Önünde kaç kişi var' hesabı
-                // (Önceliği yüksek olanlar) + (Aynı öncelik ama daha eski olanlar)
+                // (Önceliği yüksek olanlar) + (Aynı öncelik ama daha eski olanlar - Tarihi ISO string olarak değil tam milisaniye ile kıyaslayalım)
                 const ahead = await _supabase
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
                     .gte('olusturulma', bugün.toISOString())
-                    .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt.${me.olusturulma})`);
+                    .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt."${me.olusturulma}")`);
 
                 if (ahead.error) throw ahead.error;
 
