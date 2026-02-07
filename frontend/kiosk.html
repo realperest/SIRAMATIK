@@ -74,7 +74,7 @@
 
         .departman-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 30px;
             max-width: 1200px;
             margin: 0 auto;
@@ -83,41 +83,43 @@
 
         .departman-card {
             background: white;
-            color: #667eea;
-            padding: 40px 30px;
+            color: #333;
+            padding: 45px 30px;
             border-radius: 25px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 220px;
         }
 
         .departman-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-            background: #f8faff;
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            background: #fdfdfd;
         }
 
         .departman-card h2 {
-            font-size: 32px;
-            margin-bottom: 15px;
-            color: #333;
+            font-size: 36px;
+            margin: 10px 0;
+            color: #1a1a2e;
         }
 
         .departman-card .kod {
-            font-size: 60px;
+            font-size: 64px;
             font-weight: 900;
-            margin-bottom: 10px;
             color: #667eea;
-            opacity: 0.8;
+            opacity: 0.9;
         }
 
         .departman-card .bekleyen {
-            font-size: 20px;
+            font-size: 22px;
             color: #666;
-            font-weight: 600;
-            margin-top: 10px;
+            font-weight: 500;
+            margin-top: 15px;
         }
 
         #numara-ekrani {
@@ -132,29 +134,29 @@
             grid-template-columns: 1.2fr 1fr;
             gap: 40px;
             background: rgba(255, 255, 255, 0.1);
-            padding: 40px;
+            padding: 50px;
             border-radius: 40px;
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
             align-items: center;
         }
 
         #numara-ekrani .numara {
-            font-size: 140px;
+            font-size: 160px;
             font-weight: 900;
             margin: 20px 0;
             color: #fff;
-            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
 
         .qr-section {
             background: white;
-            padding: 30px;
-            border-radius: 30px;
+            padding: 40px;
+            border-radius: 35px;
             color: #2c3e50;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
         }
 
         .print-btn {
@@ -163,7 +165,7 @@
             border: none;
             padding: 25px 40px;
             border-radius: 20px;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
@@ -172,23 +174,27 @@
             justify-content: center;
             gap: 15px;
             width: 100%;
-            margin-top: 30px;
-            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
+            margin-top: 35px;
+            box-shadow: 0 10px 25px rgba(46, 204, 113, 0.4);
         }
 
         .back-btn {
             background: transparent;
             border: 2px solid white;
             color: white;
-            padding: 15px 30px;
-            border-radius: 15px;
-            font-size: 20px;
+            padding: 18px 35px;
+            border-radius: 18px;
+            font-size: 22px;
             cursor: pointer;
             transition: all 0.3s;
-            margin-top: 20px;
+            margin-top: 25px;
+            font-weight: 600;
         }
 
-        /* Dijital Fiş Tasarımı */
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         #fis-modal {
             display: none;
             position: fixed;
@@ -206,8 +212,8 @@
         .fis-paper {
             background: white;
             color: #333;
-            width: 350px;
-            padding: 40px 20px;
+            width: 380px;
+            padding: 45px 25px;
             border-radius: 5px;
             position: relative;
             font-family: 'Courier New', Courier, monospace;
@@ -237,70 +243,72 @@
                 transform: translateY(0);
             }
         }
+
+        #nav-back {
+            margin-bottom: 30px;
+            display: none;
+        }
     </style>
 </head>
 
 <body>
-    <div class="header">
-        <h1 id="hospital-name">Yükleniyor...</h1>
+    <div class="header" id="kiosk-header">
+        <h1 id="hospital-name">İRMET HOSPITAL</h1>
         <p id="hospital-subtitle">Sıra Numarası Alma Sistemi</p>
     </div>
 
-    <!-- Akıllı Bekleme Bilgilendirmesi -->
-    <div class="smart-wait-alert">
+    <div class="smart-wait-alert" id="smart-alert">
         <span class="smart-wait-title">BU SIRADA AKILLI BEKLEME UYGULAMASI VARDIR!</span>
         <span class="smart-wait-desc">Lütfen telefonunuzun kamera modunu hazırlayıp seçiminizi öyle yapınız.</span>
     </div>
 
     <div id="departman-secimi">
-        <h2 style="font-size: 36px; margin-bottom: 40px;">Hangi Bölüme Gideceksiniz?</h2>
-        <div class="departman-grid" id="departman-listesi"></div>
-
-        <div id="alt-secenekler-konteynir"
-            style="display:none; margin-top: 50px; padding: 40px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 2px dashed rgba(255,255,255,0.3);">
-            <h3 id="alt-secenek-baslik" style="font-size: 32px; margin-bottom: 30px; color: #ffd700;">Hizmet Türü
-                Seçiniz</h3>
-            <div id="alt-secenek-listesi" class="departman-grid"></div>
+        <div id="nav-back">
+            <button class="back-btn" onclick="goBackToServices()">Geri Dön</button>
         </div>
-    </div>
-
-    <div id="fis-modal">
-        <div class="fis-paper">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;" id="fis-hospital">İRMET HOSPITAL</div>
-            <div style="border-top: 1px dashed #ccc; margin: 10px 0;"></div>
-            <div style="font-size: 14px; margin: 10px 0;">SIRA BİLETİ</div>
-            <div style="font-size: 60px; font-weight: bold; margin: 20px 0;" id="fis-numara">---</div>
-            <div style="font-size: 18px;" id="fis-kuyruk">---</div>
-            <div style="border-top: 1px dashed #ccc; margin: 20px 0;"></div>
-            <div id="fis-qrcode" style="margin: 20px 0; display:flex; justify-content:center;"></div>
-            <div style="font-size: 12px; opacity: 0.8;">Sıranızı bu kodu okutarak takip edebilirsiniz.</div>
-            <div style="font-size: 12px; margin-top: 20px;" id="fis-tarih">---</div>
-            <button onclick="location.reload()" class="back-btn"
-                style="color: #333; border-color: #333; margin-top: 30px;">ANA SAYFAYA DÖN</button>
-        </div>
+        <h2 id="view-title" style="font-size: 42px; margin-bottom: 45px; font-weight: 800;">Lütfen Bölüm Seçiniz</h2>
+        <div class="departman-grid" id="main-list"></div>
     </div>
 
     <div id="numara-ekrani" style="display:none;">
         <div class="bilet-konteynir">
             <div class="info-section">
-                <h2 style="font-size: 32px; opacity: 0.9;">Sıra Numaranız</h2>
+                <h2 style="font-size: 36px; opacity: 0.9;">Sıra Numaranız</h2>
                 <div class="numara" id="numara"></div>
-                <p class="mesaj" id="mesaj" style="font-size: 24px; min-height: 40px;"></p>
+                <p class="mesaj" id="mesaj" style="font-size: 26px; min-height: 45px;"></p>
                 <div class="bekleme-info" id="bekleme-info"
-                    style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; display: inline-block; margin-top: 10px;">
+                    style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 20px; display: inline-block; margin-top: 15px; font-size: 24px; font-weight: 500;">
                 </div>
                 <button onclick="fisBastir()" class="print-btn"><i class="fas fa-print"></i> FİŞ YAZDIR</button>
             </div>
             <div class="qr-section">
-                <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
-                <p>Karekod Okut</p>
-                <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">Sıranızı telefondan canlı takip edin
+                <div id="qrcode" style="display: inline-block; padding: 15px; background: white; border-radius: 20px;">
                 </div>
-                <div id="qr-sayac" style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 20px;">
+                <p style="font-size: 24px; font-weight: 700; margin-top: 20px;">Karekod Okut</p>
+                <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 25px;">Sıranızı telefondan canlı takip edin
                 </div>
-                <button onclick="location.reload()" class="back-btn" style="color: #333; border-color: #333;">ANA
-                    SAYFAYA DÖN</button>
+                <div id="qr-sayac" style="color: #e74c3c; font-size: 22px; font-weight: 800; margin-bottom: 25px;">
+                </div>
+                <button onclick="location.reload()" class="back-btn"
+                    style="color: #333; border-color: #333; width: 100%;">ANA SAYFAYA DÖN</button>
             </div>
+        </div>
+    </div>
+
+    <div id="fis-modal">
+        <div class="fis-paper">
+            <div style="font-size: 28px; font-weight: bold; margin-bottom: 25px;" id="fis-hospital">İRMET HOSPITAL</div>
+            <div style="border-top: 1px dashed #ccc; margin: 15px 0;"></div>
+            <div style="font-size: 16px; margin: 15px 0; font-weight: 600;">SIRA BİLETİ</div>
+            <div style="font-size: 72px; font-weight: 900; margin: 25px 0;" id="fis-numara">---</div>
+            <div style="font-size: 22px; font-weight: 700;" id="fis-kuyruk">---</div>
+            <div style="border-top: 1px dashed #ccc; margin: 25px 0;"></div>
+            <div id="fis-qrcode" style="margin: 25px 0; display:flex; justify-content:center;"></div>
+            <div style="font-size: 14px; opacity: 0.8; font-weight: 600;">Sıranızı bu kodu okutarak takip edebilirsiniz.
+            </div>
+            <div style="font-size: 14px; margin-top: 25px;" id="fis-tarih">---</div>
+            <button onclick="location.reload()" class="back-btn"
+                style="color: #333; border-color: #333; margin-top: 35px; width: 80%;">ANA SAYFAYA DÖN</button>
         </div>
     </div>
 
@@ -308,61 +316,91 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="static/app.js"></script>
     <script>
-        let allQueues = [];
         const FIRMA_ID = 1;
+        let allServices = [];
+        let allQueues = [];
+        let currentServiceId = null;
         let lastSiraResponse = null;
 
-        async function bildirCihaz() {
+        async function initKiosk() {
             try {
-                await apiCall('/admin/cihaz/bildir', {
+                // Heartbeat
+                apiCall('/admin/cihaz/bildir', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        firma_id: parseInt(FIRMA_ID),
-                        ad: 'KIOSK-' + FIRMA_ID,
-                        tip: 'kiosk'
-                    })
+                    body: JSON.stringify({ firma_id: FIRMA_ID, ad: 'KIOSK-1', tip: 'kiosk' })
                 });
-            } catch (err) { console.error("Heartbeat error", err); }
-        }
+                setInterval(() => {
+                    apiCall('/admin/cihaz/bildir', {
+                        method: 'POST',
+                        body: JSON.stringify({ firma_id: FIRMA_ID, ad: 'KIOSK-1', tip: 'kiosk' })
+                    });
+                }, 30000);
 
-        async function initFirma() {
-            try {
-                bildirCihaz();
-                setInterval(bildirCihaz, 30000);
-
-                // 1. Firma bilgilerini getir (GET /api/firma/{id})
+                // Firma bilgileri
                 const firma = await apiCall(`/firma/${FIRMA_ID}`);
                 if (firma) {
-                    document.getElementById('hospital-name').textContent = (firma.ad || "İRMET HOSPITAL");
-                    document.getElementById('hospital-subtitle').textContent = (firma.alt_baslik || "Sıra Numarası Alma Sistemi");
+                    document.getElementById('hospital-name').textContent = firma.ad;
+                    document.getElementById('hospital-subtitle').textContent = firma.alt_baslik;
                 }
 
-                // 2. Firmaya ait tüm kuyrukları getir
-                const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
-                allQueues = kuyruklar || [];
-
-                // Sadece en üst seviye kuyrukları göster (ust_kuyruk_id'si null veya undefined olanlar)
-                renderKuyruklar(allQueues.filter(q => !q.ust_kuyruk_id));
+                // Servisleri (Bölümleri) yükle
+                const services = await apiCall(`/servisler/${FIRMA_ID}`);
+                allServices = services || [];
+                renderServices();
             } catch (err) {
                 console.error("Yükleme hatası:", err);
-                // Hata durumunda manuel liste render dene (fallback)
-                if (allQueues.length > 0) renderKuyruklar(allQueues.filter(q => !q.ust_kuyruk_id));
             }
         }
 
-        function renderKuyruklar(list) {
-            const container = document.getElementById('departman-listesi');
+        function renderServices() {
+            currentServiceId = null;
+            document.getElementById('nav-back').style.display = 'none';
+            document.getElementById('view-title').textContent = 'Lütfen Bölüm Seçiniz';
+
+            const container = document.getElementById('main-list');
+            container.innerHTML = '';
+
+            allServices.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'departman-card fade-in';
+                card.onclick = () => loadQueues(s.id, s.ad);
+                card.innerHTML = `<h2>${s.ad}</h2>`;
+                container.appendChild(card);
+            });
+        }
+
+        async function loadQueues(serviceId, serviceName) {
+            currentServiceId = serviceId;
+            document.getElementById('nav-back').style.display = 'block';
+            document.getElementById('view-title').textContent = serviceName + ' Birimleri';
+
+            const container = document.getElementById('main-list');
+            container.innerHTML = '<h2>Yükleniyor...</h2>';
+
+            try {
+                const queues = await apiCall(`/kuyruklar/${serviceId}`);
+                allQueues = queues || [];
+                // Sadece üst seviye kuyrukları filtrele (ust_kuyruk_id null olanlar)
+                const topQueues = allQueues.filter(q => !q.ust_kuyruk_id);
+                renderQueues(topQueues);
+            } catch (err) {
+                container.innerHTML = '<h2>Bağlantı Hatası</h2>';
+            }
+        }
+
+        function renderQueues(list) {
+            const container = document.getElementById('main-list');
             container.innerHTML = '';
 
             if (list.length === 0) {
-                container.innerHTML = '<p style="font-size: 24px;">Lütfen bekleyin, kuyruklar yükleniyor...</p>';
+                container.innerHTML = '<h2>Bu bölümde aktif birim bulunamadı.</h2>';
                 return;
             }
 
             list.forEach(q => {
                 const card = document.createElement('div');
                 card.className = 'departman-card fade-in';
-                card.onclick = () => siraAl(q.id);
+                card.onclick = () => handleQueueClick(q);
                 card.innerHTML = `
                     <div class="kod">${q.kod}</div>
                     <h2>${q.ad}</h2>
@@ -372,78 +410,67 @@
             });
         }
 
-        async function siraAl(kuyrukId) {
-            // Find the queue object for its servis_id
-            const q = allQueues.find(x => x.id === kuyrukId);
-            if (!q) return;
-
-            const altKuyruklar = allQueues.filter(x => x.ust_kuyruk_id == kuyrukId);
-
-            if (altKuyruklar.length > 0) {
-                document.getElementById('alt-secenekler-konteynir').style.display = 'block';
-                const listEl = document.getElementById('alt-secenek-listesi');
-                listEl.innerHTML = '';
-                altKuyruklar.forEach(sub => {
-                    const card = document.createElement('div');
-                    card.className = 'departman-card fade-in';
-                    card.style.padding = '20px';
-                    card.onclick = () => siraAl(sub.id);
-                    card.innerHTML = `<h2>${sub.ad}</h2>`;
-                    listEl.appendChild(card);
-                });
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        function handleQueueClick(queue) {
+            // Alt kuyruk var mı kontrol et
+            const subQueues = allQueues.filter(q => q.ust_kuyruk_id == queue.id);
+            if (subQueues.length > 0) {
+                document.getElementById('view-title').textContent = queue.ad + ' - Alt Seçenekler';
+                renderQueues(subQueues);
                 return;
             }
 
+            // Alt kuyruk yoksa sıra al
+            executeSiraAl(queue);
+        }
+
+        async function executeSiraAl(queue) {
             try {
-                // Backend endpoint: POST /api/sira/al
                 const res = await apiCall('/sira/al', {
                     method: 'POST',
                     body: JSON.stringify({
-                        kuyruk_id: kuyrukId,
-                        servis_id: q.servis_id,
+                        kuyruk_id: queue.id,
+                        servis_id: currentServiceId,
                         firma_id: FIRMA_ID,
                         oncelik: 0
                     })
                 });
 
                 lastSiraResponse = res;
-                document.getElementById('departman-secimi').style.display = 'none';
-                document.getElementById('alt-secenekler-konteynir').style.display = 'none';
-                document.getElementById('numara-ekrani').style.display = 'block';
-                document.getElementById('numara').textContent = res.numara;
-                document.getElementById('bekleme-info').textContent = `Önünüzde ${Math.max(0, res.bekleyen_sayisi - 1)} kişi var`;
-                karekodGoster();
+                showTicketScreen(res);
             } catch (err) {
-                alert("Sıra alınamadı:\n" + err.message);
+                alert("Sıra alınamadı: " + err.message);
             }
         }
 
-        let reloadTimer = null;
-        async function karekodGoster() {
-            if (!lastSiraResponse) return;
+        function showTicketScreen(res) {
+            document.getElementById('departman-secimi').style.display = 'none';
+            document.getElementById('kiosk-header').style.display = 'none';
+            document.getElementById('smart-alert').style.display = 'none';
+            document.getElementById('numara-ekrani').style.display = 'block';
+
+            document.getElementById('numara').textContent = res.numara;
+            document.getElementById('bekleme-info').textContent = `Önünüzde ${Math.max(0, res.bekleyen_sayisi - 1)} kişi var`;
+
+            // QR Kod Oluştur
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
 
-            const n = encodeURIComponent(lastSiraResponse.numara);
-            const k = encodeURIComponent(lastSiraResponse.kuyruk_ad);
+            const n = encodeURIComponent(res.numara);
+            const k = encodeURIComponent(res.kuyruk_ad);
             const h = encodeURIComponent(document.getElementById('hospital-name').textContent);
-            const kid = lastSiraResponse.kuyruk_id || 0;
-            const sid = lastSiraResponse.sira_id || 0;
-            const b = Math.max(0, (lastSiraResponse.bekleyen_sayisi || 1) - 1);
-
-            const url = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${n}&kuyruk=${k}&bekleyen=${b}&firma=${h}&kuyruk_id=${kid}&sira_id=${sid}`;
+            const url = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${n}&kuyruk=${k}&bekleyen=${res.bekleyen_sayisi - 1}&firma=${h}&kuyruk_id=${res.kuyruk_id}&sira_id=${res.sira_id}`;
 
             new QRCode(qrContainer, { text: url, width: 220, height: 220 });
 
-            // Otomatik kapanma sayacı
             let saniye = 25;
             const sayacEl = document.getElementById('qr-sayac');
-            if (reloadTimer) clearInterval(reloadTimer);
-            reloadTimer = setInterval(() => {
+            const timer = setInterval(() => {
                 saniye--;
                 sayacEl.textContent = `${saniye} sn içinde ana ekrana dönecek`;
-                if (saniye <= 0) location.reload();
+                if (saniye <= 0) {
+                    clearInterval(timer);
+                    location.reload();
+                }
             }, 1000);
         }
 
@@ -460,19 +487,17 @@
             const n = encodeURIComponent(lastSiraResponse.numara);
             const k = encodeURIComponent(lastSiraResponse.kuyruk_ad);
             const h = encodeURIComponent(document.getElementById('hospital-name').textContent);
-
             const url = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${n}&kuyruk=${k}&firma=${h}&kuyruk_id=${lastSiraResponse.kuyruk_id}&sira_id=${lastSiraResponse.sira_id}`;
-
             new QRCode(qrEl, { text: url, width: 140, height: 140 });
 
-            setTimeout(() => {
-                window.print();
-                showToast("Biletiniz yazdırılıyor...");
-            }, 300);
+            setTimeout(() => { window.print(); }, 500);
         }
 
-        // Başlat
-        initFirma();
+        function goBackToServices() {
+            renderServices();
+        }
+
+        initKiosk();
     </script>
 </body>
 
