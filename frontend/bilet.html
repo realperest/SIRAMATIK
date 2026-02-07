@@ -98,21 +98,39 @@
         }
 
         .calling-active-body {
-            animation: pulse-green 1.5s infinite;
+            animation: party-alert 0.8s infinite;
         }
 
-        @keyframes pulse-green {
+        @keyframes party-alert {
             0% {
-                background-color: #f0f2f5;
+                background-color: #ff0000;
             }
 
+            /* Kırmızı */
+            25% {
+                background-color: #ffeb3b;
+            }
+
+            /* Sarı */
             50% {
-                background-color: #dcfce7;
+                background-color: #2196f3;
             }
 
-            100% {
-                background-color: #f0f2f5;
+            /* Mavi */
+            75% {
+                background-color: #4caf50;
             }
+
+            /* Yeşil */
+            100% {
+                background-color: #ff0000;
+            }
+        }
+
+        /* Çarpıcı etki için bilet kartına gölge ekle */
+        .calling-active-body .ticket {
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+            border: 4px solid white;
         }
 
         .calling-status {
