@@ -134,6 +134,8 @@
         // Bildirim Sesi
         const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
 
+        const bekleyen_url = urlParams.get('bekleyen') || '0';
+
         // İlk verileri URL'den bas
         document.getElementById('ticket-number').textContent = numara;
         document.getElementById('queue-name').textContent = kuyruk_ad;
