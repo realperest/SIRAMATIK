@@ -312,13 +312,11 @@
             try {
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
-                const bugün = new Date();
-                bugün.setHours(0, 0, 0, 0);
 
-                // 1. Kendi bilet bilgilerini çek
+                // 1. Kendi bilet bilgilerini çek (ID EKLENDİ!)
                 const { data: me, error: myError } = await _supabase
                     .from('siralar')
-                    .select('durum, oncelik, olusturulma')
+                    .select('id, durum, oncelik, olusturulma')
                     .eq('id', sid)
                     .single();
 
