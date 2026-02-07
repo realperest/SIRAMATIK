@@ -258,6 +258,7 @@
         const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Çok tiz ve net 'ding' sesi
         const alertSound = tickSound; // Bitiş alarmı da aynı tiz ses olsun
 
+        let wakeLock = null;
         async function startNotifications() {
             // iOS için ses kilidi açma yöntemi
             alertSound.volume = 0.5;
@@ -268,6 +269,23 @@
 
             isAudioUnlocked = true;
             document.getElementById('activation-overlay').style.display = 'none';
+
+            // Screen Wake Lock API - Ekranın kapanmasını engelle
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+
+                    // Sayfa minimize olup geri açıldığında kilidi tazele
+                    document.addEventListener('visibilitychange', async () => {
+                        if (wakeLock !== null && document.visibilityState === 'visible') {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                }
+            } catch (err) {
+                console.log("Wake Lock Hatası:", err);
+            }
+
             if (navigator.vibrate) navigator.vibrate(50);
             updateStatus();
         }
