@@ -146,7 +146,7 @@
                     .gte('olusturulma', bugün);
 
                 if (!error) {
-                    document.getElementById('wait-info').textContent = `Önünüzde ${count || 0} kişi var`;
+                    document.getElementById('wait-info').textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
                 }
             } catch (e) {
                 console.log("Canlı güncelleme beklemede...");

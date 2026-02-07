@@ -74,28 +74,130 @@
         #numara-ekrani {
             display: none;
             animation: fadeIn 0.5s ease-in;
-        }
-
-        #numara-ekrani .numara {
-            font-size: 150px;
-            font-weight: bold;
-            margin: 50px 0;
-            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        #numara-ekrani .mesaj {
-            font-size: 28px;
-            line-height: 1.6;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
-        .bekleme-info {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 20px;
-            border-radius: 15px;
+        .bilet-konteynir {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 40px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            align-items: center;
+        }
+
+        @media (max-width: 992px) {
+            .bilet-konteynir {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #numara-ekrani .numara {
+            font-size: 140px;
+            font-weight: 900;
+            margin: 20px 0;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        .qr-section {
+            background: white;
+            padding: 30px;
+            border-radius: 30px;
+            color: #2c3e50;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .qr-section p {
+            margin: 15px 0 5px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .print-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 25px 40px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
             margin-top: 30px;
-            font-size: 20px;
+            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
+        }
+
+        .print-btn:hover {
+            transform: scale(1.03);
+            background: #27ae60;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Dijital Fiş Tasarımı */
+        #fis-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .fis-paper {
+            background: white;
+            color: #333;
+            width: 350px;
+            padding: 40px 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            position: relative;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            animation: slideDown 0.5s ease;
+        }
+
+        .fis-paper::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 0;
+            width: 100%;
+            height: 15px;
+            background: linear-gradient(-45deg, white 5px, transparent 0), linear-gradient(45deg, white 5px, transparent 0);
+            background-size: 10px 15px;
+            background-repeat: repeat-x;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .departman-card.active {
@@ -142,39 +244,56 @@
         </div>
     </div>
 
-    <div id="numara-ekrani">
-        <h2 style="font-size: 42px;">Sıra Numaranız</h2>
-        <div class="numara" id="numara"></div>
-        <div class="mesaj" id="mesaj"></div>
-        <div class="bekleme-info" id="bekleme-info"></div>
+    <div id="fis-modal">
+        <div class="fis-paper">
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;" id="fis-hospital">İRMET HOSPITAL</div>
+            <div style="border-top: 1px dashed #ccc; margin: 10px 0;"></div>
+            <div style="font-size: 14px; margin: 10px 0;">SIRA BİLETİ</div>
+            <div style="font-size: 60px; font-weight: bold; margin: 20px 0;" id="fis-numara">Y004</div>
+            <div style="font-size: 18px;" id="fis-kuyruk">YATMA İŞLEMLERİ</div>
+            <div style="border-top: 1px dashed #ccc; margin: 20px 0;"></div>
+            <div id="fis-qrcode" style="margin: 20px 0;"></div>
+            <div style="font-size: 12px; opacity: 0.8;">Sıranızı bu kodu okutarak takip edebilirsiniz.</div>
+            <div style="font-size: 12px; margin-top: 20px;" id="fis-tarih">2026-02-07 18:30</div>
 
-        <!-- Seçenekler Paneli -->
-        <div id="bilet-secenekleri" style="margin-top: 50px; display: flex; gap: 20px; justify-content: center;">
-            <button onclick="fisBastir()" class="departman-card"
-                style="flex:none; width: 300px; background: #2ecc71; color: white;">
-                <div class="kod" style="color:white; font-size: 40px;"><i class="fas fa-print"></i></div>
-                <h2 style="font-size: 24px;">FİŞ BASTIR</h2>
-            </button>
-            <button onclick="karekodGoster()" class="departman-card"
-                style="flex:none; width: 300px; background: #3498db; color: white;">
-                <div class="kod" style="color:white; font-size: 40px;"><i class="fas fa-qrcode"></i></div>
-                <h2 style="font-size: 24px;">KAREKOD OKUT</h2>
+            <button onclick="location.reload()" class="back-btn"
+                style="color: #333; border-color: #333; margin-top: 30px;">
+                ANA SAYFAYA DÖN
             </button>
         </div>
+    </div>
+    <div class="bilet-konteynir">
+        <!-- Sol Panel: Bilet Bilgileri -->
+        <div class="info-section">
+            <h2 style="font-size: 32px; opacity: 0.9;">Sıra Numaranız</h2>
+            <div class="numara" id="numara"></div>
+            <p class="mesaj" id="mesaj" style="font-size: 24px; min-height: 40px;"></p>
 
-        <!-- QR Modal / Alanı -->
-        <div id="qr-alanı"
-            style="display:none; margin-top: 40px; background: white; padding: 40px; border-radius: 30px; border: 4px solid #3498db; box-shadow: 0 0 50px rgba(0,0,0,0.5); text-align: center;">
-            <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
-            <p style="color: #2c3e50; margin: 20px 0 10px; font-size: 24px; font-weight: bold;">Telefonunuzla Tarayınız
-            </p>
-            <div id="qr-sayac"
-                style="color: #e74c3c; font-size: 18px; margin-bottom: 20px; font-weight: bold; min-height: 24px;">
+            <div class="bekleme-info" id="bekleme-info"
+                style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; display: inline-block; margin-top: 10px;">
             </div>
-            <button onclick="location.reload()"
-                style="padding: 15px 40px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 20px; font-weight: bold; width: 100%;">ANA
-                SAYFAYA DÖN</button>
+
+            <button onclick="fisBastir()" class="print-btn">
+                <i class="fas fa-print"></i>
+                FİŞ YAZDIR
+            </button>
         </div>
+
+        <!-- Sağ Panel: QR Kod -->
+        <div class="qr-section">
+            <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
+            <p>Karekod Okut</p>
+            <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">
+                Sıranızı telefondan canlı takip edin
+            </div>
+            <div id="qr-sayac" style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 20px;">
+            </div>
+
+            <button onclick="location.reload()" class="back-btn">
+                ANA SAYFAYA DÖN
+            </button>
+        </div>
+    </div>
     </div>
 
     <!-- Font Awesome ve QR Lib -->
@@ -306,16 +425,16 @@
                 lastSiraResponse = response;
                 lastSiraResponse.servis_id = servisId;
 
+                // Verileri ekrana bas
                 document.getElementById('numara').textContent = response.numara;
-                document.getElementById('mesaj').textContent = response.mesaj;
-                document.getElementById('bekleme-info').textContent = `Sıranızdan önce ${response.bekleyen_sayisi} kişi var.`;
+                document.getElementById('mesaj').textContent = response.mesaj || (response.numara + " numaralı sıranız alındı.");
+                document.getElementById('bekleme-info').textContent = `Sıranızdan önce ${Math.max(0, response.bekleyen_sayisi - 1)} kişi var.`;
 
                 document.getElementById('departman-secimi').style.display = 'none';
                 document.getElementById('numara-ekrani').style.display = 'block';
-                document.getElementById('bilet-secenekleri').style.display = 'flex';
-                document.getElementById('qr-alanı').style.display = 'none';
 
-                // Otomatik reload'u kaldırdık, kullanıcı butonlara basacak
+                // QR Kodunu otomatik oluştur
+                karekodGoster();
 
             } catch (error) {
                 console.error("Sıra alma hatası:", error);
@@ -329,23 +448,38 @@
         let reloadTimer = null;
 
         function fisBastir() {
-            showToast("Fişiniz bastırılıyor...", "success");
-            const sayacEl = document.getElementById('qr-sayac');
-            let saniye = 5;
+            if (!lastSiraResponse) return;
 
-            document.getElementById('bilet-secenekleri').style.display = 'none';
-            document.getElementById('qr-alanı').style.display = 'block';
-            document.getElementById('qrcode').innerHTML = '<div style="font-size: 80px; margin: 20px;">🖨️</div>';
-            document.querySelector('#qr-alanı p').textContent = "Fiş Bastırılıyor...";
+            showToast("Fişiniz yazdırılıyor...", "success");
 
-            const timer = setInterval(() => {
-                saniye--;
-                if (sayacEl) sayacEl.textContent = `${saniye} saniye sonra kapanacak...`;
-                if (saniye <= 0) {
-                    clearInterval(timer);
-                    location.reload();
-                }
-            }, 1000);
+            // Fiş bilgilerini modal'a doldur
+            const hospEl = document.getElementById('hospital-name');
+            document.getElementById('fis-hospital').textContent = hospEl ? hospEl.textContent : "İRMET HOSPITAL";
+            document.getElementById('fis-numara').textContent = lastSiraResponse.numara;
+            document.getElementById('fis-kuyruk').textContent = lastSiraResponse.kuyruk_ad;
+            document.getElementById('fis-tarih').textContent = new Date().toLocaleString('tr-TR');
+
+            // Fiş karekodunu oluştur (Takip için)
+            const fisQrContainer = document.getElementById('fis-qrcode');
+            fisQrContainer.innerHTML = '';
+            const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
+
+            new QRCode(fisQrContainer, {
+                text: biletUrl,
+                width: 150,
+                height: 150,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            document.getElementById('fis-modal').style.display = 'flex';
+
+            // 15 saniye sonra veya kullanıcı basınca ana sayfaya dön
+            if (reloadTimer) clearInterval(reloadTimer);
+            setTimeout(() => {
+                location.reload();
+            }, 15000);
         }
 
         let kioskConfig = { host_ip: 'localhost', port: 3000 };
@@ -361,10 +495,7 @@
         }
 
         async function karekodGoster() {
-            if (!lastSiraResponse) {
-                showToast("Sıra bilgisi bulunamadı!", "error");
-                return;
-            }
+            if (!lastSiraResponse) return;
 
             try {
                 const qrContainer = document.getElementById('qrcode');
@@ -372,33 +503,28 @@
 
                 // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
                 // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
-                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${lastSiraResponse.bekleyen_sayisi}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 
-                setTimeout(() => {
-                    new QRCode(qrContainer, {
-                        text: biletUrl,
-                        width: 256,
-                        height: 256,
-                        colorDark: "#000000",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                }, 100);
-
-                document.getElementById('bilet-secenekleri').style.display = 'none';
-                document.getElementById('qr-alanı').style.display = 'block';
+                new QRCode(qrContainer, {
+                    text: biletUrl,
+                    width: 250,
+                    height: 250,
+                    colorDark: "#2c3e50",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
 
                 // Geri sayım
-                let saniye = 30;
+                let saniye = 15;
                 const sayacEl = document.getElementById('qr-sayac');
-                if (sayacEl) sayacEl.textContent = `${saniye} saniye sonra kapanacak...`;
+                if (sayacEl) sayacEl.textContent = `${saniye} sn içinde kapanacak`;
 
                 if (reloadTimer) clearInterval(reloadTimer);
                 reloadTimer = setInterval(() => {
                     saniye--;
-                    if (sayacEl) sayacEl.textContent = `${saniye} saniye sonra kapanacak...`;
+                    if (sayacEl) sayacEl.textContent = `${saniye} sn içinde kapanacak`;
                     if (saniye <= 0) {
                         clearInterval(reloadTimer);
                         location.reload();
@@ -407,7 +533,6 @@
 
             } catch (err) {
                 console.error("QR oluşturma hatası:", err);
-                showToast("Karekod oluşturulamadı!", "error");
             }
         }
 
