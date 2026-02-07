@@ -364,19 +364,33 @@
                     return;
                 }
 
-                // (Önceliği yüksek olanlar) + (Aynı öncelik ama daha eski olanlar - Tarihi ISO string olarak değil tam milisaniye ile kıyaslayalım)
-                const ahead = await _supabase
+                // Önünüzdekileri saymak için 2 ayrı sorgu yapalım (Daha güvenli)
+                // 1. Önceliği bizden yüksek olanlar
+                const highPriority = await _supabase
                     .schema('siramatik')
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
                     .gte('olusturulma', trBaslangicUtc)
-                    .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt."${me.olusturulma}")`);
+                    .gt('oncelik', me.oncelik);
 
-                if (ahead.error) throw ahead.error;
+                // 2. Önceliği aynı olup bizden önce bilet alanlar
+                const samePriorityBefore = await _supabase
+                    .schema('siramatik')
+                    .from('siralar')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('kuyruk_id', kid)
+                    .eq('durum', 'waiting')
+                    .gte('olusturulma', trBaslangicUtc)
+                    .eq('oncelik', me.oncelik)
+                    .lt('olusturulma', me.olusturulma);
 
-                const count = ahead.count || 0;
+                if (highPriority.error) throw highPriority.error;
+                if (samePriorityBefore.error) throw samePriorityBefore.error;
+
+                const count = (highPriority.count || 0) + (samePriorityBefore.count || 0);
+                console.log(`🔍 Sayaç: Yüksek Öncelik:${highPriority.count}, Aynı Öncelik:${samePriorityBefore.count}, Toplam:${count}`);
 
                 // Sıra Eksilme Takibi (Titreşim ve Tick Sesi)
                 if (lastCount !== -1 && count < lastCount && count >= 0) {
