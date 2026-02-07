@@ -361,6 +361,7 @@
                 // Sıra Eksilme Takibi (Titreşim ve Tick Sesi)
                 if (lastCount !== -1 && count < lastCount && count >= 0) {
                     if (isAudioUnlocked) {
+                        // Bir kişi daha eksildi, kısa uyarı çal
                         tickSound.pause();
                         tickSound.currentTime = 0;
                         tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
@@ -371,7 +372,14 @@
                 }
                 lastCount = count;
 
-                statusEl.textContent = count > 0 ? `Önünüzde ${count} kişi var` : "Sıradaki sizsiniz!";
+                if (count === 0) {
+                    statusEl.textContent = "Sıradaki sizsiniz!";
+                    statusEl.style.color = "#764ba2";
+                    statusEl.style.fontWeight = "bold";
+                } else {
+                    statusEl.textContent = `Önünüzde ${count} kişi var`;
+                    statusEl.style.color = "#667eea";
+                }
 
                 if (me.durum === 'waiting') notificationPlayed = false;
 
