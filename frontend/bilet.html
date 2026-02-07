@@ -364,25 +364,33 @@
                 notificationPlayed = false; // Waiting durumuna dönerse tekrar çalsın diye reset
 
                 // 2. Önümde kaç kişi var hesapla (Basitleştirilmiş Yöntem)
-                // Karmaşık filtreler yerine o günkü o kuyruktaki tüm 'waiting'leri çekip JS ile sayalım.
+                // Tarih filtresini kaldırıyoruz, sadece o an waiting olanlar
                 const { data: waitingList, error: listError } = await _supabase
                     .from('siralar')
                     .select('id, oncelik, olusturulma')
                     .eq('kuyruk_id', kid)
-                    .eq('durum', 'waiting')
-                    .gte('olusturulma', bugün.toISOString());
+                    .eq('durum', 'waiting');
 
                 if (listError) throw listError;
 
                 // JS Tarafında Filtreleme: (Önceliği benden yüksek) VEYA (Önceliği aynı ama benden önce gelmiş)
                 const peopleAhead = waitingList.filter(t => {
                     if (t.id === sid) return false; // Kendimi sayma
-                    if (t.oncelik > me.oncelik) return true; // Öncelikli
-                    if (t.oncelik === me.oncelik && new Date(t.olusturulma) < new Date(me.olusturulma)) return true; // Eski
+
+                    // Öncelik yüksekse öne geçer
+                    if (t.oncelik > me.oncelik) return true;
+
+                    // Öncelik eşitse, daha önce oluşturulan öne geçer
+                    // Tarihleri string olarak kıyaslamak daha güvenli olabilir veya Date objesine çevirip
+                    // Ancak string formatı ISO ise string kıyaslaması yeterlidir.
+                    // Yine de garanti olsun diye Date objesi kullanıyoruz.
+                    if (t.oncelik === me.oncelik && new Date(t.olusturulma) < new Date(me.olusturulma)) return true;
+
                     return false;
                 });
 
                 const count = peopleAhead.length;
+                console.log(`DEBUG: Ben: ${sid}, Önümdekiler: ${count}, Toplam Bekleyen: ${waitingList.length}`);
 
                 // 3. Değişiklik varsa ses/titreşim (Sıra ilerlediğinde)
                 // Not: lastCount başlangıçta -1. İlk yüklemede ses çalmaması için lastCount !== -1 kontrolü var.
