@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sıra Bileti - İRMET</title>
+    <title>İrmet Hospital - Sıra Takip</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="İrmet Sıra">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -91,6 +94,32 @@
             border-radius: 50px;
             font-weight: 600;
             margin-top: 10px;
+            transition: all 0.5s ease;
+        }
+
+        .calling-active-body {
+            animation: pulse-green 1.5s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% {
+                background-color: #f0f2f5;
+            }
+
+            50% {
+                background-color: #dcfce7;
+            }
+
+            100% {
+                background-color: #f0f2f5;
+            }
+        }
+
+        .calling-status {
+            background: #22c55e !important;
+            color: white !important;
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
         }
     </style>
 </head>
@@ -171,18 +200,22 @@
                 // Durum kontrolü
                 if (me.durum === 'calling') {
                     statusEl.textContent = "SIRA SİZDE!";
-                    statusEl.style.background = "#22c55e";
-                    statusEl.style.color = "white";
+                    statusEl.classList.add('calling-status');
+                    document.body.classList.add('calling-active-body');
                     numEl.style.color = "#22c55e";
 
                     if (!notificationPlayed) {
                         alertSound.play().catch(e => console.log("Ses çalınamadı:", e));
                         notificationPlayed = true;
-                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        if (navigator.vibrate) {
+                            navigator.vibrate([300, 100, 300, 100, 300]); // Güçlü titreşim
+                        }
                     }
                     return;
                 } else if (me.durum === 'completed') {
                     statusEl.textContent = "İŞLEM TAMAMLANDI";
+                    statusEl.classList.remove('calling-status');
+                    document.body.classList.remove('calling-active-body');
                     statusEl.style.background = "#94a3b8";
                     return;
                 }
