@@ -185,11 +185,14 @@
         const sira_id = urlParams.get('sira_id');
         let sessionDurum = 'waiting';
         let notificationPlayed = false;
+        let lastCount = -1;
 
-        // Bildirim Sesi
+        // Bildirim Sesleri
         const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+        const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'); // Kısa bildirim sesi
 
         const bekleyen_url = urlParams.get('bekleyen') || '0';
+        lastCount = parseInt(bekleyen_url);
 
         // İlk verileri URL'den bas
         document.getElementById('ticket-number').textContent = numara;
@@ -259,6 +262,16 @@
                 if (ahead.error) throw ahead.error;
 
                 const count = ahead.count || 0;
+
+                // Sıra Eksilme Takibi (Titreşim ve Tick Sesi)
+                if (lastCount !== -1 && count < lastCount && count >= 0) {
+                    tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50); // Hafif bir 'tık' titreşimi
+                    }
+                }
+                lastCount = count;
+
                 statusEl.textContent = count > 0 ? `Önünüzde ${count} kişi var` : "Sıradaki sizsiniz!";
 
                 if (me.durum === 'waiting') notificationPlayed = false;
