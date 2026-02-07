@@ -305,7 +305,9 @@
             const numEl = document.getElementById('ticket-number');
 
             if (!kuyruk_id || !sira_id) {
-                console.warn("Canlı takip için sira_id veya kuyruk_id eksik.");
+                // console.warn("Canlı takip için sira_id veya kuyruk_id eksik.");
+                statusEl.textContent = "Takip ID eksik!";
+                statusEl.style.color = "red";
                 return;
             }
 
@@ -313,56 +315,60 @@
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
 
-                // 1. Kendi bilet bilgilerini çek (ID EKLENDİ!)
+                // 1. Kendi bilet bilgilerini çek
                 const { data: me, error: myError } = await _supabase
                     .from('siralar')
                     .select('id, durum, oncelik, olusturulma')
                     .eq('id', sid)
                     .single();
 
-                if (myError || !me) {
-                    throw myError || new Error("Bilet bulunamadı");
-                }
+                if (myError) throw myError;
+                if (!me) throw new Error("Bilet bulunamadı");
 
-                // Durum kontrolü
+                // Durum Yönetimi
                 if (me.durum === 'calling') {
                     statusEl.textContent = "SIRA SİZDE!";
                     statusEl.classList.add('calling-status');
                     document.body.classList.add('calling-active-body');
-                    numEl.style.color = "#22c55e"; // Yeşil
+                    numEl.style.color = "#22c55e";
 
                     if (!notificationPlayed) {
                         notificationPlayed = true;
 
-                        // 3 kez alarm çal
+                        // Ses ve Titreşim
                         let playCount = 0;
                         const playAlert = () => {
                             if (playCount < 3) {
                                 alertSound.volume = 1.0;
-                                alertSound.currTime = 0;
-                                alertSound.play().catch(e => console.log("Alarm hatası:", e));
+                                alertSound.currentTime = 0;
+                                alertSound.play().catch(() => { });
                                 playCount++;
                                 setTimeout(playAlert, 1500);
                             }
                         };
                         playAlert();
 
-                        if (navigator.vibrate) {
-                            navigator.vibrate([500, 200, 500, 200, 500]); // Uzun titreşim
-                        }
+                        if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
                     }
                     return;
-                } else if (me.durum === 'completed') {
+                }
+                else if (me.durum === 'completed') {
                     statusEl.textContent = "İŞLEM TAMAMLANDI";
-                    statusEl.classList.remove('calling-status');
+                    statusEl.className = 'status'; // Reset classes
                     document.body.classList.remove('calling-active-body');
-                    statusEl.style.background = "#94a3b8"; // Gri
+                    statusEl.style.background = "#94a3b8";
+                    return;
+                }
+                else if (me.durum === 'cancelled') {
+                    statusEl.textContent = "İPTAL EDİLDİ";
+                    statusEl.style.background = "#ef4444";
                     return;
                 }
 
-                notificationPlayed = false; // Waiting durumuna dönerse tekrar çalsın diye reset
+                // Eğer durum 'waiting' değilse ve yukarıdaki durumlara girmediyse (örn: running)
+                notificationPlayed = false;
 
-                // 2. Bekleyen Listesini Çek (Sadece waiting)
+                // 2. Bekleyen Listesini Çek
                 const { data: rawList, error: listError } = await _supabase
                     .from('siralar')
                     .select('id, oncelik, olusturulma, durum')
@@ -371,55 +377,58 @@
 
                 if (listError) throw listError;
 
-                // 3. Manuel Hesaplama (Sort/Index yerine Count)
-                // Son 24 saat filtresi (Stale data önlemi, timezone toleranslı)
+                // 3. Hesaplama
                 const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
                 let peopleAhead = 0;
 
                 rawList.forEach(ticket => {
                     const ticketDate = new Date(ticket.olusturulma);
 
-                    // Çok eski biletleri yoksay
                     if (ticketDate < cutoffDate) return;
 
-                    // Bu bilet BENİM ÖNÜMDE Mİ?
-                    // Kural 1: Önceliği benden yüksekse -> Evet
-                    if (ticket.oncelik > me.oncelik) {
+                    // Tip güvenliği için Number() dönüşümü
+                    const tOncelik = Number(ticket.oncelik);
+                    const tId = Number(ticket.id);
+                    const mOncelik = Number(me.oncelik);
+                    const mId = Number(me.id);
+
+                    if (tOncelik > mOncelik) {
                         peopleAhead++;
                     }
-                    // Kural 2: Önceliği aynı ama benden önce almış (ID küçük) -> Evet
-                    else if (ticket.oncelik === me.oncelik && ticket.id < me.id) {
+                    else if (tOncelik === mOncelik && tId < mId) {
                         peopleAhead++;
                     }
                 });
 
-                console.log(`DEBUG: Hesaplanan önümdeki sayı: ${peopleAhead}`);
-                const count = peopleAhead; // Eski değişken adıyla uyum için
-
-                // 3. Değişiklik varsa ses/titreşim (Sıra ilerlediğinde)
-                // Not: lastCount başlangıçta -1. İlk yüklemede ses çalmaması için lastCount !== -1 kontrolü var.
-                if (lastCount !== -1 && count < lastCount) {
-                    // Sıra azaldı, bildirim ver!
+                // Sesli bildirim (Sıra azaldıysa)
+                if (lastCount !== -1 && peopleAhead < lastCount) {
                     if (isAudioUnlocked) {
-                        tickSound.pause();
                         tickSound.currentTime = 0;
-                        tickSound.volume = 0.5;
-                        tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
+                        tickSound.play().catch(() => { });
                     }
                     if (navigator.vibrate) navigator.vibrate(100);
                 }
 
-                // Sayacı güncelle
-                lastCount = count;
-                statusEl.textContent = count > 0 ? `Önünüzde ${count} kişi var` : "Sıradaki sizsiniz!";
+                lastCount = peopleAhead;
+
+                // Metin Güncelleme
+                if (peopleAhead === 0) {
+                    statusEl.textContent = "Sıradaki sizsiniz!";
+                } else {
+                    statusEl.textContent = `Önünüzde ${peopleAhead} kişi var`;
+                }
+
+                // Stil Reset
                 statusEl.classList.remove('calling-status');
                 document.body.classList.remove('calling-active-body');
-                numEl.style.color = "#764ba2"; // Normal renk
+                numEl.style.color = "#764ba2";
 
             } catch (e) {
-                console.error("Takip Hatası:", e);
-                // Kullanıcıya hissettirmemek için hata basmıyoruz, konsola yazıyoruz.
+                console.error("Takip hatası:", e);
+                // Hata durumunu kullanıcıya göster (Geçici Debug)
+                statusEl.textContent = "Bağlantı Hatası: " + e.message;
+                statusEl.style.background = "#fab1a0"; // Açık kırmızı
+                statusEl.style.color = "#d63031";
             }
         }
 
