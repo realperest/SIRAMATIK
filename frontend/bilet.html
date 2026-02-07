@@ -127,7 +127,12 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        const bekleyen_url = urlParams.get('bekleyen') || '0';
+        const sira_id = urlParams.get('sira_id');
+        let sessionDurum = 'waiting';
+        let notificationPlayed = false;
+
+        // Bildirim Sesi
+        const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
 
         // İlk verileri URL'den bas
         document.getElementById('ticket-number').textContent = numara;
@@ -137,39 +142,67 @@
 
         async function updateStatus() {
             const statusEl = document.getElementById('wait-info');
-            if (!kuyruk_id) {
-                statusEl.textContent = "Sıra Bilgisi Eksik";
+            const numEl = document.getElementById('ticket-number');
+
+            if (!kuyruk_id || !sira_id) {
+                statusEl.textContent = "Takip kısıtlı (Eski bilet)";
                 return;
             }
 
             try {
                 const kid = parseInt(kuyruk_id);
-                if (isNaN(kid)) return;
-
+                const sid = parseInt(sira_id);
                 const bugün = new Date();
                 bugün.setHours(0, 0, 0, 0);
 
-                // Supabase sorgusu - Artık public şemasındaki 'siralar' view'ını kullanıyoruz (406 hatasını önlemek için)
-                const response = await _supabase
+                // 1. Kendi bilet bilgilerimizi çekelim (view üzerinden)
+                const myTicket = await _supabase
+                    .from('siralar')
+                    .select('durum, oncelik, olusturulma')
+                    .eq('id', sid)
+                    .single();
+
+                if (myTicket.error) throw myTicket.error;
+                const me = myTicket.data;
+
+                // Durum kontrolü
+                if (me.durum === 'calling') {
+                    statusEl.textContent = "SIRA SİZDE!";
+                    statusEl.style.background = "#22c55e";
+                    statusEl.style.color = "white";
+                    numEl.style.color = "#22c55e";
+
+                    if (!notificationPlayed) {
+                        alertSound.play().catch(e => console.log("Ses çalınamadı:", e));
+                        notificationPlayed = true;
+                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                    }
+                    return;
+                } else if (me.durum === 'completed') {
+                    statusEl.textContent = "İŞLEM TAMAMLANDI";
+                    statusEl.style.background = "#94a3b8";
+                    return;
+                }
+
+                // 2. Gerçek 'Önünde kaç kişi var' hesabı
+                // (Önceliği yüksek olanlar) + (Aynı öncelik ama daha eski olanlar)
+                const ahead = await _supabase
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', bugün.toISOString());
+                    .gte('olusturulma', bugün.toISOString())
+                    .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt.${me.olusturulma})`);
 
-                if (response.error || response.status >= 400) {
-                    console.error("Supabase Hatası:", response);
-                    statusEl.textContent = "Hata: " + (response.error?.message || response.statusText || "Bilinmeyen Hata") + " (" + response.status + ")";
-                    return;
-                }
+                if (ahead.error) throw ahead.error;
 
-                const count = response.count || 0;
-                // Bekleyen sayısı kendisi dahil olduğu için -1 yapıyoruz
-                statusEl.textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
+                const count = ahead.count || 0;
+                statusEl.textContent = count > 0 ? `Önünüzde ${count} kişi var` : "Sıradaki sizsiniz!";
+
+                if (me.durum === 'waiting') notificationPlayed = false;
 
             } catch (e) {
-                console.error("Sistem Hatası:", e);
-                statusEl.textContent = "Sistem Hatası: " + e.message;
+                console.error("Takip Hatası:", e);
             }
         }
 
