@@ -160,16 +160,17 @@
 
                 if (response.error) {
                     console.error("Supabase Hatası:", response.error);
-                    statusEl.textContent = "Bağlantı Hatası";
+                    statusEl.textContent = "Hata: " + response.error.message;
                     return;
                 }
 
                 const count = response.count || 0;
+                // Bekleyen sayısı kendisi dahil olduğu için -1 yapıyoruz
                 statusEl.textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
 
             } catch (e) {
                 console.error("Sistem Hatası:", e);
-                statusEl.textContent = "Sistem Hatası";
+                statusEl.textContent = "Sistem Hatası: " + e.message;
             }
         }
 
