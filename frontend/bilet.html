@@ -18,7 +18,8 @@
             min-height: 100vh;
             margin: 0;
             padding: 15px 20px;
-            /* Boşluk 15px olarak ayarlandı */
+            overscroll-behavior-y: contain;
+            /* Pull-to-refresh engelleme */
         }
 
         .ticket {
@@ -205,51 +206,70 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
+        // Verileri sakla/getir (Yenileme koruması)
+        function getTicketData() {
+            const params = new URLSearchParams(window.location.search);
+            const data = {
+                numara: params.get('numara') || localStorage.getItem('bt_numara') || '---',
+                kuyruk_ad: params.get('kuyruk') || localStorage.getItem('bt_kuyruk_ad') || 'Sıramatik',
+                firma_ad: params.get('firma') || localStorage.getItem('bt_firma_ad') || 'İRMET HOSPITAL',
+                kuyruk_id: params.get('kuyruk_id') || localStorage.getItem('bt_kuyruk_id'),
+                sira_id: params.get('sira_id') || localStorage.getItem('bt_sira_id'),
+                bekleyen: params.get('bekleyen') || localStorage.getItem('bt_bekleyen') || '0'
+            };
 
-        // URL Maskeleme: Adres satırındaki karmaşık parametreleri gizle
+            // Eğer URL'den geldiyse hafızaya kaydet
+            if (params.get('numara')) {
+                localStorage.setItem('bt_numara', data.numara);
+                localStorage.setItem('bt_kuyruk_ad', data.kuyruk_ad);
+                localStorage.setItem('bt_firma_ad', data.firma_ad);
+                localStorage.setItem('bt_kuyruk_id', data.kuyruk_id);
+                localStorage.setItem('bt_sira_id', data.sira_id);
+                localStorage.setItem('bt_bekleyen', data.bekleyen);
+            }
+            return data;
+        }
+
+        const ticketSpecs = getTicketData();
+
+        // URL Maskeleme (Veriler saklandıktan sonra)
         if (window.history.replaceState && window.location.search) {
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         }
 
-        const numara = urlParams.get('numara') || '---';
-        const kuyruk_ad = urlParams.get('kuyruk') || 'Sıramatik';
-        const firma_ad = urlParams.get('firma') || 'İRMET HOSPITAL';
-        const kuyruk_id = urlParams.get('kuyruk_id');
+        const numara = ticketSpecs.numara;
+        const kuyruk_ad = ticketSpecs.kuyruk_ad;
+        const firma_ad = ticketSpecs.firma_ad;
+        const kuyruk_id = ticketSpecs.kuyruk_id;
+        const sira_id = ticketSpecs.sira_id;
 
-        // Supabase Bağlantısı (Sadece Okuma Yetkili Anon Key)
-        const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-        const sira_id = urlParams.get('sira_id');
         let sessionDurum = 'waiting';
         let notificationPlayed = false;
         let lastCount = -1;
         let isAudioUnlocked = false;
+
+        // Supabase Bağlantısı
+        const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         // Bildirim Sesleri
         const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
         const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'); // Kısa bildirim sesi
 
         async function startNotifications() {
-            // Sesleri 'unmute' et - Tarayıcı kısıtlamasını aşmak için
-            alertSound.play().then(() => { alertSound.pause(); alertSound.currentTime = 0; }).catch(() => { });
-            tickSound.play().then(() => { tickSound.pause(); tickSound.currentTime = 0; }).catch(() => { });
+            // iOS için ses kilidi açma yöntemi
+            alertSound.play().then(() => { alertSound.pause(); }).catch(() => { });
+            tickSound.play().then(() => { tickSound.pause(); }).catch(() => { });
 
             isAudioUnlocked = true;
-            const overlay = document.getElementById('activation-overlay');
-            if (overlay) overlay.style.display = 'none';
-
-            // İlk titreşim testi
+            document.getElementById('activation-overlay').style.display = 'none';
             if (navigator.vibrate) navigator.vibrate(50);
-
-            // Takibi başlat
             updateStatus();
         }
 
-        const bekleyen_url = urlParams.get('bekleyen') || '0';
+        const bekleyen_url = ticketSpecs.bekleyen;
         lastCount = parseInt(bekleyen_url);
 
         // İlk verileri URL'den bas
