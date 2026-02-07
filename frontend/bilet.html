@@ -133,27 +133,35 @@
         document.getElementById('hospital-name').textContent = firma_ad;
 
         async function updateStatus() {
-            if (!kuyruk_id) return;
+            if (!kuyruk_id) {
+                console.error("Kuyruk ID bulunamadı, status güncellenemiyor.");
+                return;
+            }
 
             try {
-                // Bugüne ait bekleyen sıraları doğrudan Supabase buluttan çekiyoruz
-                // kuyruk_id'yi sayıya çevirelim (URL'den string gelir)
                 const kid = parseInt(kuyruk_id);
                 const bugün = new Date();
                 bugün.setHours(0, 0, 0, 0);
 
+                // Supabase'den siramatik şeması ile veri çek
                 const { count, error } = await _supabase
+                    .schema('siramatik')
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
                     .gte('olusturulma', bugün.toISOString());
 
-                if (!error) {
-                    document.getElementById('wait-info').textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
+                if (error) {
+                    console.error("Supabase Hatası:", error.message);
+                    return;
                 }
+
+                console.log(`Bekleyen sayısı: ${count}`);
+                document.getElementById('wait-info').textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
+
             } catch (e) {
-                console.log("Canlı güncelleme beklemede...");
+                console.error("Canlı güncelleme sırasında hata oluştu:", e);
             }
         }
 
