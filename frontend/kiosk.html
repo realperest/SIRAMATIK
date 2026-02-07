@@ -262,38 +262,39 @@
             </button>
         </div>
     </div>
-    <div class="bilet-konteynir">
-        <!-- Sol Panel: Bilet Bilgileri -->
-        <div class="info-section">
-            <h2 style="font-size: 32px; opacity: 0.9;">Sıra Numaranız</h2>
-            <div class="numara" id="numara"></div>
-            <p class="mesaj" id="mesaj" style="font-size: 24px; min-height: 40px;"></p>
+    <div id="numara-ekrani" style="display:none;">
+        <div class="bilet-konteynir">
+            <!-- Sol Panel: Bilet Bilgileri -->
+            <div class="info-section">
+                <h2 style="font-size: 32px; opacity: 0.9;">Sıra Numaranız</h2>
+                <div class="numara" id="numara"></div>
+                <p class="mesaj" id="mesaj" style="font-size: 24px; min-height: 40px;"></p>
 
-            <div class="bekleme-info" id="bekleme-info"
-                style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; display: inline-block; margin-top: 10px;">
+                <div class="bekleme-info" id="bekleme-info"
+                    style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; display: inline-block; margin-top: 10px;">
+                </div>
+
+                <button onclick="fisBastir()" class="print-btn">
+                    <i class="fas fa-print"></i>
+                    FİŞ YAZDIR
+                </button>
             </div>
 
-            <button onclick="fisBastir()" class="print-btn">
-                <i class="fas fa-print"></i>
-                FİŞ YAZDIR
-            </button>
+            <!-- Sağ Panel: QR Kod -->
+            <div class="qr-section">
+                <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
+                <p>Karekod Okut</p>
+                <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">
+                    Sıranızı telefondan canlı takip edin
+                </div>
+                <div id="qr-sayac" style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 20px;">
+                </div>
+
+                <button onclick="location.reload()" class="back-btn">
+                    ANA SAYFAYA DÖN
+                </button>
+            </div>
         </div>
-
-        <!-- Sağ Panel: QR Kod -->
-        <div class="qr-section">
-            <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
-            <p>Karekod Okut</p>
-            <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">
-                Sıranızı telefondan canlı takip edin
-            </div>
-            <div id="qr-sayac" style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 20px;">
-            </div>
-
-            <button onclick="location.reload()" class="back-btn">
-                ANA SAYFAYA DÖN
-            </button>
-        </div>
-    </div>
     </div>
 
     <!-- Font Awesome ve QR Lib -->
@@ -503,7 +504,9 @@
 
                 // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
                 // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
-                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
+                // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
+                // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${kuyrukId}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 

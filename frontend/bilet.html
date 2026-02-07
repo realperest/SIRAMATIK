@@ -137,13 +137,17 @@
 
             try {
                 // Bugüne ait bekleyen sıraları doğrudan Supabase buluttan çekiyoruz
-                const bugün = new Date().toISOString().split('T')[0];
+                // kuyruk_id'yi sayıya çevirelim (URL'den string gelir)
+                const kid = parseInt(kuyruk_id);
+                const bugün = new Date();
+                bugün.setHours(0, 0, 0, 0);
+
                 const { count, error } = await _supabase
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
-                    .eq('kuyruk_id', kuyruk_id)
+                    .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', bugün);
+                    .gte('olusturulma', bugün.toISOString());
 
                 if (!error) {
                     document.getElementById('wait-info').textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
