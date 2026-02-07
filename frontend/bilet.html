@@ -179,7 +179,7 @@
     <!-- Aktivasyon Katmanı -->
     <div id="activation-overlay">
         <div>
-            <div style="font-size: 40px; margin-bottom: 20px;"></div>
+            <div style="font-size: 40px; margin-bottom: 20px;">🔔</div>
             <h2 style="margin-bottom: 10px;">Sesli Bildirimler</h2>
             <p style="opacity: 0.8; margin-bottom: 20px;">Sıranız geldiğinde sizi sesli ve görüntülü <br> uyarabilmemiz
                 için onay veriniz.</p>
@@ -258,7 +258,6 @@
         const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Çok tiz ve net 'ding' sesi
         const alertSound = tickSound; // Bitiş alarmı da aynı tiz ses olsun
 
-        let wakeLock = null;
         async function startNotifications() {
             // iOS için ses kilidi açma yöntemi
             alertSound.volume = 0.5;
@@ -269,23 +268,6 @@
 
             isAudioUnlocked = true;
             document.getElementById('activation-overlay').style.display = 'none';
-
-            // Screen Wake Lock API - Ekranın kapanmasını engelle
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-
-                    // Sayfa minimize olup geri açıldığında kilidi tazele
-                    document.addEventListener('visibilitychange', async () => {
-                        if (wakeLock !== null && document.visibilityState === 'visible') {
-                            wakeLock = await navigator.wakeLock.request('screen');
-                        }
-                    });
-                }
-            } catch (err) {
-                console.log("Wake Lock Hatası:", err);
-            }
-
             if (navigator.vibrate) navigator.vibrate(50);
             updateStatus();
         }
@@ -305,6 +287,7 @@
 
             if (!kuyruk_id || !sira_id) {
                 console.warn("Canlı takip için sira_id veya kuyruk_id eksik.");
+                // Hata basma, sadece canlı güncellemeyi durdur
                 return;
             }
 
@@ -314,42 +297,41 @@
                 const bugün = new Date();
                 bugün.setHours(0, 0, 0, 0);
 
-                // 1. Kendi bilet bilgilerini çek
-                const { data: me, error: myError } = await _supabase
+                // 1. Kendi bilet bilgilerimizi çekelim (view üzerinden)
+                const myTicket = await _supabase
                     .from('siralar')
                     .select('durum, oncelik, olusturulma')
                     .eq('id', sid)
                     .single();
 
-                if (myError || !me) {
-                    throw myError || new Error("Bilet bulunamadı");
-                }
+                if (myTicket.error) throw myTicket.error;
+                const me = myTicket.data;
 
                 // Durum kontrolü
                 if (me.durum === 'calling') {
                     statusEl.textContent = "SIRA SİZDE!";
                     statusEl.classList.add('calling-status');
                     document.body.classList.add('calling-active-body');
-                    numEl.style.color = "#22c55e"; // Yeşil
+                    numEl.style.color = "#22c55e";
 
                     if (!notificationPlayed) {
                         notificationPlayed = true;
 
-                        // 3 kez alarm çal
+                        // 3 kez üst üste çalma mantığı
                         let playCount = 0;
                         const playAlert = () => {
                             if (playCount < 3) {
-                                alertSound.volume = 1.0;
-                                alertSound.currTime = 0;
-                                alertSound.play().catch(e => console.log("Alarm hatası:", e));
+                                alertSound.pause();
+                                alertSound.currentTime = 0;
+                                alertSound.play().catch(e => console.log("Alarm çalınamadı:", e));
                                 playCount++;
-                                setTimeout(playAlert, 1500);
+                                setTimeout(playAlert, 800); // 0.8 saniye arayla 3 kez
                             }
                         };
                         playAlert();
 
                         if (navigator.vibrate) {
-                            navigator.vibrate([500, 200, 500, 200, 500]); // Uzun titreşim
+                            navigator.vibrate([300, 100, 300, 100, 300, 100, 300]); // Uzun titreşim
                         }
                     }
                     return;
@@ -357,56 +339,42 @@
                     statusEl.textContent = "İŞLEM TAMAMLANDI";
                     statusEl.classList.remove('calling-status');
                     document.body.classList.remove('calling-active-body');
-                    statusEl.style.background = "#94a3b8"; // Gri
+                    statusEl.style.background = "#94a3b8";
                     return;
                 }
 
-                notificationPlayed = false; // Waiting durumuna dönerse tekrar çalsın diye reset
-
-                // 2. Önümde kaç kişi var hesapla (Basitleştirilmiş Yöntem)
-                // Karmaşık filtreler yerine o günkü o kuyruktaki tüm 'waiting'leri çekip JS ile sayalım.
-                const { data: waitingList, error: listError } = await _supabase
+                // (Önceliği yüksek olanlar) + (Aynı öncelik ama daha eski olanlar - Tarihi ISO string olarak değil tam milisaniye ile kıyaslayalım)
+                const ahead = await _supabase
                     .from('siralar')
-                    .select('id, oncelik, olusturulma')
+                    .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', bugün.toISOString());
+                    .gte('olusturulma', bugün.toISOString())
+                    .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt."${me.olusturulma}")`);
 
-                if (listError) throw listError;
+                if (ahead.error) throw ahead.error;
 
-                // JS Tarafında Filtreleme: (Önceliği benden yüksek) VEYA (Önceliği aynı ama benden önce gelmiş)
-                const peopleAhead = waitingList.filter(t => {
-                    if (t.id === sid) return false; // Kendimi sayma
-                    if (t.oncelik > me.oncelik) return true; // Öncelikli
-                    if (t.oncelik === me.oncelik && new Date(t.olusturulma) < new Date(me.olusturulma)) return true; // Eski
-                    return false;
-                });
+                const count = ahead.count || 0;
 
-                const count = peopleAhead.length;
-
-                // 3. Değişiklik varsa ses/titreşim (Sıra ilerlediğinde)
-                // Not: lastCount başlangıçta -1. İlk yüklemede ses çalmaması için lastCount !== -1 kontrolü var.
-                if (lastCount !== -1 && count < lastCount) {
-                    // Sıra azaldı, bildirim ver!
+                // Sıra Eksilme Takibi (Titreşim ve Tick Sesi)
+                if (lastCount !== -1 && count < lastCount && count >= 0) {
                     if (isAudioUnlocked) {
                         tickSound.pause();
                         tickSound.currentTime = 0;
-                        tickSound.volume = 0.5;
                         tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
                     }
-                    if (navigator.vibrate) navigator.vibrate(100);
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
                 }
-
-                // Sayacı güncelle
                 lastCount = count;
+
                 statusEl.textContent = count > 0 ? `Önünüzde ${count} kişi var` : "Sıradaki sizsiniz!";
-                statusEl.classList.remove('calling-status');
-                document.body.classList.remove('calling-active-body');
-                numEl.style.color = "#764ba2"; // Normal renk
+
+                if (me.durum === 'waiting') notificationPlayed = false;
 
             } catch (e) {
                 console.error("Takip Hatası:", e);
-                // Kullanıcıya hissettirmemek için hata basmıyoruz, konsola yazıyoruz.
             }
         }
 
