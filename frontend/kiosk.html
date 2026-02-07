@@ -378,7 +378,9 @@
 
             if (uygunKuyruklar.length <= 1) {
                 // Eğer tek kuyruk varsa alt alanı gizle ve direkt sıra al
-                document.getElementById('alt-secenekler-konteynir').style.display = 'none';
+                const subContainer = document.getElementById('alt-secenekler-konteynir');
+                if (subContainer) subContainer.style.display = 'none';
+
                 const kuyrukId = uygunKuyruklar.length === 1 ? uygunKuyruklar[0].id : null;
                 if (kuyrukId) siraAl(kuyrukId, servisId);
                 else showToast("Bu servise bağlı kuyruk bulunamadı!", "error");
@@ -425,14 +427,20 @@
 
                 lastSiraResponse = response;
                 lastSiraResponse.servis_id = servisId;
+                lastSiraResponse.kuyruk_id = kuyrukId; // Bu bilgiyi telefona aktarmak için saklıyoruz
 
                 // Verileri ekrana bas
-                document.getElementById('numara').textContent = response.numara;
-                document.getElementById('mesaj').textContent = response.mesaj || (response.numara + " numaralı sıranız alındı.");
-                document.getElementById('bekleme-info').textContent = `Sıranızdan önce ${Math.max(0, response.bekleyen_sayisi - 1)} kişi var.`;
+                const numaraEl = document.getElementById('numara');
+                if (numaraEl) numaraEl.textContent = response.numara;
+                const mesajEl = document.getElementById('mesaj');
+                if (mesajEl) mesajEl.textContent = response.mesaj || (response.numara + " numaralı sıranız alındı.");
+                const beklemeInfoEl = document.getElementById('bekleme-info');
+                if (beklemeInfoEl) beklemeInfoEl.textContent = `Sıranızdan önce ${Math.max(0, response.bekleyen_sayisi - 1)} kişi var.`;
 
-                document.getElementById('departman-secimi').style.display = 'none';
-                document.getElementById('numara-ekrani').style.display = 'block';
+                const depSecimi = document.getElementById('departman-secimi');
+                const numEkrani = document.getElementById('numara-ekrani');
+                if (depSecimi) depSecimi.style.display = 'none';
+                if (numEkrani) numEkrani.style.display = 'block';
 
                 // QR Kodunu otomatik oluştur
                 karekodGoster();
@@ -460,7 +468,7 @@
             document.getElementById('fis-kuyruk').textContent = lastSiraResponse.kuyruk_ad;
             document.getElementById('fis-tarih').textContent = new Date().toLocaleString('tr-TR');
 
-            // Fiş karekodunu oluştur (Takip için)
+            // Fiş üzerindeki Takip Karekodunu oluştur
             const fisQrContainer = document.getElementById('fis-qrcode');
             fisQrContainer.innerHTML = '';
             const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
@@ -504,9 +512,7 @@
 
                 // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
                 // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
-                // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
-                // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
-                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${kuyrukId}`;
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 
