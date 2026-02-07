@@ -11,119 +11,127 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-align: center;
-            padding: 40px 20px;
-            min-height: 100vh;
+            padding: 1vh 2vw;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         .header {
-            margin-bottom: 30px;
+            margin-bottom: 1vh;
+            flex-shrink: 0;
         }
 
         .header h1 {
-            font-size: 48px;
-            margin-bottom: 10px;
+            font-size: 4vh;
+            margin: 0.5vh 0;
         }
 
         .header p {
-            font-size: 24px;
+            font-size: 2vh;
             opacity: 0.9;
+            margin: 0;
         }
 
         .smart-wait-alert {
             background: #ffd700;
             color: #1a1a2e;
-            padding: 25px;
-            border-radius: 20px;
-            margin: 0 auto 40px;
-            max-width: 900px;
+            padding: 1vh 2vw;
+            border-radius: 15px;
+            margin: 0 auto 1.5vh;
+            max-width: 800px;
             font-weight: bold;
-            box-shadow: 0 10px 40px rgba(255, 215, 0, 0.5);
-            border: 4px solid white;
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+            border: 3px solid white;
             animation: pulse-border 2s infinite;
+            flex-shrink: 0;
         }
 
         @keyframes pulse-border {
             0% {
                 transform: scale(1);
-                box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4);
             }
 
             50% {
-                transform: scale(1.02);
-                box-shadow: 0 15px 45px rgba(255, 215, 0, 0.6);
+                transform: scale(1.01);
             }
 
             100% {
                 transform: scale(1);
-                box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4);
             }
         }
 
         .smart-wait-title {
-            font-size: 32px;
+            font-size: 2vh;
             display: block;
-            margin-bottom: 10px;
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .smart-wait-desc {
-            font-size: 22px;
+            font-size: 1.6vh;
             opacity: 0.9;
         }
 
         .departman-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 280px));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 16%));
             justify-content: center;
-            gap: 15px;
-            max-width: 100%;
+            align-content: start;
+            gap: 1.5vh 1vw;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 10px;
+            padding: 1vh;
+            flex-grow: 1;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .departman-grid::-webkit-scrollbar {
+            display: none;
         }
 
         .departman-card {
             background: white;
             color: #333;
-            padding: 20px 15px;
-            border-radius: 18px;
+            padding: 1.5vh 1vw;
+            border-radius: 15px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            transition: all 0.2s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 140px;
+            min-height: 10vh;
             width: 100%;
             box-sizing: border-box;
         }
 
         .departman-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
             background: #fdfdfd;
         }
 
         .departman-card h2 {
-            font-size: 20px;
-            margin: 5px 0;
+            font-size: 1.8vh;
+            margin: 0.5vh 0;
             color: #1a1a2e;
             font-weight: 700;
         }
 
         .departman-card .kod {
-            font-size: 42px;
+            font-size: 4vh;
             font-weight: 900;
             color: #667eea;
-            opacity: 0.9;
         }
 
         .departman-card .bekleyen {
-            font-size: 14px;
+            font-size: 1.4vh;
             color: #666;
-            font-weight: 500;
-            margin-top: 5px;
+            margin-top: 0.3vh;
         }
 
         #numara-ekrani {
