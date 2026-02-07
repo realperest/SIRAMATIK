@@ -164,6 +164,23 @@ class Database:
         })
         return result[0] if result else None
     
+    def create_manuel_sira(self, kuyruk_id: int, servis_id: int, firma_id: int, 
+                           numara: str, oncelik: int = 0, notlar: str = None) -> Dict:
+        """Manuel sıra oluştur (Özel numara ile)"""
+        result = self.execute_query("""
+            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara)
+            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara)
+            RETURNING *
+        """, {
+            "kuyruk_id": kuyruk_id,
+            "servis_id": servis_id,
+            "firma_id": firma_id,
+            "oncelik": oncelik,
+            "notlar": notlar,
+            "numara": numara
+        })
+        return result[0] if result else None
+    
     def get_bekleyen_siralar(self, kuyruk_id: int) -> List[Dict]:
         """Bekleyen sıraları getir (öncelik sırasına göre)"""
         return self.execute_query("""
@@ -197,7 +214,30 @@ class Database:
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
-        return result[0] if result else None
+    
+    def get_son_cagrilar(self, firma_id: Any, limit: int = 5, servis_id: int = None) -> List[Dict]:
+        """Ekran için son çağrıları getir"""
+        query = """
+            SELECT 
+                s.*, 
+                ser.ad as servis_ad,
+                k.ad as kuyruk_ad
+            FROM siramatik.siralar s
+            LEFT JOIN siramatik.servisler ser ON s.servis_id = ser.id
+            LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
+            WHERE s.firma_id = :firma_id 
+            AND s.durum = 'calling'
+            AND s.cagirilma > (NOW() - INTERVAL '60 seconds')
+        """
+        params = {"firma_id": firma_id, "limit": limit}
+
+        if servis_id:
+            query += " AND s.servis_id = :servis_id"
+            params["servis_id"] = servis_id
+            
+        query += " ORDER BY s.cagirilma DESC NULLS LAST LIMIT :limit"
+        
+        return self.execute_query(query, params)
     
     # --- KULLANICILAR ---
     
@@ -233,22 +273,7 @@ class Database:
         })
         return result[0] if result else None
     
-    # --- EKRAN ---
-    
-    def get_son_cagrilar(self, firma_id: int, limit: int = 5) -> List[Dict]:
-        """Son çağrılan sıraları getir (ekran için)"""
-        return self.execute_query("""
-            SELECT s.*, k.ad as kuyruk_ad, k.kod as kuyruk_kod,
-                   sv.ad as servis_ad
-            FROM siramatik.siralar s
-            JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
-            JOIN siramatik.servisler sv ON s.servis_id = sv.id
-            WHERE s.firma_id = :firma_id 
-            AND s.durum IN ('calling', 'serving')
-            AND s.cagirilma > (NOW() - INTERVAL '30 seconds')
-            ORDER BY s.cagirilma DESC
-            LIMIT :limit
-        """, {"firma_id": firma_id, "limit": limit})
+
     
     def get_tum_bekleyen_siralar(self, firma_id: int) -> List[Dict]:
         """Firmaya ait tüm bekleyen sıraları getir"""
@@ -259,8 +284,46 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
+            AND s.olusturulma::date = CURRENT_DATE
             ORDER BY s.oncelik DESC, s.olusturulma ASC
         """, {"prefix_removed_already_handled": None, "firma_id": firma_id})
+        
+    def get_gunluk_istatistik(self, firma_id: str, kullanici_id: Optional[str] = None) -> Dict:
+        """Günlük istatistikleri getir"""
+        
+        # Personel bazlı toplam (Eğer kullanici_id varsa)
+        parametreler = {"firma_id": firma_id}
+        
+        sql_toplam = """
+            SELECT COUNT(*) as sayi 
+            FROM siramatik.siralar s
+            JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
+            JOIN siramatik.servisler sv ON k.servis_id = sv.id
+            WHERE sv.firma_id = :firma_id 
+            AND s.olusturulma::date = CURRENT_DATE
+        """
+        
+        if kullanici_id:
+            sql_toplam += " AND s.cagiran_kullanici_id = :kullanici_id"
+            parametreler["kullanici_id"] = kullanici_id
+            
+        res_toplam = self.execute_query(sql_toplam, parametreler)
+        
+        # Bekleyen (Firma geneli)
+        res_bekleyen = self.execute_query("""
+            SELECT COUNT(*) as sayi 
+            FROM siramatik.siralar s
+            JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
+            JOIN siramatik.servisler sv ON k.servis_id = sv.id
+            WHERE sv.firma_id = :firma_id 
+            AND s.durum = 'waiting'
+            AND s.olusturulma::date = CURRENT_DATE
+        """, {"firma_id": firma_id})
+        
+        return {
+            "toplam": res_toplam[0]['sayi'] if res_toplam else 0,
+            "bekleyen": res_bekleyen[0]['sayi'] if res_bekleyen else 0
+        }
         
     def get_kuyruklar_by_firma(self, firma_id: int) -> List[Dict]:
         """Firmaya ait tüm kuyrukları getir"""
@@ -270,6 +333,29 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id
         """, {"firma_id": firma_id})
+        
+    def get_servisler_by_firma(self, firma_id: str) -> List[Dict]:
+        """Firmaya ait servisleri getir"""
+        return self.execute_query("""
+            SELECT * FROM siramatik.servisler WHERE firma_id = :firma_id ORDER BY ad
+        """, {"firma_id": firma_id})
+        
+    def create_servis(self, firma_id: int, ad: str, kod: str = None, aciklama: str = None) -> Dict:
+        """Yeni servis oluştur"""
+        res = self.execute_query("""
+            INSERT INTO siramatik.servisler (firma_id, ad, kod, aciklama, aktif)
+            VALUES (:firma_id, :ad, :kod, :aciklama, TRUE)
+            RETURNING *
+        """, {"firma_id": firma_id, "ad": ad, "kod": kod, "aciklama": aciklama})
+        return res[0] if res else None
+
+    def update_user_servis(self, user_id: str, servis_id: Optional[int]) -> bool:
+        """Kullanıcının sorumlu olduğu servisi güncelle"""
+        self.execute_query("""
+            UPDATE siramatik.kullanicilar SET servis_id = :servis_id WHERE id = :user_id
+        """, {"user_id": user_id, "servis_id": servis_id})
+        return True
+
 
     # --- CİHAZLAR ---
 

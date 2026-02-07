@@ -3,7 +3,7 @@ Sıramatik - Pydantic Modeller
 Request/Response şemaları - Kuyruk Sistemi + VIP
 """
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Any, Union, Dict
 from datetime import datetime
 import uuid
 
@@ -46,6 +46,14 @@ class SiraCagirRequest(BaseModel):
     konum: Optional[str] = None  # Oda, gişe, masa no
 
 
+class ManuelSiraRequest(BaseModel):
+    kuyruk_id: int
+    servis_id: int
+    firma_id: int
+    numara: str
+    oncelik: int = 0
+    notlar: Optional[str] = None
+
 class SiraResponse(BaseModel):
     id: int
     numara: str
@@ -59,11 +67,12 @@ class SiraResponse(BaseModel):
 
 class KuyrukResponse(BaseModel):
     id: int
-    servis_id: int # EKLENDİ
+    servis_id: int
     ad: str
     kod: str
     aciklama: Optional[str] = None
     oncelik: int
+    servis_ad: Optional[str] = None # EKLENDİ
     bekleyen_sayisi: Optional[int] = 0
     vip_bekleyen_sayisi: Optional[int] = 0
 
@@ -94,12 +103,13 @@ class ServisCreateRequest(BaseModel):
 # --- EKRAN MODELS ---
 
 class EkranCagriResponse(BaseModel):
+    id: Any
     numara: str
-    kuyruk: str
-    servis: str
+    kuyruk: Optional[str] = "Bilinmiyor"
+    servis: Optional[str] = "Bilinmiyor"
     konum: Optional[str] = None
-    oncelik: int
-    cagirilma: Optional[datetime] = None  # Boş olabilir
+    oncelik: int = 0
+    cagirilma: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -144,3 +154,11 @@ class IstatistikResponse(BaseModel):
     cagirildi: int
     tamamlandi: int
     ortalama_bekleme_dk: Optional[int] = None
+class ServisCreateRequest(BaseModel):
+    firma_id: int
+    ad: str
+    kod: Optional[str] = None
+    aciklama: Optional[str] = None
+    
+class UserServisUpdateRequest(BaseModel):
+    servis_id: Optional[int] = None

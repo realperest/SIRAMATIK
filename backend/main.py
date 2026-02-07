@@ -4,7 +4,7 @@ Kuyruk Yönetim Sistemi - Sektör Agnostik
 """
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from typing import List, Optional
 import uvicorn
 
 from config import settings
@@ -23,9 +23,12 @@ from models import (
     SiraResponse,
     KuyrukResponse,
     KuyrukCreateRequest,
+    ServisCreateRequest,
+    UserServisUpdateRequest,
     ServisResponse,
     ServisCreateRequest,
     EkranCagriResponse,
+    ManuelSiraRequest,
     IstatistikResponse,
     DeviceResponse,
     DeviceUpdateRequest,
@@ -110,6 +113,29 @@ async def get_me(current_user: dict = Depends(get_current_active_user)):
     return kullanici_safe
 
 
+@app.get("/api/firma/{firma_id}")
+async def get_firma_info(firma_id: int):
+    """Firma genel bilgilerini getir (Public)"""
+    firma = db.get_firma(firma_id)
+    if not firma:
+        raise HTTPException(status_code=404, detail="Firma bulunamadı")
+    return firma
+
+
+@app.get("/api/kiosk-config")
+async def get_kiosk_config():
+    """Kiosk için yerel ağ yapılandırmasını getir"""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+    except:
+        ip = "localhost"
+    return {"host_ip": ip, "port": 3000} # Frontend portu 3000 genelde
+
+
 # ============================================
 # SIRA ENDPOINTS
 # ============================================
@@ -186,6 +212,50 @@ async def bekleyen_siralar_by_firma(
     siralar = db.get_tum_bekleyen_siralar(firma_id)
     print(f"\n[DEBUG] Bekleyenler: {siralar}\n")
     return siralar
+
+
+@app.get("/api/sira/istatistik/gunluk/{firma_id}")
+async def gunluk_istatistik(
+    firma_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Günlük işlem sayılarını getir (Personel bazlı)"""
+    # Eğer personel ise kendi yaptıklarını, admin ise hepsini mi?
+    # Şimdilik sadece "kişisel performans" gösterelim.
+    kullanici_id = str(current_user["id"])
+    stats = db.get_gunluk_istatistik(firma_id, kullanici_id=kullanici_id)
+    return stats
+    
+    
+# --- ADMIN ENDPOINTS ---
+
+@app.get("/api/admin/servisler/{firma_id}")
+async def get_servisler(firma_id: str, _: dict = Depends(get_current_active_user)):
+    return db.get_servisler_by_firma(firma_id)
+
+# --- (Gereksiz Servis Create silindi) ---
+# POST /api/admin/servis aşağıda tanımlı.
+
+# Kullanıcı Yönetimi
+@app.get("/api/admin/users/{firma_id}")
+async def get_users(firma_id: str, _: dict = Depends(get_current_active_user)):
+    return db.execute_query("""
+        SELECT id, email, ad_soyad, rol, servis_id 
+        FROM siramatik.kullanicilar 
+        WHERE firma_id = :firma_id
+        ORDER BY ad_soyad
+    """, {"firma_id": firma_id})
+
+@app.put("/api/admin/user/{user_id}/servis")
+async def update_user_servis(
+    user_id: str, 
+    data: UserServisUpdateRequest, 
+    _: dict = Depends(get_current_active_user)
+):
+    success = db.update_user_servis(user_id, data.servis_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Güncelleme başarısız")
+    return {"message": "Kullanıcı servisi güncellendi"} 
 
 
 @app.post("/api/sira/cagir/{sira_id}")
@@ -335,25 +405,31 @@ async def servis_listele(firma_id: int):
 # ============================================
 
 @app.get("/api/ekran/son-cagrilar/{firma_id}", response_model=List[EkranCagriResponse])
-async def ekran_son_cagrilar(firma_id: int, limit: int = 5):
+async def ekran_son_cagrilar(firma_id: int, limit: int = 5, servis_id: Optional[int] = None):
     """
     Ekranda son çağrılan numaraları göster
     Public endpoint
     """
-    cagrilar = db.get_son_cagrilar(firma_id, limit)
-    
-    result = []
-    for cagri in cagrilar:
-        result.append({
-            "numara": cagri["numara"],
-            "kuyruk": cagri.get("kuyruk_ad", "Bilinmiyor"),
-            "servis": cagri.get("servis_ad", "Bilinmiyor"),
-            "konum": cagri.get("konum"),
-            "oncelik": cagri.get("oncelik", 0),
-            "cagirilma": cagri["cagirilma"]
-        })
-    
-    return result
+    print(f"DEBUG EKRAN QUERY START: firma={firma_id}")
+    try:
+        cagrilar = db.get_son_cagrilar(firma_id, limit, servis_id=servis_id)
+        
+        result = []
+        for cagri in cagrilar:
+            result.append({
+                "id": cagri.get("id"),
+                "numara": cagri.get("numara", "---"),
+                "kuyruk": cagri.get("kuyruk_ad", "-"),
+                "servis": cagri.get("servis_ad", "-"),
+                "konum": cagri.get("konum"),
+                "oncelik": cagri.get("oncelik", 0),
+                "cagirilma": cagri.get("cagirilma")
+            })
+        
+        return result
+    except Exception as e:
+        print(f"!!! EKRAN ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================
@@ -400,6 +476,23 @@ async def update_cihaz(
         
     return {"success": True, "cihaz": cihaz}
 
+
+
+# --- MANUEL SIRA ---
+@app.post("/api/admin/sira/manuel")
+async def manuel_sira_al(request: ManuelSiraRequest, current_user: dict = Depends(get_current_active_user)):
+    """Personel tarafından manuel sıra oluşturma"""
+    sira = db.create_manuel_sira(
+        kuyruk_id=request.kuyruk_id,
+        servis_id=request.servis_id,
+        firma_id=request.firma_id,
+        numara=request.numara,
+        oncelik=request.oncelik,
+        notlar=request.notlar
+    )
+    if not sira:
+        raise HTTPException(status_code=400, detail="Sıra oluşturulamadı")
+    return sira
 
 # --- SERVIS CRUD ---
 

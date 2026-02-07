@@ -318,8 +318,8 @@
 
     <aside class="sidebar">
         <div class="logo">
-            <i class="fas fa-layer-group"></i>
-            <span>SIRAMATİK</span>
+            <i class="fas fa-hospital"></i>
+            <span id="firma-name-display">İRMET</span>
         </div>
 
         <nav>
@@ -553,6 +553,23 @@
         let services = [];
         let queues = [];
 
+        function showView(viewId) {
+            // Menü aktifliği
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const nav = document.getElementById('nav-' + viewId);
+            if (nav) nav.classList.add('active');
+
+            // İçerik gösterimi
+            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar'];
+            views.forEach(v => {
+                const el = document.getElementById('view-' + v);
+                if (el) el.style.display = 'none';
+            });
+
+            const target = document.getElementById('view-' + viewId);
+            if (target) target.style.display = 'block';
+        }
+
         async function init() {
             try {
                 const user = JSON.parse(localStorage.getItem('user'));
@@ -563,15 +580,27 @@
                 currentUser = user;
                 document.getElementById('admin-name').textContent = user.ad_soyad;
 
+                await loadFirmaInfo();
                 await loadStats();
                 await loadServices();
                 await loadDevices();
                 await loadQueues();
+                await loadUsers(); // Personel Listesi
 
             } catch (err) {
                 console.error(err);
                 window.location.href = 'personel.html';
             }
+        }
+
+        async function loadFirmaInfo() {
+            try {
+                const firma = await apiCall(`/firma/${currentUser.firma_id}`);
+                if (firma && firma.ad) {
+                    document.getElementById('firma-name-display').textContent = firma.ad;
+                    document.title = firma.ad + " - Yönetim Paneli";
+                }
+            } catch (err) { }
         }
 
         async function loadStats() {
@@ -621,6 +650,32 @@
             } catch (err) { }
         }
 
+        async function loadUsers() {
+            try {
+                // Backend endpoint: /api/admin/users/{firma_id}
+                const users = await apiCall(`/admin/users/${currentUser.firma_id}`);
+                renderUserTable(users);
+            } catch (err) { console.error("Users load error", err); }
+        }
+
+        function renderUserTable(users) {
+            const tbody = document.getElementById('user-table-body');
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Kullanıcı bulunamadı.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td>
+                        <div style="font-weight: 600;">${u.ad_soyad}</div>
+                    </td>
+                    <td>${u.email}</td>
+                    <td><span class="status-badge" style="background:${u.rol === 'admin' ? 'var(--accent-secondary)' : 'var(--accent-primary)'}; color:white;">${u.rol}</span></td>
+                    <td>${u.servis_id ? '✅ Servis Atanmış' : '❌ Genel'}</td>
+                </tr>
+            `).join('');
+        }
+
         function renderServiceTable() {
             const tbody = document.getElementById('service-table-body');
             tbody.innerHTML = services.map(s => `
@@ -656,6 +711,10 @@
 
         function renderDeviceTable() {
             const tbody = document.getElementById('device-table-body');
+            if (!devices || devices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-microchip" style="font-size:24px; margin-bottom:10px; display:block;"></i>Henüz kayıtlı cihaz yok.<br>Kiosk veya TV açıldığında otomatik eklenebilir.</td></tr>';
+                return;
+            }
             tbody.innerHTML = devices.map(d => `
                 <tr>
                     <td>

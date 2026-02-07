@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sıra Bileti - İRMET</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .ticket {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .ticket::before,
+        .ticket::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #f0f2f5;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .ticket::before {
+            left: -20px;
+        }
+
+        .ticket::after {
+            right: -20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+            border-top: 2px dashed #eee;
+        }
+
+        .number {
+            font-size: 84px;
+            font-weight: 900;
+            color: #764ba2;
+            margin: 20px 0;
+            letter-spacing: -2px;
+        }
+
+        .label {
+            color: #7f8c8d;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #95a5a6;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border-radius: 50px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="ticket">
+        <div class="header">
+            <h2 id="hospital-name">İRMET HOSPITAL</h2>
+            <div style="font-size: 14px; opacity: 0.8;">Sıra Takip Sistemi</div>
+        </div>
+        <div class="content">
+            <div class="label">Sıra Numaranız</div>
+            <div class="number" id="ticket-number">---</div>
+            <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
+            <div class="status" id="wait-info">Giriş Yapılıyor...</div>
+        </div>
+        <div class="footer">
+            <div id="current-time">--:--:--</div>
+            <div style="margin-top: 5px;">Lütfen ekranlardan numaranızı takip ediniz.</div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const numara = urlParams.get('numara') || '---';
+        const kuyruk = urlParams.get('kuyruk') || 'Sıramatik';
+        const bekleyen = urlParams.get('bekleyen') || '0';
+        const firma = urlParams.get('firma') || 'İRMET HOSPITAL';
+
+        document.getElementById('ticket-number').textContent = numara;
+        document.getElementById('queue-name').textContent = kuyruk;
+        document.getElementById('hospital-name').textContent = firma;
+        document.getElementById('wait-info').textContent = `Önünüzde ${bekleyen} kişi var`;
+
+        function updateTime() {
+            document.getElementById('current-time').textContent = new Date().toLocaleTimeString('tr-TR');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+
+</html>

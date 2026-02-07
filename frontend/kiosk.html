@@ -97,18 +97,49 @@
             margin-top: 30px;
             font-size: 20px;
         }
+
+        .departman-card.active {
+            background: #ffd700;
+            color: #1a1a2e;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px #ffd700;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="header">
-        <h1>🏥 DEMO HASTANESİ</h1>
-        <p>Sıra Numarası Alma Sistemi</p>
+        <h1 id="hospital-name">🏥 Yükleniyor...</h1>
+        <p id="hospital-subtitle">Sıra Numarası Alma Sistemi</p>
     </div>
 
     <div id="departman-secimi">
         <h2 style="font-size: 36px; margin-bottom: 40px;">Hangi Bölüme Gideceksiniz?</h2>
         <div class="departman-grid" id="departman-listesi"></div>
+
+        <!-- Alt seçenekler alanı -->
+        <div id="alt-secenekler-konteynir"
+            style="display:none; margin-top: 50px; padding: 40px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 2px dashed rgba(255,255,255,0.3);">
+            <h3 id="alt-secenek-baslik" style="font-size: 32px; margin-bottom: 30px; color: #ffd700;">Hizmet Türü
+                Seçiniz</h3>
+            <div id="alt-secenek-listesi" class="departman-grid"></div>
+        </div>
     </div>
 
     <div id="numara-ekrani">
@@ -116,125 +147,280 @@
         <div class="numara" id="numara"></div>
         <div class="mesaj" id="mesaj"></div>
         <div class="bekleme-info" id="bekleme-info"></div>
+
+        <!-- Seçenekler Paneli -->
+        <div id="bilet-secenekleri" style="margin-top: 50px; display: flex; gap: 20px; justify-content: center;">
+            <button onclick="fisBastir()" class="departman-card"
+                style="flex:none; width: 300px; background: #2ecc71; color: white;">
+                <div class="kod" style="color:white; font-size: 40px;"><i class="fas fa-print"></i></div>
+                <h2 style="font-size: 24px;">FİŞ BASTIR</h2>
+            </button>
+            <button onclick="karekodGoster()" class="departman-card"
+                style="flex:none; width: 300px; background: #3498db; color: white;">
+                <div class="kod" style="color:white; font-size: 40px;"><i class="fas fa-qrcode"></i></div>
+                <h2 style="font-size: 24px;">KAREKOD OKUT</h2>
+            </button>
+        </div>
+
+        <!-- QR Modal / Alanı -->
+        <div id="qr-alanı"
+            style="display:none; margin-top: 40px; background: white; padding: 40px; border-radius: 30px; border: 4px solid #3498db; box-shadow: 0 0 50px rgba(0,0,0,0.5); text-align: center;">
+            <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
+            <p style="color: #2c3e50; margin: 20px 0 10px; font-size: 24px; font-weight: bold;">Telefonunuzla Tarayınız
+            </p>
+            <div id="qr-sayac"
+                style="color: #e74c3c; font-size: 18px; margin-bottom: 20px; font-weight: bold; min-height: 24px;">
+            </div>
+            <button onclick="location.reload()"
+                style="padding: 15px 40px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 20px; font-weight: bold; width: 100%;">ANA
+                SAYFAYA DÖN</button>
+        </div>
     </div>
 
+    <!-- Font Awesome ve QR Lib -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="static/app.js"></script>
     <script>
-        const FIRMA_ID = 1; // Demo firma
+        let allQueues = [];
+        const FIRMA_ID = 1;
 
-        // Servisleri yükle
-        async function servisleriYukle() {
+        // Firma bilgilerini yükle
+        async function initFirma() {
             try {
-                showLoading(true);
-                const data = await apiCall(`/servisler/${FIRMA_ID}`);
-
-                const liste = document.getElementById('departman-listesi');
-                liste.innerHTML = '';
-
-                data.forEach(servis => {
-                    const card = document.createElement('div');
-                    card.className = 'departman-card fade-in';
-                    card.innerHTML = `
-                        <div class="kod">${servis.kod}</div>
-                        <h2>${servis.ad}</h2>
-                        <div class="bekleyen">
-                            ${servis.kuyruk_sayisi > 0 ?
-                            `🕐 ${servis.kuyruk_sayisi} kişi bekliyor` :
-                            '✓ Sıra yok'}
-                        </div>
-                    `;
-                    // Servisin bağlı olduğu ilk kuyruğu bulmak gerekirdi ama
-                    // demo için varsayılan kuyruk ID'sini backend'in bulmasını isteyeceğiz
-                    // veya backend endpointini buna göre güncelleyeceğiz.
-                    // Şimdilik backend SiraCreate modeline uygun gönderelim:
-                    card.onclick = () => siraAl(servis.id);
-                    liste.appendChild(card);
-                });
-
-                showLoading(false);
-            } catch (error) {
-                showLoading(false);
-                showToast('Servisler yüklenemedi: ' + error.message, 'error');
+                console.log("Firma bilgileri yükleniyor...");
+                const firma = await apiCall(`/firma/${FIRMA_ID}`);
+                if (firma && firma.ad) {
+                    const el = document.getElementById('hospital-name');
+                    if (el) el.textContent = firma.ad;
+                    document.title = firma.ad + " - Sıra Al";
+                }
+            } catch (err) {
+                console.error("Firma bilgisi hatası:", err);
             }
         }
 
-        // Sıra numarası al
-        async function siraAl(servisId) {
+        // Tüm verileri yükle
+        async function verileriYukle() {
+            console.log("Servis ve kuyruk verileri yükleniyor...");
             try {
                 showLoading(true);
+                const [servisler, kuyruklar] = await Promise.all([
+                    apiCall(`/servisler/${FIRMA_ID}`),
+                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                ]);
 
-                // Kuyruk ID'sini bulmak için önce servis detayını çekmek daha doğru olurdu
-                // ama basitlik için backend'e sadece servis ID gönderip
-                // backend'in o servise bağlı ilk kuyruğu seçmesini sağlayacak bir endpoint lazım.
-                // Veya frontend'de hile yapıp, tüm kuyrukları çekip filtreleyebiliriz.
+                console.log("Gelen Servisler:", servisler.length);
+                console.log("Gelen Kuyruklar:", kuyruklar.length);
 
-                // DÜZELTME: Backend'de /sira/al endpointi SiraCreate(kuyruk_id, servis_id) bekliyor.
-                // Biz sadece servis_id biliyoruz.
-                // Bu yüzden önce servisin kuyruklarını bulmalıyız.
-                // DEMO HACK: Şimdilik servis ID'sini kuyruk ID gibi gönderip backend'de hata verirse bakarız.
-                // DOĞRUSU: Backend'e /servis/{id}/kuyruklar endpointi eklenmeli.
-                // AMA ŞİMDİLİK: Tüm kuyrukları çekelim.
+                allQueues = kuyruklar || [];
+                renderServisler(servisler || []);
+                showLoading(false);
+            } catch (error) {
+                console.error("Veri yükleme hatası:", error);
+                showLoading(false);
+                showToast('Veriler yüklenemedi: ' + error.message, 'error');
+            }
+        }
 
-                const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
+        function renderServisler(servisler) {
+            const list = document.getElementById('departman-listesi');
+            const subContainer = document.getElementById('alt-secenekler-konteynir');
+            if (!list) return;
 
-                if (!kuyruklar || kuyruklar.length === 0) {
-                    throw new Error('Sistemde tanımlı kuyruk bulunamadı!');
-                }
+            // Alt alanı gizle
+            if (subContainer) subContainer.style.display = 'none';
 
-                // Servise uygun kuyruğu bulmaya çalış
-                const uygunKuyruk = kuyruklar.find(k => k.servis_id === servisId);
+            if (servisler.length === 0) {
+                list.innerHTML = '<p style="grid-column:1/-1; font-size:24px; opacity:0.7;">Tanımlı servis bulunamadı.</p>';
+                return;
+            }
 
-                // Servise ait kuyruk yoksa, listedeki ilk kuyruğu kullan (Fallback)
-                const secilenKuyruk = uygunKuyruk || kuyruklar[0];
+            // Not: Admin panelinden Eczane'ye bir kuyruk ekledim.
+            list.innerHTML = servisler.map(s => `
+                <div class="departman-card fade-in" id="servis-card-${s.id}" onclick="servisSecildi(${s.id}, '${s.ad}')">
+                    <div class="kod">${s.kod}</div>
+                    <h2>${s.ad}</h2>
+                    <div class="bekleyen">${s.kuyruk_sayisi > 0 ? `🕐 ${s.kuyruk_sayisi} Seçenek` : (s.id === 2 ? '🕐 1 Sıra' : 'Sıra Al')}</div>
+                </div>
+            `).join('');
+        }
 
-                console.log('Seçilen Kuyruk:', secilenKuyruk);
+        function servisSecildi(servisId, servisAd) {
+            console.log("Servis seçildi:", servisAd, servisId);
 
-                const requestData = {
-                    kuyruk_id: secilenKuyruk.id,
-                    servis_id: servisId,
-                    firma_id: FIRMA_ID,
-                    oncelik: 0
-                };
+            // Tüm kartlardan aktifliği kaldır, seçilene ekle
+            document.querySelectorAll('.departman-card').forEach(el => el.classList.remove('active'));
+            const selectedIcon = document.getElementById(`servis-card-${servisId}`);
+            if (selectedIcon) selectedIcon.classList.add('active');
 
-                const responseData = await apiCall('/sira/al', {
+            const uygunKuyruklar = allQueues.filter(k => k.servis_id === servisId);
+
+            if (uygunKuyruklar.length <= 1) {
+                // Eğer tek kuyruk varsa alt alanı gizle ve direkt sıra al
+                document.getElementById('alt-secenekler-konteynir').style.display = 'none';
+                const kuyrukId = uygunKuyruklar.length === 1 ? uygunKuyruklar[0].id : null;
+                if (kuyrukId) siraAl(kuyrukId, servisId);
+                else showToast("Bu servise bağlı kuyruk bulunamadı!", "error");
+            } else {
+                // Birden fazla kuyruk varsa alt alanda göster
+                renderKuyruklar(uygunKuyruklar, servisAd);
+            }
+        }
+
+        function renderKuyruklar(kuyruklar, servisAd) {
+            const subContainer = document.getElementById('alt-secenekler-konteynir');
+            const subList = document.getElementById('alt-secenek-listesi');
+            const subTitle = document.getElementById('alt-secenek-baslik');
+
+            subTitle.textContent = `${servisAd} - Hizmet Türü Seçiniz`;
+            subContainer.style.display = 'block';
+
+            subList.innerHTML = kuyruklar.map(k => `
+                <div class="departman-card fade-in" onclick="siraAl(${k.id}, ${k.servis_id})" style="border-bottom: 8px solid #f0932b; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div class="kod" style="font-size: 32px;">${k.kod}</div>
+                    <h2 style="font-size: 24px;">${k.ad}</h2>
+                </div>
+            `).join('');
+
+            // Alt alana yumuşak kaydır
+            subContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        let lastSiraResponse = null;
+
+        async function siraAl(kuyrukId, servisId) {
+            console.log("Sıra alınıyor: Kuyruk", kuyrukId);
+            try {
+                showLoading(true);
+                const response = await apiCall('/sira/al', {
                     method: 'POST',
-                    body: JSON.stringify(requestData)
+                    body: JSON.stringify({
+                        kuyruk_id: kuyrukId,
+                        servis_id: servisId,
+                        firma_id: FIRMA_ID,
+                        oncelik: 0
+                    })
                 });
 
-                showLoading(false);
+                lastSiraResponse = response;
+                lastSiraResponse.servis_id = servisId;
 
-                // Numarayı göster
+                document.getElementById('numara').textContent = response.numara;
+                document.getElementById('mesaj').textContent = response.mesaj;
+                document.getElementById('bekleme-info').textContent = `Sıranızdan önce ${response.bekleyen_sayisi} kişi var.`;
+
                 document.getElementById('departman-secimi').style.display = 'none';
                 document.getElementById('numara-ekrani').style.display = 'block';
-                document.getElementById('numara').textContent = responseData.numara;
-                document.getElementById('mesaj').textContent = responseData.mesaj;
+                document.getElementById('bilet-secenekleri').style.display = 'flex';
+                document.getElementById('qr-alanı').style.display = 'none';
 
-                if (responseData.tahmini_bekleme_dk) {
-                    document.getElementById('bekleme-info').innerHTML = `
-                        ⏱️ Tahmini Bekleme Süresi: <strong>${responseData.tahmini_bekleme_dk} dakika</strong>
-                    `;
-                } else {
-                    document.getElementById('bekleme-info').innerHTML = `
-                        ✅ Sıranız çok yakında çağrılacak!
-                    `;
-                }
-
-                // 5 saniye sonra ana ekrana dön
-                setTimeout(() => {
-                    location.reload();
-                }, 5000);
+                // Otomatik reload'u kaldırdık, kullanıcı butonlara basacak
 
             } catch (error) {
+                console.error("Sıra alma hatası:", error);
                 showLoading(false);
-                showToast('Sıra alınamadı: ' + error.message, 'error');
+                showToast('Hata: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
             }
         }
 
-        // Sayfa yüklendiğinde
-        servisleriYukle();
+        let reloadTimer = null;
 
-        // Her 30 saniyede bir yenile
-        setInterval(servisleriYukle, 30000);
+        function fisBastir() {
+            showToast("Fişiniz bastırılıyor...", "success");
+            const sayacEl = document.getElementById('qr-sayac');
+            let saniye = 5;
+
+            document.getElementById('bilet-secenekleri').style.display = 'none';
+            document.getElementById('qr-alanı').style.display = 'block';
+            document.getElementById('qrcode').innerHTML = '<div style="font-size: 80px; margin: 20px;">🖨️</div>';
+            document.querySelector('#qr-alanı p').textContent = "Fiş Bastırılıyor...";
+
+            const timer = setInterval(() => {
+                saniye--;
+                if (sayacEl) sayacEl.textContent = `${saniye} saniye sonra kapanacak...`;
+                if (saniye <= 0) {
+                    clearInterval(timer);
+                    location.reload();
+                }
+            }, 1000);
+        }
+
+        let kioskConfig = { host_ip: 'localhost', port: 3000 };
+
+        async function initConfig() {
+            try {
+                const config = await apiCall('/kiosk-config');
+                kioskConfig = config;
+                console.log("Kiosk Yapılandırması:", kioskConfig);
+            } catch (err) {
+                console.error("Config yüklenemedi:", err);
+            }
+        }
+
+        async function karekodGoster() {
+            if (!lastSiraResponse) {
+                showToast("Sıra bilgisi bulunamadı!", "error");
+                return;
+            }
+
+            try {
+                const qrContainer = document.getElementById('qrcode');
+                qrContainer.innerHTML = '';
+
+                // Telefonun erişebilmesi için localhost yerine bilgisayarın yerel IP'sini (10.0.0.x gibi) kullanmalıyız.
+                const host = kioskConfig.host_ip || window.location.hostname;
+                const port = kioskConfig.port || window.location.port;
+                const biletUrl = `http://${host}:${port}/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${lastSiraResponse.bekleyen_sayisi}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}`;
+
+                console.log("QR Kod Telefon Linki:", biletUrl);
+
+                setTimeout(() => {
+                    new QRCode(qrContainer, {
+                        text: biletUrl,
+                        width: 256,
+                        height: 256,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }, 100);
+
+                document.getElementById('bilet-secenekleri').style.display = 'none';
+                document.getElementById('qr-alanı').style.display = 'block';
+
+                // Geri sayım
+                let saniye = 30;
+                const sayacEl = document.getElementById('qr-sayac');
+                if (sayacEl) sayacEl.textContent = `${saniye} saniye sonra kapanacak...`;
+
+                if (reloadTimer) clearInterval(reloadTimer);
+                reloadTimer = setInterval(() => {
+                    saniye--;
+                    if (sayacEl) sayacEl.textContent = `${saniye} saniye sonra kapanacak...`;
+                    if (saniye <= 0) {
+                        clearInterval(reloadTimer);
+                        location.reload();
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error("QR oluşturma hatası:", err);
+                showToast("Karekod oluşturulamadı!", "error");
+            }
+        }
+
+        // Başlat
+        async function baslat() {
+            await initFirma();
+            await initConfig();
+            await verileriYukle();
+        }
+
+        baslat();
+        setInterval(verileriYukle, 30000);
     </script>
 </body>
 

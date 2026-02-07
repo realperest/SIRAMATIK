@@ -166,7 +166,7 @@
     <!-- Login Formu -->
     <div id="login-screen">
         <div class="login-form">
-            <h2>🔐 Personel Girişi</h2>
+            <h2 id="login-title">🔐 Personel Girişi</h2>
             <form id="login-form">
                 <div class="form-group">
                     <label>Email</label>
@@ -200,6 +200,17 @@
             </div>
         </div>
 
+        <div style="margin: 20px 0; display: flex; gap: 10px;">
+            <button onclick="siradakiniCagir()" class="btn btn-primary"
+                style="flex: 2; padding: 20px; font-size: 24px; display: flex; align-items: center; justify-content: center; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; border-radius:10px; cursor:pointer;">
+                ▶️ SIRADAKİNİ ÇAĞIR
+            </button>
+            <button onclick="openManuelModal()" class="btn btn-primary"
+                style="flex: 1; padding: 20px; font-size: 18px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background: linear-gradient(135deg, #f0932b 0%, #e67e22 100%); border:none; border-radius:10px; cursor:pointer;">
+                ➕ MANUEL
+            </button>
+        </div>
+
         <div class="stats">
             <div class="stat-card">
                 <div class="number" id="stat-bekleyen">0</div>
@@ -217,10 +228,103 @@
         </div>
     </div>
 
+    <!-- MANUEL SIRA MODAL -->
+    <div id="manuel-modal" class="modal-overlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
+        <div class="modal-content"
+            style="background:#fff; padding:30px; border-radius:15px; width:400px; text-align:left;">
+            <h2 style="color:#2c3e50; margin-bottom:20px;">➕ Manuel Sıra Oluştur</h2>
+
+            <form id="manuel-form">
+                <div class="form-group">
+                    <label>Kuyruk Seçin</label>
+                    <select id="manuel-kuyruk-id" required
+                        style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>Özel Numara</label>
+                    <input type="text" id="manuel-numara" required placeholder="Örn: A010, PRO-1"
+                        style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:16px;">
+                </div>
+
+                <div class="form-group">
+                    <label>Öncelik Puanı</label>
+                    <input type="number" id="manuel-oncelik" value="10" min="0" max="100"
+                        style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;">
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="button" onclick="closeManuelModal()"
+                        style="flex:1; padding:10px; border:none; background:#ecf0f1; color:#2c3e50; border-radius:5px; cursor:pointer;">İptal</button>
+                    <button type="submit"
+                        style="flex:1; padding:10px; border:none; background:#e67e22; color:white; border-radius:5px; cursor:pointer;">KAYDET</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="static/app.js"></script>
     <script>
+        const FIRMA_ID = 1;
         let currentUser = null;
-        let token = null;
+        let bekleyenSiralar = [];
+
+        async function loadFirmaInfo() {
+            try {
+                const firma = await apiCall(`/firma/${FIRMA_ID}`);
+                if (firma && firma.ad) {
+                    document.getElementById('login-title').textContent = firma.ad;
+                    document.title = firma.ad + " - Personel";
+                }
+            } catch (err) { }
+        }
+        loadFirmaInfo();
+
+        // ... Diğer scriptler ...
+
+        async function openManuelModal() {
+            document.getElementById('manuel-modal').style.display = 'flex';
+            // Kuyrukları yükle
+            try {
+                const kuyruklar = await apiCall(`/kuyruklar/firma/${currentUser.firma_id}`);
+                const select = document.getElementById('manuel-kuyruk-id');
+                select.innerHTML = '';
+                kuyruklar.forEach(k => {
+                    const opt = document.createElement('option');
+                    opt.value = k.id;
+                    opt.textContent = `${k.ad} (${k.kod})`;
+                    select.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function closeManuelModal() { document.getElementById('manuel-modal').style.display = 'none'; }
+
+        document.getElementById('manuel-form').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                showLoading(true);
+                const data = {
+                    firma_id: currentUser.firma_id,
+                    servis_id: currentUser.servis_id || 1, // Servis ID yoksa 1 (Varsayılan)
+                    kuyruk_id: parseInt(document.getElementById('manuel-kuyruk-id').value),
+                    numara: document.getElementById('manuel-numara').value.toUpperCase(),
+                    oncelik: parseInt(document.getElementById('manuel-oncelik').value),
+                    notlar: "Manuel Eklendi"
+                };
+
+                await apiCall('/admin/sira/manuel', { method: 'POST', body: JSON.stringify(data) });
+
+                showLoading(false);
+                closeManuelModal();
+                showToast('Sıra oluşturuldu!', 'success');
+                siralariYukle();
+            } catch (err) {
+                showLoading(false);
+                showToast('Hata: ' + err.message, 'error');
+            }
+        };
 
         function logout() {
             localStorage.removeItem('token');
@@ -271,10 +375,17 @@
 
         // Sıraları yükle
         async function siralariYukle() {
+            if (!currentUser) return;
             try {
-                // Bekleyen sıralar
-                const siralar = await apiCall(`/sira/bekleyen/${currentUser.firma_id}`);
-                console.log('Backendden gelen veriler:', siralar); // LOG
+                // Bekleyenleri al (Global değişkene ata)
+                // Endpoint: /api/sira/bekleyen/{kuyruk_id}
+                const kuyrukId = currentUser.kuyruk_id || 1;
+                console.log(`📡 Sıralar Yükleniyor... KuyrukID: ${kuyrukId}`);
+
+                bekleyenSiralar = await apiCall(`/sira/bekleyen/${kuyrukId}`);
+                console.log("✅ Gelen Bekleyen Sıralar:", bekleyenSiralar);
+
+                const siralar = bekleyenSiralar;
 
                 const container = document.getElementById('sira-liste-container');
 
@@ -306,8 +417,21 @@
 
                 document.getElementById('stat-bekleyen').textContent = siralar.length;
 
+                // İstatistikleri de güncelle
+                try {
+                    const stats = await apiCall(`/sira/istatistik/gunluk/${currentUser.firma_id}`);
+                    document.getElementById('stat-bugun').textContent = stats.toplam;
+                } catch (e) {
+                    console.error("İstatistik hatası:", e);
+                }
+
             } catch (error) {
-                if (error.message.includes('Not authenticated') || error.message.includes('401')) {
+                // Token hatası kontrolü (İngilizce ve Türkçe)
+                if (error.message.includes('Not authenticated') ||
+                    error.message.includes('401') ||
+                    error.message.includes('Token geçersiz') ||
+                    error.message.includes('süresi dolmuş')) {
+
                     showToast('Oturum süresi doldu, tekrar giriş yapılıyor...', 'warning');
                     setTimeout(logout, 1500);
                 } else {
@@ -358,6 +482,17 @@
         setInterval(() => {
             if (currentUser) siralariYukle();
         }, 5000);
+
+        function siradakiniCagir() {
+            console.log("Sıradakini Çağır Tıklandı. Liste:", bekleyenSiralar);
+            if (!bekleyenSiralar || bekleyenSiralar.length === 0) {
+                showToast('Bekleyen sıra yok!', 'warning');
+                return;
+            }
+            // En üsttekini çağır
+            const sonraki = bekleyenSiralar[0];
+            hastaCagir(sonraki.id, sonraki.numara);
+        }
     </script>
 </body>
 

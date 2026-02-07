@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yönetim Paneli - Sıramatik</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .nav-link {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            background: #f8f9fa;
+        }
+
+        .nav-link.active {
+            background: #fff;
+            border-color: #dee2e6;
+            border-bottom-color: #fff;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="admin-container">
+        <div class="header"
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>⚙️ Yönetim Paneli</h1>
+            <button onclick="logout()" class="btn btn-danger">Çıkış</button>
+        </div>
+
+        <div class="nav-tabs">
+            <div class="nav-link active" onclick="showTab('servisler')">Servisler</div>
+            <div class="nav-link" onclick="showTab('personel')">Personel</div>
+            <div class="nav-link" onclick="showTab('kuyruklar')">Kuyruklar</div>
+        </div>
+
+        <!-- SERVİSLER SEKMESİ -->
+        <div id="tab-servisler" class="tab-content active">
+            <div class="card">
+                <h3>Yeni Servis Ekle</h3>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="new-servis-ad" class="form-control" placeholder="Servis Adı (Örn: Dahiliye)">
+                    <input type="text" id="new-servis-kod" class="form-control" placeholder="Kod (Örn: DAH)"
+                        style="width: 150px;">
+                    <button onclick="createServis()" class="btn btn-primary">Ekle</button>
+                </div>
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Ad</th>
+                        <th>Kod</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody id="servis-listesi">
+                    <!-- JS ile dolacak -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PERSONEL SEKMESİ -->
+        <div id="tab-personel" class="tab-content">
+            <div class="alert alert-info"
+                style="margin-bottom: 20px; background: #e3f2fd; padding: 10px; border-radius: 5px;">
+                ℹ️ Personel eklemek için şimdilik veritabanı scriptini kullanın. Buradan sadece servis ataması
+                yapabilirsiniz.
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ad Soyad</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Sorumlu Olduğu Servis</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="personel-listesi">
+                    <!-- JS ile dolacak -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- KUYRUKLAR SEKMESİ -->
+        <div id="tab-kuyruklar" class="tab-content">
+            <div class="alert alert-warning">
+                🚧 Kuyruk yönetimi henüz eklenmedi.
+            </div>
+        </div>
+
+    </div>
+
+    <script src="static/app.js"></script>
+    <script>
+        let currentUser = null;
+
+        async function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Token'dan kullanıcıyı al (veya backendden)
+            try {
+                // Burada backend'e "whoami" sorusu sorabiliriz ama şimdilik localStorage'daki user'ı alalım (varsa)
+                // Ama en doğrusu backend'den doğrulamak.
+                // Basitlik için: Login sayfasında user bilgisini kaydettik mi? Evet.
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    currentUser = JSON.parse(storedUser);
+                } else {
+                    // Tekrar login gerekebilir
+                    window.location.href = 'index.html';
+                }
+            } catch (e) {
+                console.error(e);
+                window.location.href = 'index.html';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+
+        // Tab Yönetimi
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('tab-' + tabId).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabId === 'servisler') loadServisler();
+            if (tabId === 'personel') loadPersonel();
+        }
+
+        // --- SERVİSLER ---
+        async function loadServisler() {
+            try {
+                // currentUser app.js'den geliyor ama async olduğu için kontrol et
+                if (!currentUser) await checkAuth();
+
+                const servisler = await apiCall(`/admin/servisler/${currentUser.firma_id}`);
+                const tbody = document.getElementById('servis-listesi');
+                tbody.innerHTML = servisler.map(s => `
+                    <tr>
+                        <td>${s.id}</td>
+                        <td><strong>${s.ad}</strong></td>
+                        <td>${s.kod || '-'}</td>
+                        <td>${s.aktif ? '✅ Aktif' : '❌ Pasif'}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error(error);
+                showToast('Servisler yüklenemedi', 'error');
+            }
+        }
+
+        async function createServis() {
+            const ad = document.getElementById('new-servis-ad').value;
+            const kod = document.getElementById('new-servis-kod').value;
+
+            if (!ad) return showToast('Servis adı gerekli', 'warning');
+
+            try {
+                await apiCall(`/admin/servisler/${currentUser.firma_id}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ ad, kod })
+                });
+
+                showToast('Servis eklendi', 'success');
+                document.getElementById('new-servis-ad').value = '';
+                document.getElementById('new-servis-kod').value = '';
+                loadServisler();
+            } catch (error) {
+                showToast('Hata: ' + error.message, 'error');
+            }
+        }
+
+        // --- PERSONEL ---
+        async function loadPersonel() {
+            try {
+                if (!currentUser) await checkAuth();
+
+                // Servisleri de çek (Dropdown için)
+                const servisler = await apiCall(`/admin/servisler/${currentUser.firma_id}`);
+                const users = await apiCall(`/admin/users/${currentUser.firma_id}`);
+
+                const tbody = document.getElementById('personel-listesi');
+
+                // Servis Seçim Dropdownu Oluşturucu
+                const createSelect = (userId, currentServisId) => {
+                    let options = `<option value="">-- Tümü / Yok --</option>`;
+                    servisler.forEach(s => {
+                        const selected = s.id === currentServisId ? 'selected' : '';
+                        options += `<option value="${s.id}" ${selected}>${s.ad}</option>`;
+                    });
+                    return `<select onchange="updateUserServis('${userId}', this.value)" class="form-control" style="width: 150px">${options}</select>`;
+                };
+
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>${u.ad_soyad}</td>
+                        <td>${u.email}</td>
+                        <td><span class="badge ${u.rol === 'admin' ? 'bg-danger' : 'bg-info'}">${u.rol}</span></td>
+                        <td>
+                            ${u.rol === 'admin' ? 'Tümü (Admin)' : createSelect(u.id, u.servis_id)}
+                        </td>
+                        <td>
+                           <!-- İleride Sil Butonu Gelebilir -->
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error(error);
+                showToast('Personel listesi yüklenemedi', 'error');
+            }
+        }
+
+        async function updateUserServis(userId, servisId) {
+            try {
+                // servisId string geliyor ama int'e çevirmemiz gerekebilir veya null
+                const payload = { servis_id: servisId ? parseInt(servisId) : null };
+
+                await apiCall(`/admin/user/${userId}/servis`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                });
+
+                showToast('Personel yetkisi güncellendi', 'success');
+            } catch (error) {
+                showToast('Güncelleme hatası: ' + error.message, 'error');
+                loadPersonel(); // Hata varsa eski haline döndür
+            }
+        }
+
+        // Başlangıç
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            if (currentUser) {
+                loadServisler();
+            }
+        });
+
+    </script>
+</body>
+
+</html>
