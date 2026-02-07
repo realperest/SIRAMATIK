@@ -149,9 +149,8 @@
                 const bugün = new Date();
                 bugün.setHours(0, 0, 0, 0);
 
-                // Supabase sorgusu - Şema belirterek direkt siramatik'e bağlanalım
+                // Supabase sorgusu - Artık public şemasındaki 'siralar' view'ını kullanıyoruz (406 hatasını önlemek için)
                 const response = await _supabase
-                    .schema('siramatik')
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
