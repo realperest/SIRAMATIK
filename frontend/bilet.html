@@ -160,7 +160,7 @@
 
                 if (response.error) {
                     console.error("Supabase Hatası:", response.error);
-                    statusEl.textContent = "Hata: " + response.error.message;
+                    statusEl.textContent = "Hata Detay: " + JSON.stringify(response.error);
                     return;
                 }
 
