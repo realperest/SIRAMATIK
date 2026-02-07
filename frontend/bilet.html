@@ -326,7 +326,7 @@
                                 alertSound.currentTime = 0;
                                 alertSound.play().catch(e => console.log("Alarm çalınamadı:", e));
                                 playCount++;
-                                setTimeout(playAlert, 800); // 0.8 saniye arayla 3 kez
+                                setTimeout(playAlert, 1500); // 1.5 saniye arayla 3 kez
                             }
                         };
                         playAlert();
