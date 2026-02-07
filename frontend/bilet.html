@@ -133,35 +133,54 @@
         document.getElementById('hospital-name').textContent = firma_ad;
 
         async function updateStatus() {
+            const statusEl = document.getElementById('wait-info');
             if (!kuyruk_id) {
-                console.error("Kuyruk ID bulunamadı, status güncellenemiyor.");
+                statusEl.textContent = "Sıra Bilgisi Eksik";
                 return;
             }
 
             try {
                 const kid = parseInt(kuyruk_id);
+                if (isNaN(kid)) {
+                    statusEl.textContent = "Geçersiz Sıra";
+                    return;
+                }
+
                 const bugün = new Date();
                 bugün.setHours(0, 0, 0, 0);
 
-                // Supabase'den siramatik şeması ile veri çek
-                const { count, error } = await _supabase
-                    .schema('siramatik')
+                // Supabase sorgusu - .schema() bazen hata verebilir, eğer tablolar public'teyse sorun çıkar
+                // Önce varsayılan şemayı deneyelim, hata alırsak siramatik şemasına geçelim
+                let response = await _supabase
                     .from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
                     .gte('olusturulma', bugün.toISOString());
 
-                if (error) {
-                    console.error("Supabase Hatası:", error.message);
+                // Eğer tablo bulunamadı hatası gelirse şemayı belirtelim
+                if (response.error && response.error.message.includes('not found')) {
+                    response = await _supabase
+                        .schema('siramatik')
+                        .from('siralar')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('kuyruk_id', kid)
+                        .eq('durum', 'waiting')
+                        .gte('olusturulma', bugün.toISOString());
+                }
+
+                if (response.error) {
+                    console.error("Supabase Hatası:", response.error);
+                    statusEl.textContent = "Bağlantı Hatası";
                     return;
                 }
 
-                console.log(`Bekleyen sayısı: ${count}`);
-                document.getElementById('wait-info').textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
+                const count = response.count || 0;
+                statusEl.textContent = `Önünüzde ${Math.max(0, count - 1)} kişi var`;
 
             } catch (e) {
-                console.error("Canlı güncelleme sırasında hata oluştu:", e);
+                console.error("Sistem Hatası:", e);
+                statusEl.textContent = "Sistem Hatası";
             }
         }
 
