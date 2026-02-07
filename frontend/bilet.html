@@ -209,13 +209,21 @@
         // Verileri sakla/getir (Yenileme koruması)
         function getTicketData() {
             const params = new URLSearchParams(window.location.search);
+
+            // Helper function: localStorage'dan güvenli değer al
+            const getSafe = (key) => {
+                const val = localStorage.getItem(key);
+                if (!val || val === 'null' || val === 'undefined') return null;
+                return val;
+            };
+
             const data = {
-                numara: params.get('numara') || localStorage.getItem('bt_numara') || '---',
-                kuyruk_ad: params.get('kuyruk') || localStorage.getItem('bt_kuyruk_ad') || 'Sıramatik',
-                firma_ad: params.get('firma') || localStorage.getItem('bt_firma_ad') || 'İRMET HOSPITAL',
-                kuyruk_id: params.get('kuyruk_id') || localStorage.getItem('bt_kuyruk_id'),
-                sira_id: params.get('sira_id') || localStorage.getItem('bt_sira_id'),
-                bekleyen: params.get('bekleyen') || localStorage.getItem('bt_bekleyen') || '0'
+                numara: params.get('numara') || getSafe('bt_numara') || '---',
+                kuyruk_ad: params.get('kuyruk') || getSafe('bt_kuyruk_ad') || 'Sıramatik',
+                firma_ad: params.get('firma') || getSafe('bt_firma_ad') || 'İRMET HOSPITAL',
+                kuyruk_id: params.get('kuyruk_id') || getSafe('bt_kuyruk_id'),
+                sira_id: params.get('sira_id') || getSafe('bt_sira_id'),
+                bekleyen: params.get('bekleyen') || getSafe('bt_bekleyen') || '0'
             };
 
             // Eğer URL'den geldiyse hafızaya kaydet
@@ -223,8 +231,8 @@
                 localStorage.setItem('bt_numara', data.numara);
                 localStorage.setItem('bt_kuyruk_ad', data.kuyruk_ad);
                 localStorage.setItem('bt_firma_ad', data.firma_ad);
-                localStorage.setItem('bt_kuyruk_id', data.kuyruk_id);
-                localStorage.setItem('bt_sira_id', data.sira_id);
+                if (data.kuyruk_id) localStorage.setItem('bt_kuyruk_id', data.kuyruk_id);
+                if (data.sira_id) localStorage.setItem('bt_sira_id', data.sira_id);
                 localStorage.setItem('bt_bekleyen', data.bekleyen);
             }
             return data;
@@ -312,8 +320,18 @@
             }
 
             try {
+                // Önce ID'lerin geçerli olup olmadığını kontrol et
+                if (!kuyruk_id || !sira_id || kuyruk_id === 'null' || sira_id === 'null') {
+                    throw new Error("Geçersiz bilet ID'leri");
+                }
+
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
+
+                // parseInt sonucu NaN kontrolü
+                if (isNaN(kid) || isNaN(sid)) {
+                    throw new Error("ID'ler sayısal değil");
+                }
 
                 // 1. Kendi bilet bilgilerini çek
                 const { data: me, error: myError } = await _supabase
