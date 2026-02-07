@@ -240,6 +240,27 @@
 
         const ticketSpecs = getTicketData();
 
+        // Eğer kritik veriler eksikse localStorage'ı temizle
+        if (!ticketSpecs.kuyruk_id || !ticketSpecs.sira_id ||
+            ticketSpecs.kuyruk_id === 'null' || ticketSpecs.sira_id === 'null' ||
+            isNaN(parseInt(ticketSpecs.kuyruk_id)) || isNaN(parseInt(ticketSpecs.sira_id))) {
+
+            console.warn("Geçersiz bilet verileri tespit edildi, localStorage temizleniyor...");
+
+            // Tüm bilet verilerini temizle
+            localStorage.removeItem('bt_numara');
+            localStorage.removeItem('bt_kuyruk_ad');
+            localStorage.removeItem('bt_firma_ad');
+            localStorage.removeItem('bt_kuyruk_id');
+            localStorage.removeItem('bt_sira_id');
+            localStorage.removeItem('bt_bekleyen');
+
+            // Kullanıcıya bilgi ver
+            document.getElementById('wait-info').textContent = "Lütfen QR kodunuzu tekrar okutun";
+            document.getElementById('wait-info').style.background = "#fbbf24";
+            document.getElementById('wait-info').style.color = "#78350f";
+        }
+
         // URL Maskeleme (Veriler saklandıktan sonra)
         if (window.history.replaceState && window.location.search) {
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
