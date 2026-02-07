@@ -74,7 +74,7 @@
 
         .departman-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 30px;
             max-width: 1200px;
             margin: 0 auto;
@@ -85,32 +85,38 @@
             background: white;
             color: #667eea;
             padding: 40px 30px;
-            border-radius: 20px;
+            border-radius: 25px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
         }
 
         .departman-card:hover {
-            transform: translateY(-10px) scale(1.05);
+            transform: translateY(-10px) scale(1.02);
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            background: #f8faff;
         }
 
         .departman-card h2 {
             font-size: 32px;
             margin-bottom: 15px;
+            color: #333;
         }
 
         .departman-card .kod {
-            font-size: 48px;
-            font-weight: bold;
+            font-size: 60px;
+            font-weight: 900;
             margin-bottom: 10px;
-            color: #764ba2;
+            color: #667eea;
+            opacity: 0.8;
         }
 
         .departman-card .bekleyen {
-            font-size: 18px;
+            font-size: 20px;
             color: #666;
+            font-weight: 600;
             margin-top: 10px;
         }
 
@@ -139,6 +145,7 @@
             font-weight: 900;
             margin: 20px 0;
             color: #fff;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
         .qr-section {
@@ -147,6 +154,7 @@
             border-radius: 30px;
             color: #2c3e50;
             text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
         .print-btn {
@@ -165,6 +173,7 @@
             gap: 15px;
             width: 100%;
             margin-top: 30px;
+            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
         }
 
         .back-btn {
@@ -233,13 +242,13 @@
 
 <body>
     <div class="header">
-        <h1 id="hospital-name">🏥 Yükleniyor...</h1>
+        <h1 id="hospital-name">Yükleniyor...</h1>
         <p id="hospital-subtitle">Sıra Numarası Alma Sistemi</p>
     </div>
 
-    <!-- Süperakıllı Bekleme Bilgilendirmesi -->
+    <!-- Akıllı Bekleme Bilgilendirmesi -->
     <div class="smart-wait-alert">
-        <span class="smart-wait-title">🚀 BU SIRADA SÜPERAKILLI BEKLEME UYGULAMASI VARDIR!</span>
+        <span class="smart-wait-title">BU SIRADA AKILLI BEKLEME UYGULAMASI VARDIR!</span>
         <span class="smart-wait-desc">Lütfen telefonunuzun kamera modunu hazırlayıp seçiminizi öyle yapınız.</span>
     </div>
 
@@ -320,21 +329,37 @@
             try {
                 bildirCihaz();
                 setInterval(bildirCihaz, 30000);
-                const config = await apiCall(`/admin/firmalar`);
-                const firma = config.find(f => f.id == FIRMA_ID);
+
+                // 1. Firma bilgilerini getir (GET /api/firma/{id})
+                const firma = await apiCall(`/firma/${FIRMA_ID}`);
                 if (firma) {
-                    document.getElementById('hospital-name').textContent = "🏥 " + (firma.ad || "İRMET HOSPITAL");
+                    document.getElementById('hospital-name').textContent = (firma.ad || "İRMET HOSPITAL");
                     document.getElementById('hospital-subtitle').textContent = (firma.alt_baslik || "Sıra Numarası Alma Sistemi");
                 }
-                const kuyruklar = await apiCall(`/kuyruklar?firma_id=${FIRMA_ID}`);
-                allQueues = kuyruklar;
-                renderKuyruklar(kuyruklar.filter(q => !q.ust_kuyruk_id));
-            } catch (err) { console.error("Yükleme hatası:", err); }
+
+                // 2. Kuyrukları getir (GET /api/kuyruklar/{id})
+                // Not: apiCall zaten '/api' prefix'ini ekliyor.
+                const kuyruklar = await apiCall(`/kuyruklar/${FIRMA_ID}`);
+                allQueues = kuyruklar || [];
+
+                // Sadece en üst seviye kuyrukları göster (ust_kuyruk_id'si null veya undefined olanlar)
+                renderKuyruklar(allQueues.filter(q => !q.ust_kuyruk_id));
+            } catch (err) {
+                console.error("Yükleme hatası:", err);
+                // Hata durumunda manuel liste render dene (fallback)
+                if (allQueues.length > 0) renderKuyruklar(allQueues.filter(q => !q.ust_kuyruk_id));
+            }
         }
 
         function renderKuyruklar(list) {
             const container = document.getElementById('departman-listesi');
             container.innerHTML = '';
+
+            if (list.length === 0) {
+                container.innerHTML = '<p style="font-size: 24px;">Lütfen bekleyin, kuyruklar yükleniyor...</p>';
+                return;
+            }
+
             list.forEach(q => {
                 const card = document.createElement('div');
                 card.className = 'departman-card fade-in';
@@ -349,7 +374,12 @@
         }
 
         async function siraAl(kuyrukId) {
-            const altKuyruklar = allQueues.filter(q => q.ust_kuyruk_id == kuyrukId);
+            // Find the queue object for its servis_id
+            const q = allQueues.find(x => x.id === kuyrukId);
+            if (!q) return;
+
+            const altKuyruklar = allQueues.filter(x => x.ust_kuyruk_id == kuyrukId);
+
             if (altKuyruklar.length > 0) {
                 document.getElementById('alt-secenekler-konteynir').style.display = 'block';
                 const listEl = document.getElementById('alt-secenek-listesi');
@@ -367,17 +397,27 @@
             }
 
             try {
-                const res = await apiCall('/sira-al', {
+                // Backend endpoint: POST /api/sira/al
+                const res = await apiCall('/sira/al', {
                     method: 'POST',
-                    body: JSON.stringify({ kuyruk_id: kuyrukId })
+                    body: JSON.stringify({
+                        kuyruk_id: kuyrukId,
+                        servis_id: q.servis_id,
+                        firma_id: FIRMA_ID,
+                        oncelik: 0
+                    })
                 });
+
                 lastSiraResponse = res;
                 document.getElementById('departman-secimi').style.display = 'none';
+                document.getElementById('alt-secenekler-konteynir').style.display = 'none';
                 document.getElementById('numara-ekrani').style.display = 'block';
                 document.getElementById('numara').textContent = res.numara;
                 document.getElementById('bekleme-info').textContent = `Önünüzde ${Math.max(0, res.bekleyen_sayisi - 1)} kişi var`;
                 karekodGoster();
-            } catch (err) { alert("Sıra alınamadı: " + err.message); }
+            } catch (err) {
+                alert("Sıra alınamadı:\n" + err.message);
+            }
         }
 
         let reloadTimer = null;
@@ -385,22 +425,25 @@
             if (!lastSiraResponse) return;
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
+
             const n = encodeURIComponent(lastSiraResponse.numara);
             const k = encodeURIComponent(lastSiraResponse.kuyruk_ad);
-            const h = encodeURIComponent(document.getElementById('hospital-name').textContent.replace("🏥 ", ""));
+            const h = encodeURIComponent(document.getElementById('hospital-name').textContent);
             const kid = lastSiraResponse.kuyruk_id || 0;
             const sid = lastSiraResponse.sira_id || 0;
             const b = Math.max(0, (lastSiraResponse.bekleyen_sayisi || 1) - 1);
+
             const url = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${n}&kuyruk=${k}&bekleyen=${b}&firma=${h}&kuyruk_id=${kid}&sira_id=${sid}`;
 
-            new QRCode(qrContainer, { text: url, width: 200, height: 200 });
+            new QRCode(qrContainer, { text: url, width: 220, height: 220 });
 
-            let saniye = 20;
+            // Otomatik kapanma sayacı
+            let saniye = 25;
             const sayacEl = document.getElementById('qr-sayac');
             if (reloadTimer) clearInterval(reloadTimer);
             reloadTimer = setInterval(() => {
                 saniye--;
-                sayacEl.textContent = `${saniye} sn içinde kapanacak`;
+                sayacEl.textContent = `${saniye} sn içinde ana ekrana dönecek`;
                 if (saniye <= 0) location.reload();
             }, 1000);
         }
@@ -408,7 +451,7 @@
         function fisBastir() {
             if (!lastSiraResponse) return;
             document.getElementById('fis-modal').style.display = 'flex';
-            document.getElementById('fis-hospital').textContent = document.getElementById('hospital-name').textContent.replace("🏥 ", "");
+            document.getElementById('fis-hospital').textContent = document.getElementById('hospital-name').textContent;
             document.getElementById('fis-numara').textContent = lastSiraResponse.numara;
             document.getElementById('fis-kuyruk').textContent = lastSiraResponse.kuyruk_ad;
             document.getElementById('fis-tarih').textContent = new Date().toLocaleString('tr-TR');
@@ -417,12 +460,19 @@
             qrEl.innerHTML = '';
             const n = encodeURIComponent(lastSiraResponse.numara);
             const k = encodeURIComponent(lastSiraResponse.kuyruk_ad);
-            const h = encodeURIComponent(document.getElementById('hospital-name').textContent.replace("🏥 ", ""));
+            const h = encodeURIComponent(document.getElementById('hospital-name').textContent);
+
             const url = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${n}&kuyruk=${k}&firma=${h}&kuyruk_id=${lastSiraResponse.kuyruk_id}&sira_id=${lastSiraResponse.sira_id}`;
+
             new QRCode(qrEl, { text: url, width: 140, height: 140 });
-            setTimeout(() => { window.print(); }, 500);
+
+            setTimeout(() => {
+                window.print();
+                showToast("Biletiniz yazdırılıyor...");
+            }, 300);
         }
 
+        // Başlat
         initFirma();
     </script>
 </body>
