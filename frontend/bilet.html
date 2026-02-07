@@ -147,7 +147,8 @@
             const numEl = document.getElementById('ticket-number');
 
             if (!kuyruk_id || !sira_id) {
-                statusEl.textContent = "Takip kısıtlı (Eski bilet)";
+                console.warn("Canlı takip için sira_id veya kuyruk_id eksik.");
+                // Hata basma, sadece canlı güncellemeyi durdur
                 return;
             }
 

@@ -544,7 +544,8 @@
                 const safeH = encodeURIComponent(h);
                 const safeK = encodeURIComponent(k);
 
-                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${safeN}&kuyruk=${safeK}&bekleyen=${b}&firma=${safeH}&kuyruk_id=${kid}`;
+                const sid = lastSiraResponse.sira_id || 0;
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${safeN}&kuyruk=${safeK}&bekleyen=${b}&firma=${safeH}&kuyruk_id=${kid}&sira_id=${sid}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 
