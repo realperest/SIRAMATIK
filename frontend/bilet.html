@@ -369,7 +369,10 @@
                     .from('siralar')
                     .select('id, oncelik, olusturulma')
                     .eq('kuyruk_id', kid)
-                    .eq('durum', 'waiting');
+                    .eq('durum', 'waiting')
+                    .gte('olusturulma', bugün.toISOString());
+
+                console.log(`Query Date: ${bugün.toISOString()}`);
 
                 if (listError) throw listError;
 
