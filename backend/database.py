@@ -187,7 +187,7 @@ class Database:
             SELECT * FROM siramatik.siralar 
             WHERE kuyruk_id = :kuyruk_id 
             AND durum = 'waiting'
-            AND olusturulma::date = CURRENT_DATE
+            AND olusturulma::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
             ORDER BY oncelik DESC, olusturulma ASC
         """, {"kuyruk_id": kuyruk_id})
     
@@ -229,6 +229,7 @@ class Database:
             LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
             WHERE s.firma_id = :firma_id 
             AND s.durum = 'calling'
+            AND s.olusturulma::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
             AND s.cagirilma > (NOW() - INTERVAL '60 seconds')
         """
         params = {"firma_id": firma_id, "limit": limit}
@@ -286,7 +287,7 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
-            AND s.olusturulma::date = CURRENT_DATE
+            AND s.olusturulma::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
             ORDER BY s.oncelik DESC, s.olusturulma ASC
         """, {"prefix_removed_already_handled": None, "firma_id": firma_id})
         
@@ -302,7 +303,7 @@ class Database:
             JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
-            AND s.olusturulma::date = CURRENT_DATE
+            AND s.olusturulma::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
         """
         
         if kullanici_id:
@@ -319,7 +320,7 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
-            AND s.olusturulma::date = CURRENT_DATE
+            AND s.olusturulma::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
         """, {"firma_id": firma_id})
         
         return {
@@ -420,7 +421,7 @@ class Database:
         # 1. ZAMAN FİLTRESİ OLUŞTUR
         time_filter = ""
         if time_range == "today":
-            time_filter = " AND DATE(s.olusturulma) = CURRENT_DATE"
+            time_filter = " AND DATE(s.olusturulma) = (NOW() AT TIME ZONE 'Europe/Istanbul')::date"
         elif time_range == "this_week":
             time_filter = " AND s.olusturulma >= date_trunc('week', CURRENT_DATE)"
         elif time_range == "this_month":

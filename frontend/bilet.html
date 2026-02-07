@@ -294,8 +294,7 @@
             try {
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
-                const bugün = new Date();
-                bugün.setHours(0, 0, 0, 0);
+                const bugünIso = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD formatında yerel tarih
 
                 // 1. Kendi bilet bilgilerimizi çekelim (view üzerinden)
                 const myTicket = await _supabase
@@ -318,21 +317,38 @@
                     if (!notificationPlayed) {
                         notificationPlayed = true;
 
-                        // 3 kez üst üste çalma mantığı
+                        // Sesin tam bitmesini bekleyerek 3 kez çalma mantığı
                         let playCount = 0;
+                        alertSound.volume = 1.0;
+
                         const playAlert = () => {
                             if (playCount < 3) {
+                                console.log(`📢 Alarm çalınıyor: ${playCount + 1}/3`);
                                 alertSound.pause();
                                 alertSound.currentTime = 0;
-                                alertSound.play().catch(e => console.log("Alarm çalınamadı:", e));
-                                playCount++;
-                                setTimeout(playAlert, 1500); // 1.5 saniye arayla 3 kez
+
+                                // Ses bittiğinde bir sonrakini tetikle
+                                alertSound.onended = () => {
+                                    playCount++;
+                                    if (playCount < 3) {
+                                        setTimeout(playAlert, 800); // Sesler arası 0.8 sn boşluk
+                                    } else {
+                                        alertSound.onended = null;
+                                    }
+                                };
+
+                                alertSound.play().catch(e => {
+                                    console.error("Alarm hatası:", e);
+                                    // Hata durumunda da sayacı artır ki sonsuz döngü olmasın
+                                    playCount++;
+                                    setTimeout(playAlert, 1500);
+                                });
                             }
                         };
                         playAlert();
 
                         if (navigator.vibrate) {
-                            navigator.vibrate([300, 100, 300, 100, 300, 100, 300]); // Uzun titreşim
+                            navigator.vibrate([300, 100, 300, 100, 300, 100, 300, 100, 300]); // Uzun titreşim
                         }
                     }
                     return;
@@ -351,7 +367,7 @@
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', bugün.toISOString())
+                    .gte('olusturulma', bugünIso)
                     .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt."${me.olusturulma}")`);
 
                 if (ahead.error) throw ahead.error;
