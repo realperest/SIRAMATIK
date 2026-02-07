@@ -294,7 +294,11 @@
             try {
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
-                const bugünIso = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD formatında yerel tarih
+                // Türkiye saatiyle (UTC+3) bugünün başlangıcını bulalım
+                const simdi = new Date();
+                const trBaslangic = new Date(simdi.getTime() + (3 * 60 * 60 * 1000)); // TR saatine kaydır
+                trBaslangic.setUTCHours(0, 0, 0, 0); // TR saatiyle 00:00 yap
+                const trBaslangicUtc = new Date(trBaslangic.getTime() - (3 * 60 * 60 * 1000)).toISOString(); // Tekrar UTC'ye dön
 
                 // 1. Kendi bilet bilgilerimizi çekelim (view üzerinden)
                 const myTicket = await _supabase
@@ -367,7 +371,7 @@
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', bugünIso)
+                    .gte('olusturulma', trBaslangicUtc)
                     .or(`oncelik.gt.${me.oncelik},and(oncelik.eq.${me.oncelik},olusturulma.lt."${me.olusturulma}")`);
 
                 if (ahead.error) throw ahead.error;
