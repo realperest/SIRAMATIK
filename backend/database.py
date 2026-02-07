@@ -20,8 +20,8 @@ SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 # YAPLUS yöntemi: aws-1 pooler + search_path
 DB_URL = "postgresql://postgres.wyursjdrnnjabpfeucyi:qk4SEnyhu3NUk2@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
 
-# Engine oluştur - search_path ile siramatik schema'yı belirt
-connect_args = {"options": "-c search_path=siramatik,public"}
+# Engine oluştur - SADECE siramatik schema
+connect_args = {"options": "-c search_path=siramatik"}
 engine = create_engine(DB_URL, echo=False, connect_args=connect_args)
 
 
