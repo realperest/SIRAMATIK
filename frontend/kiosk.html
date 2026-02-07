@@ -404,17 +404,6 @@
             </select>
             <small style="color: #999;">Boş bırakırsanız seçili bölümlerin tüm kuyrukları gösterilir</small>
 
-            <hr style="margin: 30px 0; border: 1px dashed #ddd;">
-
-            <label for="api-url-input">🌐 API Adresi (Backend Sunucu):</label>
-            <input type="text" id="api-url-input" placeholder="http://192.168.1.105:8000/api"
-                style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; font-family: monospace;">
-            <small style="color: #999;">
-                Örnek: http://192.168.1.105:8000/api (Ev)<br>
-                Örnek: http://10.0.0.50:8000/api (İş Yeri)<br>
-                Boş bırakırsanız varsayılan kullanılır
-            </small>
-
             <div style="margin-top: 30px; text-align: center;">
                 <button class="btn-save" onclick="saveSettings()">💾 Kaydet</button>
                 <button class="btn-reset" onclick="resetSettings()">🔄 Sıfırla</button>
@@ -571,13 +560,6 @@
 
             // Combo'ları doldur
             loadSettingsData();
-
-            // Mevcut API URL'i göster
-            const apiUrlInput = document.getElementById('api-url-input');
-            const savedApiUrl = localStorage.getItem('api_url');
-            if (apiUrlInput) {
-                apiUrlInput.value = savedApiUrl || '';
-            }
         }
 
         function closeSettings() {
@@ -587,7 +569,6 @@
         function saveSettings() {
             const servisSelect = document.getElementById('servis-filter');
             const kuyrukSelect = document.getElementById('kuyruk-filter');
-            const apiUrlInput = document.getElementById('api-url-input');
 
             const selectedServisIds = Array.from(servisSelect.selectedOptions).map(opt => parseInt(opt.value));
             const selectedKuyrukIds = Array.from(kuyrukSelect.selectedOptions).map(opt => parseInt(opt.value));
@@ -599,25 +580,14 @@
 
             localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
 
-            // API URL'i kaydet
-            const apiUrl = apiUrlInput.value.trim();
-            if (apiUrl) {
-                localStorage.setItem('api_url', apiUrl);
-                console.log('✅ API URL kaydedildi:', apiUrl);
-            } else {
-                localStorage.removeItem('api_url');
-                console.log('ℹ️ API URL sıfırlandı, varsayılan kullanılacak');
-            }
-
             alert('✅ Ayarlar kaydedildi! Sayfa yenileniyor...');
             location.reload();
         }
 
         function resetSettings() {
-            if (confirm('⚠️ Tüm kiosk ayarlarını (bölümler, kuyruklar ve API adresi) sıfırlamak istediğinizden emin misiniz?')) {
+            if (confirm('⚠️ Tüm kiosk ayarlarını sıfırlamak istediğinizden emin misiniz?')) {
                 localStorage.removeItem('kiosk_settings');
-                localStorage.removeItem('api_url');
-                alert('✅ Tüm ayarlar sıfırlandı! Sayfa yenileniyor...');
+                alert('✅ Ayarlar sıfırlandı! Sayfa yenileniyor...');
                 location.reload();
             }
         }

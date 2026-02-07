@@ -1,31 +1,8 @@
 // Sıramatik - Ortak JavaScript Fonksiyonları
 
-// 🌐 API Adresi Yönetimi (LocalStorage'dan okunur)
-function getApiUrl() {
-    const currentHost = window.location.hostname;
-    const isGitHub = currentHost.includes('github.io');
-    const isLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1';
-
-    // LocalStorage'dan kaydedilmiş API adresi var mı?
-    const savedApiUrl = localStorage.getItem('api_url');
-
-    if (savedApiUrl) {
-        console.log('✅ Kaydedilmiş API kullanılıyor:', savedApiUrl);
-        return savedApiUrl;
-    }
-
-    // Varsayılan: Localhost ise localhost, değilse 192.168.1.105
-    const defaultUrl = isLocalhost
-        ? 'http://localhost:8000/api'
-        : 'http://192.168.1.105:8000/api'; // Varsayılan IP
-
-    console.log('⚠️ Varsayılan API kullanılıyor:', defaultUrl);
-    console.log('💡 API adresini değiştirmek için sol alttaki ⚙️ butonuna basın');
-    return defaultUrl;
-}
-
-const API_URL = getApiUrl();
-console.log('🌐 Aktif API URL:', API_URL);
+// API adresi: Eğer sayfa IP ile açıldıysa (mobildeki gibi), API'yi de o IP üzerinden çağır.
+const currentHost = window.location.hostname;
+const API_URL = `http://${currentHost}:8000/api`;
 
 // API çağrısı yardımcı fonksiyonu
 async function apiCall(endpoint, options = {}) {
