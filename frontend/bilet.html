@@ -363,8 +363,8 @@
 
                 notificationPlayed = false; // Waiting durumuna dönerse tekrar çalsın diye reset
 
-                // 2. Önümde kaç kişi var hesapla (Basitleştirilmiş Yöntem)
-                // Tarih filtresini kaldırıyoruz, sadece o an waiting olanlar
+                // 2. Sıramı Hesapla (Sıralama ile)
+                // O an kuyrukta waiting olan, bugünkü herkesi çekiyoruz
                 const { data: waitingList, error: listError } = await _supabase
                     .from('siralar')
                     .select('id, oncelik, olusturulma')
@@ -372,28 +372,28 @@
                     .eq('durum', 'waiting')
                     .gte('olusturulma', bugün.toISOString());
 
-                console.log(`Query Date: ${bugün.toISOString()}`);
-
                 if (listError) throw listError;
 
-                // JS Tarafında Filtreleme: (Önceliği benden yüksek) VEYA (Önceliği aynı ama benden önce gelmiş)
-                const peopleAhead = waitingList.filter(t => {
-                    if (t.id === sid) return false; // Kendimi sayma
+                console.log(`Query Date: ${bugün.toISOString()}`);
 
-                    // Öncelik yüksekse öne geçer
-                    if (t.oncelik > me.oncelik) return true;
-
-                    // Öncelik eşitse, daha önce oluşturulan öne geçer
-                    // Tarihleri string olarak kıyaslamak daha güvenli olabilir veya Date objesine çevirip
-                    // Ancak string formatı ISO ise string kıyaslaması yeterlidir.
-                    // Yine de garanti olsun diye Date objesi kullanıyoruz.
-                    if (t.oncelik === me.oncelik && new Date(t.olusturulma) < new Date(me.olusturulma)) return true;
-
-                    return false;
+                // Listeyi Backend mantığıyla sırala:
+                // 1. Öncelik (Büyük olan öne)
+                // 2. Oluşturulma Tarihi (Eski olan öne)
+                waitingList.sort((a, b) => {
+                    if (b.oncelik !== a.oncelik) {
+                        return b.oncelik - a.oncelik; // Öncelik azalan
+                    }
+                    return new Date(a.olusturulma) - new Date(b.olusturulma); // Tarih artan
                 });
 
-                const count = peopleAhead.length;
-                console.log(`DEBUG: Ben: ${sid}, Önümdekiler: ${count}, Toplam Bekleyen: ${waitingList.length}`);
+                // Kendimizi listede bulalım
+                const myIndex = waitingList.findIndex(t => t.id === sid);
+
+                // Eğer listede varsak sıramız o'dur. Yoksak (waiting olmamıza rağmen) bir sorun vardır veya tarih filtresine takılmışızdır.
+                // Bulunamazsa 0 varsayalım (veya en sona atalım)
+                const count = myIndex !== -1 ? myIndex : 0;
+
+                console.log(`DEBUG: Sıram: ${myIndex + 1}/${waitingList.length}, Count: ${count}`);
 
                 // 3. Değişiklik varsa ses/titreşim (Sıra ilerlediğinde)
                 // Not: lastCount başlangıçta -1. İlk yüklemede ses çalmaması için lastCount !== -1 kontrolü var.
