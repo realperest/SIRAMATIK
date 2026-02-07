@@ -74,9 +74,10 @@
 
         .departman-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            max-width: 1400px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 280px));
+            justify-content: center;
+            gap: 15px;
+            max-width: 100%;
             margin: 0 auto;
             padding: 10px;
         }
@@ -84,41 +85,42 @@
         .departman-card {
             background: white;
             color: #333;
-            padding: 25px 20px;
-            border-radius: 20px;
+            padding: 20px 15px;
+            border-radius: 18px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 160px;
-            aspect-ratio: 16/10;
+            min-height: 140px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .departman-card:hover {
             transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
             background: #fdfdfd;
         }
 
         .departman-card h2 {
-            font-size: 24px;
+            font-size: 20px;
             margin: 5px 0;
             color: #1a1a2e;
             font-weight: 700;
         }
 
         .departman-card .kod {
-            font-size: 48px;
+            font-size: 42px;
             font-weight: 900;
             color: #667eea;
             opacity: 0.9;
         }
 
         .departman-card .bekleyen {
-            font-size: 16px;
+            font-size: 14px;
             color: #666;
             font-weight: 500;
             margin-top: 5px;
