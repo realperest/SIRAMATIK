@@ -364,17 +364,23 @@
                 notificationPlayed = false; // Waiting durumuna dönerse tekrar çalsın diye reset
 
                 // 2. Sıramı Hesapla (Sıralama ile)
-                // O an kuyrukta waiting olan, bugünkü herkesi çekiyoruz
-                const { data: waitingList, error: listError } = await _supabase
+                // Tarih filtresini (timezone sorunu olmaması için) JS tarafında yapacağız.
+                const { data: rawList, error: listError } = await _supabase
                     .from('siralar')
                     .select('id, oncelik, olusturulma')
                     .eq('kuyruk_id', kid)
-                    .eq('durum', 'waiting')
-                    .gte('olusturulma', bugün.toISOString());
+                    .eq('durum', 'waiting');
 
                 if (listError) throw listError;
 
-                console.log(`Query Date: ${bugün.toISOString()}`);
+                // JS Tarafında Tarih Kontrolü (Bugün ve sonrası)
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const waitingList = rawList.filter(t => {
+                    const tDate = new Date(t.olusturulma);
+                    return tDate >= startOfDay;
+                });
 
                 // Listeyi Backend mantığıyla sırala:
                 // 1. Öncelik (Büyük olan öne)
