@@ -337,9 +337,8 @@
                     document.getElementById('hospital-subtitle').textContent = (firma.alt_baslik || "Sıra Numarası Alma Sistemi");
                 }
 
-                // 2. Kuyrukları getir (GET /api/kuyruklar/{id})
-                // Not: apiCall zaten '/api' prefix'ini ekliyor.
-                const kuyruklar = await apiCall(`/kuyruklar/${FIRMA_ID}`);
+                // 2. Firmaya ait tüm kuyrukları getir
+                const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
                 allQueues = kuyruklar || [];
 
                 // Sadece en üst seviye kuyrukları göster (ust_kuyruk_id'si null veya undefined olanlar)
