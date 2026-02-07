@@ -364,45 +364,41 @@
 
                 notificationPlayed = false; // Waiting durumuna dönerse tekrar çalsın diye reset
 
-                // 2. Sıramı Hesapla (Kesin Yöntem)
-                // Tüm aktif biletleri çekiyoruz (cahce sorununu aşmak için filtreyi genişletiyoruz)
+                // 2. Bekleyen Listesini Çek (Sadece waiting)
                 const { data: rawList, error: listError } = await _supabase
                     .from('siralar')
                     .select('id, oncelik, olusturulma, durum')
                     .eq('kuyruk_id', kid)
-                    .neq('durum', 'completed')
-                    .neq('durum', 'cancelled');
+                    .eq('durum', 'waiting');
 
                 if (listError) throw listError;
 
-                // Sadece waiting olanları al (Bizim önümüzde kaç kişi kaldı?)
-                // Sadece waiting ve BUGÜN OLUŞTURULANLARI al
-                // (Backend public.siralar'ı temizlediği için artık date kontrolü şart değil ama sağlam olsun)
-                const bugunBaslangic = new Date();
-                bugunBaslangic.setHours(0, 0, 0, 0);
+                // 3. Manuel Hesaplama (Sort/Index yerine Count)
+                // Son 24 saat filtresi (Stale data önlemi, timezone toleranslı)
+                const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-                const waitingList = rawList.filter(t => {
-                    if (t.durum !== 'waiting') return false;
-                    const biletTarihi = new Date(t.olusturulma);
-                    return biletTarihi >= bugunBaslangic;
-                });
+                let peopleAhead = 0;
 
-                // Listeyi Backend mantığıyla sırala:
-                // 1. Öncelik (Büyük olan öne)
-                // 2. Oluşturulma Tarihi (Eski olan öne)
-                waitingList.sort((a, b) => {
-                    if (b.oncelik !== a.oncelik) {
-                        return b.oncelik - a.oncelik; // Öncelik azalan
+                rawList.forEach(ticket => {
+                    const ticketDate = new Date(ticket.olusturulma);
+
+                    // Çok eski biletleri yoksay
+                    if (ticketDate < cutoffDate) return;
+
+                    // Bu bilet BENİM ÖNÜMDE Mİ?
+                    // Kural 1: Önceliği benden yüksekse -> Evet
+                    if (ticket.oncelik > me.oncelik) {
+                        peopleAhead++;
                     }
-                    return new Date(a.olusturulma) - new Date(b.olusturulma); // Tarih artan
+                    // Kural 2: Önceliği aynı ama benden önce almış (ID küçük) -> Evet
+                    else if (ticket.oncelik === me.oncelik && ticket.id < me.id) {
+                        peopleAhead++;
+                    }
                 });
 
-                // Kendimizi listede bulalım
-                const myIndex = waitingList.findIndex(t => t.id === sid);
+                console.log(`DEBUG: Hesaplanan önümdeki sayı: ${peopleAhead}`);
+                const count = peopleAhead; // Eski değişken adıyla uyum için
 
-                // Eğer listede varsak sıramız o'dur. Yoksak (waiting olmamıza rağmen) bir sorun vardır veya tarih filtresine takılmışızdır.
-                // Bulunamazsa 0 varsayalım (veya en sona atalım)
-                const count = myIndex !== -1 ? myIndex : 0;
 
                 console.log(`DEBUG: Sıram: ${myIndex + 1}/${waitingList.length}, Count: ${count}`);
 
