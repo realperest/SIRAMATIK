@@ -113,23 +113,54 @@
         </div>
     </div>
 
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const numara = urlParams.get('numara') || '---';
-        const kuyruk = urlParams.get('kuyruk') || 'Sıramatik';
-        const bekleyen = urlParams.get('bekleyen') || '0';
-        const firma = urlParams.get('firma') || 'İRMET HOSPITAL';
+        const kuyruk_ad = urlParams.get('kuyruk') || 'Sıramatik';
+        const firma_ad = urlParams.get('firma') || 'İRMET HOSPITAL';
+        const kuyruk_id = urlParams.get('kuyruk_id');
 
+        // Supabase Bağlantısı (Sadece Okuma Yetkili Anon Key)
+        const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // İlk verileri URL'den bas
         document.getElementById('ticket-number').textContent = numara;
-        document.getElementById('queue-name').textContent = kuyruk;
-        document.getElementById('hospital-name').textContent = firma;
-        document.getElementById('wait-info').textContent = `Önünüzde ${bekleyen} kişi var`;
+        document.getElementById('queue-name').textContent = kuyruk_ad;
+        document.getElementById('hospital-name').textContent = firma_ad;
+
+        async function updateStatus() {
+            if (!kuyruk_id) return;
+
+            try {
+                // Bugüne ait bekleyen sıraları doğrudan Supabase buluttan çekiyoruz
+                const bugün = new Date().toISOString().split('T')[0];
+                const { count, error } = await _supabase
+                    .from('siralar')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('kuyruk_id', kuyruk_id)
+                    .eq('durum', 'waiting')
+                    .gte('olusturulma', bugün);
+
+                if (!error) {
+                    document.getElementById('wait-info').textContent = `Önünüzde ${count || 0} kişi var`;
+                }
+            } catch (e) {
+                console.log("Canlı güncelleme beklemede...");
+            }
+        }
 
         function updateTime() {
             document.getElementById('current-time').textContent = new Date().toLocaleTimeString('tr-TR');
         }
+
         setInterval(updateTime, 1000);
+        setInterval(updateStatus, 5000); // 5 saniyede bir canlı bekleme sırası güncelle
         updateTime();
+        updateStatus();
     </script>
 </body>
 

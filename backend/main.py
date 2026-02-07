@@ -348,6 +348,13 @@ async def kuyruk_listele_by_firma(firma_id: int):
     return result
 
 
+@app.get("/api/kuyruklar/{kuyruk_id}/bekleyen-sayisi")
+async def get_kuyruk_bekleyen_sayisi(kuyruk_id: int):
+    """Bilet takibi için canlı bekleyen sayısı"""
+    bekleyen = db.get_bekleyen_siralar(kuyruk_id)
+    return {"sayi": len(bekleyen)}
+
+
 @app.get("/api/kuyruklar/{id}", response_model=List[KuyrukResponse])
 async def kuyruk_listele_generic(id: int):
     print(f"DEBUG: Kuyruk isteği geldi. ID: {id}")

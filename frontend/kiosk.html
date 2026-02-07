@@ -370,10 +370,9 @@
                 const qrContainer = document.getElementById('qrcode');
                 qrContainer.innerHTML = '';
 
-                // Telefonun erişebilmesi için localhost yerine bilgisayarın yerel IP'sini (10.0.0.x gibi) kullanmalıyız.
-                const host = kioskConfig.host_ip || window.location.hostname;
-                const port = kioskConfig.port || window.location.port;
-                const biletUrl = `http://${host}:${port}/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${lastSiraResponse.bekleyen_sayisi}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}`;
+                // Bilet sayfasını GitHub Pages üzerinden yayına aldık. 
+                // Artık telefon dünyanın herhangi bir yerinden bu bilete ulaşabilir!
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${lastSiraResponse.bekleyen_sayisi}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 
