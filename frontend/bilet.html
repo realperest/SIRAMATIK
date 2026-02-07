@@ -399,9 +399,6 @@
                 console.log(`DEBUG: Hesaplanan önümdeki sayı: ${peopleAhead}`);
                 const count = peopleAhead; // Eski değişken adıyla uyum için
 
-
-                console.log(`DEBUG: Sıram: ${myIndex + 1}/${waitingList.length}, Count: ${count}`);
-
                 // 3. Değişiklik varsa ses/titreşim (Sıra ilerlediğinde)
                 // Not: lastCount başlangıçta -1. İlk yüklemede ses çalmaması için lastCount !== -1 kontrolü var.
                 if (lastCount !== -1 && count < lastCount) {
