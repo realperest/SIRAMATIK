@@ -182,10 +182,12 @@ class Database:
         return result[0] if result else None
     
     def get_bekleyen_siralar(self, kuyruk_id: int) -> List[Dict]:
-        """Bekleyen sıraları getir (öncelik sırasına göre)"""
+        """Bekleyen sıraları getir (Bugünkü, öncelik sırasına göre)"""
         return self.execute_query("""
             SELECT * FROM siramatik.siralar 
-            WHERE kuyruk_id = :kuyruk_id AND durum = 'waiting'
+            WHERE kuyruk_id = :kuyruk_id 
+            AND durum = 'waiting'
+            AND olusturulma::date = CURRENT_DATE
             ORDER BY oncelik DESC, olusturulma ASC
         """, {"kuyruk_id": kuyruk_id})
     
