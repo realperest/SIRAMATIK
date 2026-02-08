@@ -71,9 +71,7 @@
             display: flex;
             justify-content: space-around;
             align-items: center;
-            box-shadow: 0 0 60px rgba(255, 0, 85, 0.4);
             border: 5px solid rgba(255, 255, 255, 0.3);
-            animation: heartbeat 1.5s ease-in-out infinite;
             position: relative;
             overflow: hidden;
         }
@@ -393,91 +391,69 @@
 
     <script src="static/app.js"></script>
     <script>
-        const FIRMA_ID = 1;
+        let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
         let audioContext = null;
         let isMuted = false;
 
-        // Sayfada herhangi bir tıklama ile sesi "unlocked" yap
         function unlockAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log("🔊 Audio unlocked");
             }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
+            if (audioContext.state === 'suspended') audioContext.resume();
         }
 
-        // Global tıklama ve tuş basımıyla sesi aktif et (browser kısıtlaması için)
         window.addEventListener('click', unlockAudio, { once: false });
         window.addEventListener('keydown', unlockAudio, { once: false });
 
         function toggleMute() {
-            unlockAudio(); // Toggle basıldığında da Context'i aç
+            unlockAudio();
             isMuted = !isMuted;
             const btn = document.getElementById('mute-toggle');
             btn.innerHTML = isMuted ? '🔇' : '🔊';
             btn.style.background = isMuted ? 'rgba(231, 76, 60, 0.5)' : 'rgba(0,0,0,0.5)';
-
-            if (!isMuted) {
-                playDingDong(); // Sesi açtığında test için çal
-            }
         }
 
         function playDingDong() {
-            if (isMuted) return;
-            if (!audioContext) return;
-
+            if (isMuted || !audioContext) return;
             if (audioContext.state === 'suspended') audioContext.resume();
 
             const osc1 = audioContext.createOscillator();
             const gain1 = audioContext.createGain();
-
             osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(660, audioContext.currentTime); // Ding
-            osc1.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
-
+            osc1.frequency.setValueAtTime(660, audioContext.currentTime);
             gain1.gain.setValueAtTime(0.5, audioContext.currentTime);
             gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-
             osc1.connect(gain1);
             gain1.connect(audioContext.destination);
-
             osc1.start();
             osc1.stop(audioContext.currentTime + 0.8);
 
-            // Dong
             setTimeout(() => {
                 if (isMuted) return;
                 const osc2 = audioContext.createOscillator();
                 const gain2 = audioContext.createGain();
-
                 osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(550, audioContext.currentTime); // Dong
-
+                osc2.frequency.setValueAtTime(550, audioContext.currentTime);
                 gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
                 gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.2);
-
                 osc2.connect(gain2);
                 gain2.connect(audioContext.destination);
-
                 osc2.start();
                 osc2.stop(audioContext.currentTime + 1.2);
             }, 600);
         }
 
-        // Saati güncelle
         function saatGuncelle() {
             const now = new Date();
-            document.getElementById('saat').textContent = now.toLocaleTimeString('tr-TR');
+            const el = document.getElementById('saat');
+            if (el) el.textContent = now.toLocaleTimeString('tr-TR');
         }
         setInterval(saatGuncelle, 1000);
         saatGuncelle();
 
         let lastDataJson = '';
         let lastCagriId = null;
-        let seenIds = {}; // id -> firstSeenTime
-        const TV_PASSWORD = '153624';
+        let seenIds = {};
         let tvSettings = { servisIds: [], kuyrukIds: [] };
 
         function loadTVSettings() {
@@ -485,21 +461,35 @@
             if (saved) {
                 try {
                     tvSettings = JSON.parse(saved);
-                    console.log('TV Ayarları yüklendi:', tvSettings);
                 } catch (e) {
                     console.error('Ayarlar okunamadı:', e);
                 }
             }
         }
 
-        function openTVSettings() {
-            const pass = prompt('🔒 Ekran ayarlarına erişmek için şifreyi girin:');
-            if (pass !== TV_PASSWORD) {
-                alert('❌ Yanlış şifre!');
-                return;
+        async function openTVSettings() {
+            const password = prompt('🔒 Ekran ayarlarına erişmek için müdahale şifresini girin:');
+            if (!password) return;
+
+            try {
+                const res = await apiCall('/auth/ekran-login', {
+                    method: 'POST',
+                    body: JSON.stringify({ sifre: password })
+                });
+
+                if (res.status === 'authorized') {
+                    if (res.firma_id != FIRMA_ID) {
+                        localStorage.setItem('global_firma_id', res.firma_id);
+                        alert(`Ekran ${res.firma_ad} firmasına bağlandı. Sayfa yenileniyor...`);
+                        location.reload();
+                        return;
+                    }
+                    document.getElementById('tv-settings-modal').style.display = 'flex';
+                    loadSettingsData();
+                }
+            } catch (err) {
+                alert('❌ Geçersiz müdahale şifresi!');
             }
-            document.getElementById('tv-settings-modal').style.display = 'flex';
-            loadSettingsData();
         }
 
         function closeTVSettings() {
@@ -614,9 +604,10 @@
 
                 let historyData = [...data];
 
-                if (gecenSure < 15000) {
+                if (gecenSure < 30000) {
+                    const needsAnimation = gecenSure < 5000;
                     spotlightContainer.innerHTML = `
-                        <div class="spotlight-item">
+                        <div class="spotlight-item" style="${needsAnimation ? 'animation: heartbeat 1.5s ease-in-out infinite;' : 'animation: none; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);'}">
                             <div class="spotlight-numara">${latest.numara}</div>
                             <div class="spotlight-detay">
                                 <div class="spotlight-servis">${latest.servis}</div>
@@ -660,6 +651,23 @@
             }
         }
 
+        async function bildirCihaz() {
+            try {
+                await apiCall('/admin/cihaz/bildir', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        firma_id: parseInt(FIRMA_ID),
+                        ad: 'TV-' + FIRMA_ID,
+                        tip: 'screen1',
+                        metadata: {
+                            servis_ids: tvSettings.servisIds,
+                            ekran_tipi: tvSettings.ekranTipi
+                        }
+                    })
+                });
+            } catch (err) { console.error("Heartbeat error", err); }
+        }
+
         async function initFirma() {
             try {
                 const firma = await apiCall(`/firma/${FIRMA_ID}`);
@@ -667,6 +675,8 @@
                     document.getElementById('firma-adi').textContent = firma.ad;
                     document.title = firma.ad + " - Sıra Ekranı";
                 }
+                bildirCihaz();
+                setInterval(bildirCihaz, 30000);
             } catch (err) {
                 console.error("Firma bilgisi alınamadı", err);
             }

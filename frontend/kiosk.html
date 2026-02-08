@@ -527,8 +527,7 @@
     <script src="static/app.js"></script>
     <script>
         let allQueues = [];
-        const FIRMA_ID = 1;
-        const KIOSK_PASSWORD = '153624';
+        let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
 
         // Kiosk Ayarları Yönetimi
         let kioskSettings = {
@@ -541,25 +540,39 @@
             if (saved) {
                 try {
                     kioskSettings = JSON.parse(saved);
-                    console.log('Kiosk ayarları yüklendi:', kioskSettings);
                 } catch (e) {
                     console.error('Ayarlar yüklenemedi:', e);
                 }
             }
         }
 
-        function openSettings() {
-            const password = prompt('🔒 Kiosk ayarlarına erişmek için şifreyi girin:');
-            if (password !== KIOSK_PASSWORD) {
-                alert('❌ Yanlış şifre!');
-                return;
+        async function openSettings() {
+            const password = prompt('🔒 Kiosk ayarlarına erişmek için müdahale şifresini girin:');
+            if (!password) return;
+
+            try {
+                // Şifreyi doğrula ve hangi firmaya ait olduğunu bul
+                const res = await apiCall('/auth/ekran-login', {
+                    method: 'POST',
+                    body: JSON.stringify({ sifre: password })
+                });
+
+                if (res.status === 'authorized') {
+                    // Eğer şifre başka bir firmaya aitse veya ilk defa kuruluyorsa
+                    if (res.firma_id != FIRMA_ID) {
+                        localStorage.setItem('global_firma_id', res.firma_id);
+                        alert(`Cihaz ${res.firma_ad} firmasına bağlandı. Sayfa yenileniyor...`);
+                        location.reload();
+                        return;
+                    }
+
+                    // Şifre doğru ve firma aynıysa ayarları aç
+                    document.getElementById('settings-modal').style.display = 'flex';
+                    loadSettingsData();
+                }
+            } catch (err) {
+                alert('❌ Geçersiz müdahale şifresi!');
             }
-
-            // Modal'ı göster
-            document.getElementById('settings-modal').style.display = 'flex';
-
-            // Combo'ları doldur
-            loadSettingsData();
         }
 
         function closeSettings() {
@@ -676,7 +689,11 @@
                     body: JSON.stringify({
                         firma_id: parseInt(FIRMA_ID),
                         ad: 'KIOSK-' + FIRMA_ID,
-                        tip: 'kiosk'
+                        tip: 'kiosk',
+                        metadata: {
+                            servis_ids: kioskSettings.servisIds,
+                            kuyruk_ids: kioskSettings.kuyrukIds
+                        }
                     })
                 });
             } catch (err) { console.error("Heartbeat error", err); }
