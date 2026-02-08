@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sıramatik - Giriş</title>
+    <script src="static/app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 400px;
+            width: 100%;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .login-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .login-body {
+            padding: 40px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .public-links {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .public-links p {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 13px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .public-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-public {
+            flex: 1;
+            padding: 12px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-public:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-public:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🔐 Sıramatik</h1>
+            <p>Hoş Geldiniz</p>
+        </div>
+
+        <div class="login-body">
+            <div id="error-message" class="error-message"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Kullanıcı Adı veya Email</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Şifre</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn-login">Giriş Yap</button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px; color: #7f8c8d;">Giriş yapılıyor...</p>
+            </div>
+
+            <div class="public-links">
+                <p>Halka Açık Sayfalar</p>
+                <div class="public-buttons">
+                    <a href="tv.html" target="_blank" class="btn-public">
+                        📺 TV Ekranı Aç
+                    </a>
+                    <a href="kiosk.html" target="_blank" class="btn-public">
+                        🎫 Kiosk Ekranı Aç
+                    </a>
+                </div>
+            </div>
+
+            <div class="login-footer">
+                <p>© 2024 Sıramatik - Tüm hakları saklıdır</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // index.html her zaman giriş formu gösterir - Otomatik yönlendirme YOK
+        // Kullanıcı her seferinde giriş yapmalı
+
+        // Form submit
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-message');
+            const loadingDiv = document.getElementById('loading');
+            const form = document.getElementById('login-form');
+
+            // Hata mesajını temizle
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+
+            // Loading göster
+            form.style.display = 'none';
+            loadingDiv.style.display = 'block';
+
+            try {
+                const data = await apiCall('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ login: username, password: password })
+                });
+
+                // Token ve kullanıcı bilgisini kaydet
+                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('user', JSON.stringify(data.kullanici));
+
+                // Role göre yönlendir
+                redirectToRolePage(data.kullanici.rol);
+
+            } catch (error) {
+                // Hata göster
+                loadingDiv.style.display = 'none';
+                form.style.display = 'block';
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '❌ ' + (error.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+            }
+        });
+
+        function redirectToRolePage(rol) {
+            const rolePages = {
+                'superadmin': 'superadmin.html',
+                'admin': 'admin.html',
+                'gm': 'gm.html',
+                'gmy': 'gmy.html',
+                'manager': 'manager.html',
+                'dep_manager': 'dep_manager.html',
+                'staff': 'personel.html'
+            };
+
+            const targetPage = rolePages[rol] || 'personel.html';
+            window.location.href = targetPage;
+        }
+    </script>
+</body>
+
+</html>

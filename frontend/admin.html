@@ -267,9 +267,32 @@
             background: #1e293b;
             padding: 40px;
             border-radius: 24px;
-            width: 500px;
+            width: 650px;
+            max-width: 95%;
+            max-height: 85vh;
+            overflow-y: auto;
             border: 1px solid var(--glass-border);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-lg {
+            width: 900px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-lg {
+                width: 100%;
+            }
         }
 
         .form-group {
@@ -357,9 +380,12 @@
             </a>
 
             <div class="nav-header">TANIMLAR & AYARLAR</div>
-            <a onclick="showView('cihazlar')" class="nav-item" id="nav-cihazlar">
+            <div class="nav-item" id="nav-cihazlar" onclick="showView('cihazlar')">
                 <i class="fas fa-desktop"></i> Cihazlar
-            </a>
+            </div>
+            <div class="nav-item" id="nav-ayarlar" onclick="showView('ayarlar')">
+                <i class="fas fa-cogs"></i> Sistem Ayarları
+            </div>
             <a onclick="showView('servisler')" class="nav-item" id="nav-servisler">
                 <i class="fas fa-hospital-user"></i> Bölümler
             </a>
@@ -580,6 +606,41 @@
             </div>
         </div>
 
+        <!-- AYARLAR VIEW -->
+        <div id="view-ayarlar" style="display: none;">
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Firma ve Sistem Ayarları</h2>
+                </div>
+                <div class="card-glass"
+                    style="max-width: 600px; padding: 30px; border-radius: 20px; background: rgba(30,41,59,0.5);">
+                    <form id="firma-settings-form">
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="display:block; margin-bottom:8px; opacity:0.8;">Firma Adı</label>
+                            <input type="text" id="setting-firma-ad" class="admin-input" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="display:block; margin-bottom:8px; opacity:0.8;">Sektör</label>
+                            <input type="text" id="setting-firma-sektor" class="admin-input">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="display:block; margin-bottom:8px; opacity:0.8;">Ekran Müdahale Şifresi
+                                (TV/Kiosk)</label>
+                            <input type="text" id="setting-firma-ekran-sifre" class="admin-input" required
+                                placeholder="Örn: 153624">
+                            <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">TV
+                                ve Kiosk ekranlarında çark simgesine tıklandığında sorulacak şifredir.</small>
+                        </div>
+                        <div style="margin-top: 30px;">
+                            <button type="submit" class="btn-action">
+                                <i class="fas fa-save"></i> Değişiklikleri Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- SERVISLER VIEW -->
         <div id="view-servisler" style="display: none;">
             <div class="admin-section">
@@ -621,6 +682,7 @@
                             <th>Bağlı Bölüm</th>
                             <th>Kod</th>
                             <th>Öncelik</th>
+                            <th>Konum Sayısı</th>
                             <th>İşlem</th>
                         </tr>
                     </thead>
@@ -634,14 +696,22 @@
             <div class="admin-section">
                 <div class="section-header">
                     <h2>Personel Yönetimi</h2>
+                    <button class="primary-btn" style="flex:none;" onclick="openUserModal()">
+                        <i class="fas fa-plus"></i> Yeni Personel Ekle
+                    </button>
                 </div>
                 <table id="user-table">
                     <thead>
                         <tr>
                             <th>Ad Soyad</th>
+                            <th>Kullanıcı Adı</th>
                             <th>Email</th>
                             <th>Rol</th>
+                            <th>Bölüm</th>
+                            <th>Kuyruk</th>
+                            <th>Konum</th>
                             <th>Durum</th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody id="user-table-body"></tbody>
@@ -730,8 +800,130 @@
                     <label>Öncelik (0: Normal)</label>
                     <input type="number" id="queue-oncelik" value="0" min="0" max="9">
                 </div>
+
+                <div class="form-group">
+                    <label>Konumlar (Banko/Masa Tanımları)</label>
+                    <div id="queue-locations-list"
+                        style="margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 5px; border: 1px solid rgba(255,255,255,0.05); padding: 5px; border-radius: 8px;">
+                        <!-- Dinamik Konumlar -->
+                    </div>
+
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="secondary-btn"
+                            style="flex:1; padding: 8px; font-size: 13px; border-style: dashed;"
+                            onclick="addLocationItem()">
+                            <i class="fas fa-plus"></i> Tek Ekle
+                        </button>
+                        <button type="button" class="secondary-btn"
+                            style="flex:1; padding: 8px; font-size: 13px; border-style: dashed; background:rgba(99,102,241,0.1); color:#818cf8;"
+                            onclick="toggleBulkForm()">
+                            <i class="fas fa-layer-group"></i> Toplu Ekle
+                        </button>
+                    </div>
+
+                    <!-- Bulk Form -->
+                    <div id="bulk-location-form"
+                        style="display:none; background:rgba(0,0,0,0.2); padding:10px; border-radius:8px; margin-top:10px; border:1px solid var(--glass-border);">
+                        <div style="font-size:12px; font-weight:600; margin-bottom:5px; color:#ddd;">Hızlı Oluşturucu
+                        </div>
+                        <div style="display:flex; gap:5px; margin-bottom:5px;">
+                            <input type="text" id="bulk-prefix" placeholder="Önek (Örn: Kabin )" value="Kabin "
+                                style="flex:2; font-size:12px; padding:6px;">
+                            <input type="number" id="bulk-start" placeholder="Başla" value="1"
+                                style="flex:1; font-size:12px; padding:6px;">
+                            <input type="number" id="bulk-end" placeholder="Bitir"
+                                style="flex:1; font-size:12px; padding:6px;">
+                        </div>
+                        <button type="button" class="primary-btn" style="width:100%; padding:6px; font-size:12px;"
+                            onclick="generateBulkLocations()">
+                            ⚡ Oluştur
+                        </button>
+                    </div>
+
+                    <small style="color:var(--text-muted); display:block; margin-top:5px;">Personelleriniz bu kuyrukta
+                        çalışırken burada tanımlanan konumlardan birini seçebilecek.</small>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="secondary-btn" onclick="closeModal('queue-modal')">İptal</button>
+                    <button type="submit" class="primary-btn">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- USER MODAL -->
+    <div id="user-modal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <h2 id="user-modal-title">Personel Ekle/Düzenle</h2>
+            <form id="user-form">
+                <input type="hidden" id="user-id">
+                <div class="form-grid">
+                    <!-- Sol Kolon: Giriş Bilgileri -->
+                    <div class="form-column">
+                        <div class="form-group">
+                            <label>Kullanıcı Adı</label>
+                            <input type="text" id="user-kullanici-adi" placeholder="Boş bırakılırsa otomatik oluşur">
+                        </div>
+                        <div class="form-group">
+                            <label>Ad Soyad</label>
+                            <input type="text" id="user-ad-soyad" required placeholder="Örn: Dr. Ahmet Yılmaz"
+                                oninput="autoGenerateUsername(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Email (Opsiyonel)</label>
+                            <input type="email" id="user-email" placeholder="ahmet@firma.com">
+                        </div>
+                        <div id="user-password-group" class="form-group">
+                            <label>Şifre</label>
+                            <input type="password" id="user-password" placeholder="Şifre belirleyin">
+                            <small style="color:var(--text-muted)">Düzenleme yaparken boş bırakabilirsiniz</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Rol</label>
+                            <select id="user-rol" required>
+                                <option value="staff">Personel (Staff)</option>
+                                <option value="dep_manager">Bölüm Yöneticisi</option>
+                                <option value="manager">Müdür</option>
+                                <option value="gmy">GMY</option>
+                                <option value="gm">GM</option>
+                                <option value="admin">Sistem Yöneticisi (Admin)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sağ Kolon: Atama Bilgileri -->
+                    <div class="form-column">
+                        <div class="form-group">
+                            <label>Varsayılan Bölüm</label>
+                            <select id="user-servis-id" onchange="populateUserQueues(this.value)">
+                                <option value="">Bölüm Seçin (Opsiyonel)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Varsayılan Kuyruk</label>
+                            <select id="user-kuyruk-id" onchange="populateUserLocations(this.value)">
+                                <option value="">Önce Bölüm Seçin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Varsayılan Konum (Masa/Banko)</label>
+                            <select id="user-konum-id">
+                                <option value="">Önce Kuyruk Seçin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Durum</label>
+                            <select id="user-aktif">
+                                <option value="true">Aktif</option>
+                                <option value="false">Pasif</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('user-modal')">İptal</button>
                     <button type="submit" class="primary-btn">Kaydet</button>
                 </div>
             </form>
@@ -741,10 +933,33 @@
     <script src="static/app.js"></script>
 
     <script>
+        // GÜVENLİK KONTROLÜ - Sadece admin rolü erişebilir
+        const savedToken = localStorage.getItem('token');
+        const savedUser = localStorage.getItem('user');
+
+        if (!savedToken || !savedUser) {
+            window.location.href = 'index.html';
+        } else {
+            const user = JSON.parse(savedUser);
+            if (user.rol !== 'admin') {
+                // Yanlış rol, kendi sayfasına yönlendir
+                const rolePages = {
+                    'superadmin': 'superadmin.html',
+                    'staff': 'personel.html',
+                    'dep_manager': 'personel.html',
+                    'manager': 'personel.html',
+                    'gmy': 'personel.html',
+                    'gm': 'personel.html'
+                };
+                window.location.href = rolePages[user.rol] || 'index.html';
+            }
+        }
+
         let currentUser = null;
         let devices = [];
         let services = [];
         let queues = [];
+        let users = [];
 
         function showView(viewId) {
             // Menü aktifliği
@@ -753,15 +968,60 @@
             if (nav) nav.classList.add('active');
 
             // İçerik gösterimi
-            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar'];
+            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar', 'istatistik', 'ayarlar'];
             views.forEach(v => {
                 const el = document.getElementById('view-' + v);
                 if (el) el.style.display = 'none';
             });
 
             const target = document.getElementById('view-' + viewId);
-            if (target) target.style.display = 'block';
+            if (target) {
+                target.style.display = 'block';
+                const titleMap = {
+                    'dashboard': 'Genel Bakış',
+                    'istatistik': 'Detaylı İstatistikler',
+                    'cihazlar': 'Cihaz Yönetimi',
+                    'servisler': 'Bölüm Tanımları',
+                    'kuyruklar': 'Kuyruk Tanımları',
+                    'kullanicilar': 'Personel Yönetimi',
+                    'ayarlar': 'Sistem Ayarları'
+                };
+                document.getElementById('view-title').textContent = titleMap[viewId] || 'Yönetim Paneli';
+            }
+
+            if (viewId === 'dashboard' || viewId === 'istatistik') loadStats();
+            if (viewId === 'ayarlar') loadFirmaSettings();
         }
+
+        async function loadFirmaSettings() {
+            try {
+                const firma = await apiCall(`/firma/${currentUser.firma_id}`);
+                if (firma) {
+                    document.getElementById('setting-firma-ad').value = firma.ad || '';
+                    document.getElementById('setting-firma-sektor').value = firma.sektor || '';
+                    document.getElementById('setting-firma-ekran-sifre').value = firma.ekran_sifre || '153624';
+                }
+            } catch (err) { console.error("Firma settings load error", err); }
+        }
+
+        document.getElementById('firma-settings-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const data = {
+                ad: document.getElementById('setting-firma-ad').value,
+                sektor: document.getElementById('setting-firma-sektor').value,
+                ekran_sifre: document.getElementById('setting-firma-ekran-sifre').value
+            };
+            try {
+                await apiCall(`/admin/firma/${currentUser.firma_id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+                showToast("Sistem ayarları başarıyla kaydedildi.", "success");
+                await loadFirmaInfo(); // Header'daki ismi de güncelle
+            } catch (err) {
+                alert("Ayarlar kaydedilemedi: " + err.message);
+            }
+        };
 
         async function init() {
             try {
@@ -771,17 +1031,20 @@
                     return;
                 }
                 currentUser = user;
-                document.getElementById('admin-name').textContent = user.ad_soyad;
+                document.getElementById('admin-name').textContent = user.ekran_ismi || user.ad_soyad;
 
                 await loadFirmaInfo();
-                await loadStats();
-                await loadServices();
-                await loadDevices();
-                await loadQueues();
-                await loadUsers(); // Personel Listesi
+                await loadServices(); // Bölümleri önce yükle (Selectler için)
+
+                // Diğerleri paralel yüklenip birbirini bloklamasın
+                try { await loadStats(); } catch (e) { console.error("Stats Error", e); }
+                try { await loadDevices(); } catch (e) { console.error("Devices Error", e); }
+                try { await loadQueues(); } catch (e) { console.error("Queues Error", e); }
+                try { await loadUsers(); } catch (e) { console.error("Users Error", e); }
 
             } catch (err) {
                 console.error(err);
+                alert("Panel yüklenirken hata oluştu: " + err.message);
                 window.location.href = 'personel.html';
             }
         }
@@ -848,44 +1111,48 @@
                 const stats = await apiCall(url);
 
                 // Dashboard Metrikleri
-                document.getElementById('stat-toplam').textContent = stats.toplam_sira || 0;
-                document.getElementById('stat-bekleyen').textContent = stats.bekleyen || 0;
-                document.getElementById('stat-cagirildi').textContent = stats.cagirildi || 0;
-                document.getElementById('stat-tamamlanan').textContent = stats.tamamlandi || 0;
-                document.getElementById('stat-vip').textContent = stats.vip_sira || 0;
+                if (document.getElementById('stat-toplam')) {
+                    document.getElementById('stat-toplam').textContent = stats.toplam_sira || 0;
+                    document.getElementById('stat-bekleyen').textContent = stats.bekleyen || 0;
+                    document.getElementById('stat-cagirildi').textContent = stats.cagirildi || 0;
+                    document.getElementById('stat-tamamlanan').textContent = stats.tamamlandi || 0;
+                    document.getElementById('stat-vip').textContent = stats.vip_sira || 0;
 
-                const waitEl = document.getElementById('stat-bekleme-sure');
-                const procEl = document.getElementById('stat-islem-sure');
-                if (waitEl) waitEl.innerHTML = `${Math.round(stats.ort_bekleme_dk || 0)} <span style="font-size:14px; opacity:0.7;">dk</span>`;
-                if (procEl) procEl.innerHTML = `${Math.round(stats.ort_islem_dk || 0)} <span style="font-size:14px; opacity:0.7;">dk</span>`;
+                    const waitEl = document.getElementById('stat-bekleme-sure');
+                    const procEl = document.getElementById('stat-islem-sure');
+                    if (waitEl) waitEl.innerHTML = `${Math.round(stats.ort_bekleme_dk || 0)} <span style="font-size:14px; opacity:0.7;">dk</span>`;
+                    if (procEl) procEl.innerHTML = `${Math.round(stats.ort_islem_dk || 0)} <span style="font-size:14px; opacity:0.7;">dk</span>`;
+                }
 
                 // İstatistik Sayfası Metrikleri
-                const peakHourEl = document.getElementById('stat-peak-hour');
-                const topServEl = document.getElementById('stat-top-service');
-                const recentList = document.getElementById('stat-recent-tickets');
+                if (isStatsView) {
+                    const peakHourEl = document.getElementById('stat-peak-hour');
+                    const topServEl = document.getElementById('stat-top-service');
+                    const recentList = document.getElementById('stat-recent-tickets');
 
-                if (peakHourEl && stats.hourly_data.length > 0) {
-                    const maxIdx = stats.hourly_data.indexOf(Math.max(...stats.hourly_data));
-                    peakHourEl.textContent = stats.hourly_labels[maxIdx];
-                }
+                    if (peakHourEl && stats.hourly_data.length > 0) {
+                        const maxIdx = stats.hourly_data.indexOf(Math.max(...stats.hourly_data));
+                        peakHourEl.textContent = stats.hourly_labels[maxIdx];
+                    }
 
-                if (topServEl && stats.service_data.length > 0) {
-                    const maxIdx = stats.service_data.indexOf(Math.max(...stats.service_data));
-                    topServEl.textContent = stats.service_labels[maxIdx];
-                }
+                    if (topServEl && stats.service_data.length > 0) {
+                        const maxIdx = stats.service_data.indexOf(Math.max(...stats.service_data));
+                        topServEl.textContent = stats.service_labels[maxIdx];
+                    }
 
-                if (recentList && stats.recent_tickets) {
-                    if (stats.recent_tickets.length === 0) {
-                        recentList.innerHTML = '<tr><td colspan="4" style="text-align:center;">Bugün henüz işlem yok.</td></tr>';
-                    } else {
-                        recentList.innerHTML = stats.recent_tickets.map(t => `
-                            <tr>
-                                <td style="font-weight:700;">${t.numara}</td>
-                                <td>${t.servis_ad}</td>
-                                <td>${t.saat}</td>
-                                <td><span class="status-badge" style="background:${t.durum === 'completed' ? '#22c55e' : (t.durum === 'calling' ? '#6366f1' : '#94a3b8')}; color:white;">${t.durum.toUpperCase()}</span></td>
-                            </tr>
-                        `).join('');
+                    if (recentList && stats.recent_tickets) {
+                        if (stats.recent_tickets.length === 0) {
+                            recentList.innerHTML = '<tr><td colspan="4" style="text-align:center;">Bugün henüz işlem yok.</td></tr>';
+                        } else {
+                            recentList.innerHTML = stats.recent_tickets.map(t => `
+                                <tr>
+                                    <td style="font-weight:700;">${t.numara}</td>
+                                    <td>${t.servis_ad}</td>
+                                    <td>${t.saat}</td>
+                                    <td><span class="status-badge" style="background:${t.durum === 'completed' ? '#22c55e' : (t.durum === 'calling' ? '#6366f1' : '#94a3b8')}; color:white;">${t.durum.toUpperCase()}</span></td>
+                                </tr>
+                            `).join('');
+                        }
                     }
                 }
 
@@ -1001,10 +1268,11 @@
                 // Update selects
                 const dSelect = document.getElementById('edit-servis');
                 const qSelect = document.getElementById('queue-servis-id');
+                const uSelect = document.getElementById('user-servis-id');
                 const fDash = document.getElementById('filter-servis-dashboard');
                 const fStat = document.getElementById('filter-servis-stats');
 
-                [dSelect, qSelect, fDash, fStat].forEach(s => {
+                [dSelect, qSelect, uSelect, fDash, fStat].forEach(s => {
                     if (!s) return;
                     const first = s.options[0];
                     s.innerHTML = '';
@@ -1035,28 +1303,52 @@
 
         async function loadUsers() {
             try {
-                // Backend endpoint: /api/admin/users/{firma_id}
-                const users = await apiCall(`/admin/users/${currentUser.firma_id}`);
-                renderUserTable(users);
+                users = await apiCall(`/admin/users/${currentUser.firma_id}`);
+                renderUserTable();
             } catch (err) { console.error("Users load error", err); }
         }
 
-        function renderUserTable(users) {
+        function renderUserTable() {
             const tbody = document.getElementById('user-table-body');
             if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Kullanıcı bulunamadı.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">Personel bulunamadı.</td></tr>';
                 return;
             }
-            tbody.innerHTML = users.map(u => `
+            tbody.innerHTML = users.map(u => {
+                const serviceUser = services.find(s => s.id === u.servis_id);
+
+                // Kuyruk Adını Bul
+                let qName = '-';
+                let locName = '-';
+
+                if (u.varsayilan_kuyruk_id && queues) {
+                    const qObj = queues.find(q => q.id == u.varsayilan_kuyruk_id);
+                    if (qObj) {
+                        qName = qObj.ad;
+                        if (u.varsayilan_konum_id && qObj.konumlar) {
+                            const lObj = qObj.konumlar.find(l => l.id == u.varsayilan_konum_id);
+                            if (lObj) locName = lObj.ad;
+                        }
+                    }
+                }
+
+                return `
                 <tr>
+                    <td><div style="font-weight: 500;">${u.ad_soyad}</div></td>
+                    <td style="color:#818cf8; font-family: monospace;">${u.kullanici_adi || '-'}</td>
+                    <td style="color:var(--text-muted); font-size: 13px;">${u.email || '-'}</td>
+                    <td><span class="status-badge" style="background:${getRoleColor(u.rol)}; color:white; font-size: 11px;">${getRoleLabel(u.rol)}</span></td>
+                    <td>${serviceUser ? serviceUser.ad : '<span style="color:var(--text-muted)">-</span>'}</td>
+                    <td style="font-size:13px; color:#94a3b8;">${qName}</td>
+                    <td style="font-size:13px; color:#94a3b8;">${locName}</td>
+                    <td><span class="status-badge" style="background:${u.aktif !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color:${u.aktif !== false ? '#10b981' : '#ef4444'};">${u.aktif !== false ? 'AKTİF' : 'PASİF'}</span></td>
                     <td>
-                        <div style="font-weight: 600;">${u.ad_soyad}</div>
+                        <button class="action-btn" onclick="openUserModal(${u.id})"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn" style="color:#f87171;" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
                     </td>
-                    <td>${u.email}</td>
-                    <td><span class="status-badge" style="background:${u.rol === 'admin' ? 'var(--accent-secondary)' : 'var(--accent-primary)'}; color:white;">${u.rol}</span></td>
-                    <td>${u.servis_id ? '✅ Servis Atanmış' : '❌ Genel'}</td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderServiceTable() {
@@ -1084,6 +1376,7 @@
                     <td>${q.servis_ad || 'Bilinmiyor'}</td>
                     <td><span class="status-badge" style="background:rgba(168,85,247,0.2); color:#c084fc;">${q.kod}</span></td>
                     <td>${q.oncelik}</td>
+                    <td><span class="status-badge" style="background:rgba(255,255,255,0.05); color:#94a3b8;">${q.konumlar ? q.konumlar.length : 0}</span></td>
                     <td>
                         <button class="action-btn" onclick="openQueueModal(${q.id})"><i class="fas fa-edit"></i></button>
                         <button class="action-btn" style="color:#f87171;" onclick="deleteQueue(${q.id})"><i class="fas fa-trash"></i></button>
@@ -1094,11 +1387,45 @@
 
         function renderDeviceTable() {
             const tbody = document.getElementById('device-table-body');
+
+            // Tablo başlığını güncelle (Anlık Ayar ekle)
+            const thead = document.querySelector('#view-cihazlar table thead tr');
+            if (thead && thead.children.length === 6) {
+                // Eğer başlık henüz güncellenmediyse
+                const th = document.createElement('th');
+                th.textContent = "Anlık Ayar";
+                thead.insertBefore(th, thead.children[4]); // Konum'dan sonra ekle
+            }
+
             if (!devices || devices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-microchip" style="font-size:24px; margin-bottom:10px; display:block;"></i>Henüz kayıtlı cihaz yok.<br>Kiosk veya TV açıldığında otomatik eklenebilir.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-microchip" style="font-size:24px; margin-bottom:10px; display:block;"></i>Henüz kayıtlı cihaz yok.<br>Kiosk veya TV açıldığında otomatik eklenebilir.</td></tr>';
                 return;
             }
-            tbody.innerHTML = devices.map(d => `
+            tbody.innerHTML = devices.map(d => {
+                let liveSettings = '-';
+                if (d.metadata) {
+                    const meta = typeof d.metadata === 'string' ? JSON.parse(d.metadata) : d.metadata;
+                    const sIds = meta.servis_ids || [];
+                    const qIds = meta.kuyruk_ids || [];
+
+                    if (sIds.length > 0) {
+                        const sNames = sIds.map(id => {
+                            const s = services.find(x => x.id === id);
+                            return s ? s.ad : id;
+                        }).join(', ');
+                        liveSettings = `<div style="font-size:11px; color:#a855f7;"><b>Bölümler:</b> ${sNames}</div>`;
+                    }
+
+                    if (qIds.length > 0) {
+                        const qNames = qIds.map(id => {
+                            const q = queues.find(x => x.id === id);
+                            return q ? q.kod : id;
+                        }).join(', ');
+                        liveSettings += `<div style="font-size:11px; color:#f59e0b;"><b>Kuyruklar:</b> ${qNames}</div>`;
+                    }
+                }
+
+                return `
                 <tr>
                     <td>
                         <div style="display: flex; align-items: center;">
@@ -1112,10 +1439,11 @@
                     <td><span style="text-transform: uppercase; font-size:11px;">${d.tip}</span></td>
                     <td>${d.servis_ad || '<span style="color: #f87171;">Bütünü Görüyor</span>'}</td>
                     <td>${d.konum || '-'}</td>
+                    <td>${liveSettings}</td>
                     <td><span class="status-badge ${d.aktif ? 'status-online' : 'status-offline'}">${d.aktif ? 'ONLINE' : 'OFFLINE'}</span></td>
                     <td><button class="action-btn" onclick="openEditModal(${d.id})"><i class="fas fa-cog"></i></button></td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function getDeviceIcon(tip) {
@@ -1126,35 +1454,6 @@
                 case 'screen2': return 'fa-tv';
                 default: return 'fa-microchip';
             }
-        }
-
-        function showView(view) {
-            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar', 'istatistik'];
-            views.forEach(v => {
-                const el = document.getElementById(`view-${v}`);
-                if (el) el.style.display = 'none';
-                const nav = document.getElementById(`nav-${v}`);
-                if (nav) nav.classList.remove('active');
-            });
-
-            const targetView = document.getElementById(`view-${view}`);
-            const targetNav = document.getElementById(`nav-${view}`);
-
-            if (targetView) targetView.style.display = 'block';
-            if (targetNav) targetNav.classList.add('active');
-
-            const titleMap = {
-                'dashboard': 'Genel Bakış',
-                'istatistik': 'Detaylı İstatistikler',
-                'cihazlar': 'Cihaz Yönetimi',
-                'servisler': 'Bölüm Tanımları',
-                'kuyruklar': 'Kuyruk Tanımları',
-                'kullanicilar': 'Personel Yönetimi'
-            };
-
-            document.getElementById('view-title').textContent = titleMap[view] || view;
-
-            if (view === 'dashboard' || view === 'istatistik') loadStats();
         }
 
         function openEditModal(id) {
@@ -1180,17 +1479,174 @@
         }
 
         function openQueueModal(id = null) {
-            const form = document.getElementById('queue-form');
-            form.reset();
-            document.getElementById('queue-id').value = id || "";
-            if (id) {
-                const q = queues.find(x => x.id === id);
-                document.getElementById('queue-servis-id').value = q.servis_id;
-                document.getElementById('queue-ad').value = q.ad;
-                document.getElementById('queue-kod').value = q.kod;
-                document.getElementById('queue-oncelik').value = q.oncelik;
+            try {
+                const form = document.getElementById('queue-form');
+                form.reset();
+                document.getElementById('queue-id').value = id || "";
+
+                const locList = document.getElementById('queue-locations-list');
+                if (locList) locList.innerHTML = '';
+
+                if (id) {
+                    // ID karşılaştırmasını esnet (String vs Number)
+                    const q = queues.find(x => x.id == id);
+                    if (!q) {
+                        console.error("Kuyruk bulunamadı:", id);
+                        return;
+                    }
+
+                    document.getElementById('queue-servis-id').value = q.servis_id;
+                    document.getElementById('queue-ad').value = q.ad;
+                    document.getElementById('queue-kod').value = q.kod;
+                    document.getElementById('queue-oncelik').value = q.oncelik;
+
+                    if (q.konumlar && Array.isArray(q.konumlar)) {
+                        q.konumlar.forEach(loc => addLocationItem(loc.ad, loc.aciklama));
+                    }
+                }
+                document.getElementById('queue-modal').style.display = 'flex';
+            } catch (e) {
+                console.error("Modal açma hatası:", e);
+                alert("Bir hata oluştu: " + e.message);
             }
-            document.getElementById('queue-modal').style.display = 'flex';
+        }
+
+        function addLocationItem(ad = '', aciklama = '') {
+            const container = document.getElementById('queue-locations-list');
+            if (!container) return;
+
+            const div = document.createElement('div');
+            div.className = 'location-item';
+            div.style.display = 'flex';
+            div.style.gap = '10px';
+
+            div.innerHTML = `
+                <input type="text" class="loc-name" placeholder="Konum Adı (Örn: Masa 1)" value="${ad}" required style="flex:1;">
+                <input type="text" class="loc-desc" placeholder="Açıklama (Opsiyonel)" value="${aciklama}" style="flex:1;">
+                <button type="button" class="action-btn" style="color:#f87171; padding:10px;" onclick="removeLocationItem(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeLocationItem(btn) {
+            btn.closest('.location-item').remove();
+        }
+
+        function toggleBulkForm() {
+            const el = document.getElementById('bulk-location-form');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function generateBulkLocations() {
+            const prefix = document.getElementById('bulk-prefix').value;
+            const start = parseInt(document.getElementById('bulk-start').value);
+            const end = parseInt(document.getElementById('bulk-end').value);
+
+            if (isNaN(start) || isNaN(end) || end < start) {
+                alert("Lütfen geçerli bir aralık girin!");
+                return;
+            }
+
+            if (end - start > 50) {
+                if (!confirm(`Toplam ${end - start + 1} adet konum oluşturulacak. Emin misiniz?`)) return;
+            }
+
+            for (let i = start; i <= end; i++) {
+                addLocationItem(`${prefix}${i}`);
+            }
+
+            toggleBulkForm(); // Kapat
+        }
+
+        function trToEn(text) {
+            const tr = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'Ç': 'c', 'Ğ': 'g', 'İ': 'i', 'Ö': 'o', 'Ş': 's', 'Ü': 'u' };
+            return text.replace(/[çğıöşüÇĞİÖŞÜ]/g, (m) => tr[m]).toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function autoGenerateUsername(name) {
+            const userInp = document.getElementById('user-kullanici-adi');
+            userInp.value = trToEn(name);
+        }
+
+        function openUserModal(id = null) {
+            const form = document.getElementById('user-form');
+            form.reset();
+            document.getElementById('user-id').value = id || "";
+            document.getElementById('user-password-group').style.display = id ? 'block' : 'block';
+            document.getElementById('user-password').required = !id;
+
+            if (id) {
+                const u = users.find(x => x.id === id);
+                document.getElementById('user-ad-soyad').value = u.ad_soyad || "";
+
+                // Kullanıcı adı boşsa ad soyad'dan otomatik üret
+                const generatedUsername = u.kullanici_adi || trToEn(u.ad_soyad || "");
+                document.getElementById('user-kullanici-adi').value = generatedUsername;
+
+                document.getElementById('user-email').value = u.email || "";
+                document.getElementById('user-rol').value = u.rol;
+                document.getElementById('user-servis-id').value = u.servis_id || "";
+                document.getElementById('user-aktif').value = u.aktif !== false ? "true" : "false";
+
+                // Kuyrukları ve Konumları doldur
+                if (u.servis_id) {
+                    populateUserQueues(u.servis_id, u.varsayilan_kuyruk_id);
+                    if (u.varsayilan_kuyruk_id) {
+                        populateUserLocations(u.varsayilan_kuyruk_id, u.varsayilan_konum_id);
+                    }
+                }
+
+                document.getElementById('user-modal-title').textContent = "Personel Düzenle";
+            } else {
+                document.getElementById('user-modal-title').textContent = "Yeni Personel Ekle";
+                // Reset child selects
+                document.getElementById('user-kuyruk-id').innerHTML = '<option value="">Önce Bölüm Seçin</option>';
+                document.getElementById('user-konum-id').innerHTML = '<option value="">Önce Kuyruk Seçin</option>';
+            }
+            document.getElementById('user-modal').style.display = 'flex';
+        }
+
+        function populateUserQueues(servisId, selectedId = null) {
+            const el = document.getElementById('user-kuyruk-id');
+            el.innerHTML = '<option value="">Seçiniz (Opsiyonel)</option>';
+            document.getElementById('user-konum-id').innerHTML = '<option value="">Önce Kuyruk Seçin</option>';
+
+            if (!servisId) return;
+
+            // queues global değişkenini kullan (sayfa açılışında doluyor)
+            // Servis ID string gelebilir, == kullan
+            const filtered = queues.filter(q => q.servis_id == servisId);
+            filtered.forEach(q => {
+                const opt = document.createElement('option');
+                opt.value = q.id;
+                opt.textContent = `${q.kod} - ${q.ad}`;
+                if (selectedId && q.id == selectedId) opt.selected = true;
+                el.appendChild(opt);
+            });
+
+            // Eğer seçili kuyruk varsa konumları da güncelle (ama UI'da change tetiklenmez)
+        }
+
+        function populateUserLocations(queueId, selectedId = null) {
+            const el = document.getElementById('user-konum-id');
+            el.innerHTML = '<option value="">Seçiniz (Opsiyonel)</option>';
+
+            if (!queueId) return;
+
+            const q = queues.find(x => x.id == queueId);
+            if (q && q.konumlar) {
+                q.konumlar.forEach(loc => {
+                    const opt = document.createElement('option');
+                    // loc.id backendden gelmeli. Eğer gelmiyorsa veri eksik.
+                    // Veritabanı güncellemesi yapıldı (SELECT id, ad, aciklama)
+                    opt.value = loc.id;
+                    opt.textContent = loc.ad;
+                    if (selectedId && loc.id == selectedId) opt.selected = true;
+                    el.appendChild(opt);
+                });
+            }
         }
 
         function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
@@ -1229,15 +1685,88 @@
                 servis_id: parseInt(document.getElementById('queue-servis-id').value),
                 ad: document.getElementById('queue-ad').value,
                 kod: document.getElementById('queue-kod').value.toUpperCase(),
-                oncelik: parseInt(document.getElementById('queue-oncelik').value)
+                oncelik: parseInt(document.getElementById('queue-oncelik').value),
+                konumlar: [] // Konumları topla
             };
+
+            // Konum listesini tara
+            document.querySelectorAll('#queue-locations-list .location-item').forEach(item => {
+                const ad = item.querySelector('.loc-name').value.trim();
+                const aciklama = item.querySelector('.loc-desc').value.trim();
+                if (ad) {
+                    data.konumlar.push({ ad, aciklama });
+                }
+            });
             if (id) await apiCall(`/admin/kuyruk/${id}`, { method: 'PUT', body: JSON.stringify(data) });
             else await apiCall('/admin/kuyruk', { method: 'POST', body: JSON.stringify(data) });
             closeModal('queue-modal'); loadQueues();
         };
 
+        document.getElementById('user-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('user-id').value;
+            const data = {
+                ad_soyad: document.getElementById('user-ad-soyad').value,
+                kullanici_adi: document.getElementById('user-kullanici-adi').value.trim() || null,
+                email: document.getElementById('user-email').value.trim() || null,
+                rol: document.getElementById('user-rol').value,
+                servis_id: document.getElementById('user-servis-id').value ? parseInt(document.getElementById('user-servis-id').value) : null,
+                varsayilan_kuyruk_id: document.getElementById('user-kuyruk-id').value ? parseInt(document.getElementById('user-kuyruk-id').value) : null,
+                varsayilan_konum_id: document.getElementById('user-konum-id').value ? parseInt(document.getElementById('user-konum-id').value) : null,
+                aktif: document.getElementById('user-aktif').value === "true"
+            };
+
+            try {
+                if (!id) {
+                    data.email = document.getElementById('user-email').value;
+                    data.password = document.getElementById('user-password').value;
+                    data.firma_id = currentUser.firma_id;
+                    await apiCall('/admin/user', { method: 'POST', body: JSON.stringify(data) });
+                    showToast("Personel başarıyla eklendi");
+                } else {
+                    await apiCall(`/admin/user/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                    showToast("Personel bilgileri güncellendi");
+                }
+                closeModal('user-modal');
+                loadUsers();
+            } catch (err) {
+                console.error("User save error", err);
+                alert("Hata: " + err.message);
+            }
+        };
+
         async function deleteService(id) { if (confirm('Bu bölümü ve bağlı tüm kuyrukları silmek istediğinize emin misiniz?')) { await apiCall(`/admin/servis/${id}`, { method: 'DELETE' }); loadServices(); loadQueues(); } }
         async function deleteQueue(id) { if (confirm('Bu kuyruğu silmek istediğinize emin misiniz?')) { await apiCall(`/admin/kuyruk/${id}`, { method: 'DELETE' }); loadQueues(); } }
+        async function deleteUser(id) {
+            if (id === currentUser.id) { alert("Kendi hesabınızı silemezsiniz!"); return; }
+            if (confirm('Bu personeli silmek istediğinize emin misiniz?')) {
+                await apiCall(`/admin/user/${id}`, { method: 'DELETE' });
+                loadUsers();
+            }
+        }
+
+        function getRoleLabel(rol) {
+            const labels = {
+                'staff': 'PERSONEL',
+                'dep_manager': 'BÖLÜM YÖN.',
+                'manager': 'MÜDÜR',
+                'gmy': 'GMY',
+                'gm': 'GM',
+                'admin': 'ADMİN'
+            };
+            return labels[rol] || rol.toUpperCase();
+        }
+
+        function getRoleColor(rol) {
+            switch (rol) {
+                case 'admin': return 'var(--accent-secondary)';
+                case 'gm': return '#ef4444'; // Kırmızı
+                case 'gmy': return '#f59e0b'; // Turuncu
+                case 'manager': return '#10b981'; // Yeşil
+                case 'dep_manager': return '#3b82f6'; // Mavi
+                default: return 'var(--accent-primary)';
+            }
+        }
 
         function logout() { localStorage.clear(); window.location.href = 'personel.html'; }
         init();

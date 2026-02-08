@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hizmet Veren Paneli - Sıramatik</title>
+    <title>Bölüm Yöneticisi Paneli - Sıramatik</title>
     <link rel="stylesheet" href="static/style.css">
     <style>
         body {
@@ -434,13 +434,16 @@
             window.location.href = 'index.html';
         } else {
             const user = JSON.parse(savedUser);
-            // Bu sayfa sadece staff, dep_manager, manager, gmy, gm için
-            const allowedRoles = ['staff', 'dep_manager', 'manager', 'gmy', 'gm'];
-            if (!allowedRoles.includes(user.rol)) {
+            // Bu sayfa SADECE dep_manager için
+            if (user.rol !== 'dep_manager') {
                 // Yanlış rol, kendi sayfasına yönlendir
                 const rolePages = {
                     'superadmin': 'superadmin.html',
-                    'admin': 'admin.html'
+                    'admin': 'admin.html',
+                    'staff': 'personel.html',
+                    'manager': 'manager.html',
+                    'gmy': 'gmy.html',
+                    'gm': 'gm.html'
                 };
                 window.location.href = rolePages[user.rol] || 'index.html';
             }

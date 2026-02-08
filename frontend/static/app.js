@@ -1,7 +1,7 @@
 // Sıramatik - Ortak JavaScript Fonksiyonları
 
 // API adresi: Eğer sayfa IP ile açıldıysa (mobildeki gibi), API'yi de o IP üzerinden çağır.
-const currentHost = window.location.hostname;
+const currentHost = window.location.hostname || 'localhost';
 const API_URL = `http://${currentHost}:8000/api`;
 
 // API çağrısı yardımcı fonksiyonu

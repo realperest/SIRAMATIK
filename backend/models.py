@@ -11,7 +11,7 @@ import uuid
 # --- AUTH MODELS ---
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    login: str # Email VEYA Kullanıcı Adı
     password: str
 
 
@@ -75,12 +75,14 @@ class KuyrukResponse(BaseModel):
     servis_ad: Optional[str] = None # EKLENDİ
     bekleyen_sayisi: Optional[int] = 0
     vip_bekleyen_sayisi: Optional[int] = 0
+    konumlar: Optional[List[Dict[str, Any]]] = []
 
 class KuyrukCreateRequest(BaseModel):
     servis_id: int
     ad: str
     kod: str
     oncelik: int = 0
+    konumlar: Optional[List[Dict[str, Any]]] = []
 
 
 # --- SERVIS MODELS ---
@@ -141,11 +143,40 @@ class DeviceUpdateRequest(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    firma_id: int
-    email: str
+    firma_id: Optional[int] = None
+    kullanici_adi: Optional[str] = None
+    email: Optional[str] = None
     ad_soyad: str
+    ekran_ismi: Optional[str] = None
     rol: str
     aktif: bool
+    servis_id: Optional[int] = None
+    varsayilan_kuyruk_id: Optional[int] = None
+    varsayilan_konum_id: Optional[int] = None
+
+class UserCreateRequest(BaseModel):
+    firma_id: Optional[int] = None
+    kullanici_adi: Optional[str] = None
+    email: Optional[str] = None
+    password: str
+    ad_soyad: str
+    ekran_ismi: Optional[str] = None
+    rol: str = "staff" # 'admin', 'staff', 'superadmin' vb.
+    servis_id: Optional[int] = None
+    varsayilan_kuyruk_id: Optional[int] = None
+    varsayilan_konum_id: Optional[int] = None
+    aktif: bool = True
+
+class UserUpdateRequest(BaseModel):
+    kullanici_adi: Optional[str] = None
+    email: Optional[str] = None
+    ad_soyad: Optional[str] = None
+    ekran_ismi: Optional[str] = None
+    rol: Optional[str] = None
+    servis_id: Optional[int] = None
+    varsayilan_kuyruk_id: Optional[int] = None
+    varsayilan_konum_id: Optional[int] = None
+    aktif: Optional[bool] = None
 
 # --- İSTATİSTİK MODELS ---
 
@@ -168,6 +199,7 @@ class DeviceHeartbeatRequest(BaseModel):
     ad: str
     tip: str
     mac: Optional[str] = None
+    metadata: Optional[dict] = {}
 
 class ServisCreateRequest(BaseModel):
     firma_id: int

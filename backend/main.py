@@ -12,7 +12,9 @@ from database import db
 from auth import (
     create_access_token,
     verify_password,
+    get_password_hash,
     get_current_active_user,
+    require_superadmin
 )
 from models import (
     LoginRequest,
@@ -33,7 +35,9 @@ from models import (
     DeviceResponse,
     DeviceUpdateRequest,
     DeviceHeartbeatRequest,
-    UserResponse
+    UserResponse,
+    UserCreateRequest,
+    UserUpdateRequest
 )
 
 # FastAPI uygulaması
@@ -80,19 +84,19 @@ async def health_check():
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 async def login(request: LoginRequest):
-    """Kullanıcı girişi"""
-    kullanici = db.get_user_by_email(request.email)
+    """Kullanıcı girişi (Email veya Kullanıcı Adı)"""
+    kullanici = db.find_user_by_login(request.login)
     
     if not kullanici:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email veya şifre hatalı"
+            detail="Giriş bilgileri hatalı"
         )
     
     if not verify_password(request.password, kullanici["sifre_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email veya şifre hatalı",
+            detail="Giriş bilgileri hatalı",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -122,6 +126,124 @@ async def get_firma_info(firma_id: int):
         raise HTTPException(status_code=404, detail="Firma bulunamadı")
     return firma
 
+
+@app.get("/api/admin/all-firmalar")
+async def get_all_firmalar_admin(_: dict = Depends(require_superadmin())):
+    """Tüm firmaları getir (Sadece Süper Admin)"""
+    return db.get_all_firmalar()
+
+@app.post("/api/admin/firma")
+async def create_firma_admin(
+    request: dict,
+    _: dict = Depends(require_superadmin())
+):
+    """Yeni firma oluşturma (Sadece Süper Admin)"""
+    res = db.create_firma(request)
+    if not res:
+        raise HTTPException(status_code=400, detail="Firma oluşturulamadı")
+    return res
+
+@app.get("/api/admin/all-users")
+async def get_all_users_admin(_: dict = Depends(require_superadmin())):
+    """Sistemdeki tüm kullanıcıları getir (Sadece Süper Admin)"""
+    return db.execute_query("""
+        SELECT u.id, u.email, u.kullanici_adi, u.ad_soyad, u.rol, u.aktif, u.firma_id, f.ad as firma_ad
+        FROM siramatik.kullanicilar u
+        LEFT JOIN siramatik.firmalar f ON u.firma_id = f.id
+        ORDER BY u.rol = 'superadmin' DESC, u.ad_soyad ASC
+    """)
+
+@app.put("/api/admin/firma/{firma_id}")
+async def update_firma(
+    firma_id: int, 
+    data: dict, 
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Firma bilgilerini güncelle (Super Admin veya o firmanın Admin'i)"""
+    user_rol = current_user.get("rol")
+    user_firma_id = current_user.get("firma_id")
+    
+    # Yetki kontrolü
+    if user_rol != "superadmin":
+        if user_rol != "admin" or user_firma_id != firma_id:
+             raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok")
+             
+    # Veritabanı güncelleme
+    res = db.update_firma(firma_id, data)
+    if not res:
+        raise HTTPException(status_code=400, detail="Firma bulunamadı veya güncelleme başarısız")
+        
+    return {"status": "success", "message": "Firma güncellendi", "id": firma_id}
+
+# --- KULLANICI YÖNETİMİ (Süper Admin Paneli İçin) ---
+
+@app.post("/api/admin/user")
+async def create_user_admin(
+    request: UserCreateRequest,
+    current_user: dict = Depends(require_superadmin())
+):
+    """Sistem geneli kullanıcı oluştur (Sadece Süper Admin)"""
+    # Şifreyi hashle
+    hashed_password = get_password_hash(request.password)
+    
+    # Kullanıcıyı oluştur
+@app.post("/api/admin/user")
+async def create_user_admin(
+    request: UserCreateRequest,
+    current_user: dict = Depends(require_superadmin())
+):
+    """Sistem geneli kullanıcı oluştur (Sadece Süper Admin)"""
+    # Şifreyi hashle
+    hashed_password = get_password_hash(request.password)
+    
+    # Kullanıcıyı oluştur
+    success = db.create_user(
+        firma_id=request.firma_id,
+        kullanici_adi=request.kullanici_adi,
+        sifre_hash=hashed_password,
+        ad_soyad=request.ad_soyad,
+        ekran_ismi=request.ekran_ismi,
+        email=request.email,
+        rol=request.rol
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Kullanıcı adı veya email zaten kullanımda")
+    return success
+
+@app.put("/api/admin/user/{user_id}")
+async def update_user_admin(
+    user_id: int,
+    request: dict,
+    current_user: dict = Depends(require_superadmin())
+):
+    """Sistem geneli kullanıcı güncelle (Sadece Süper Admin)"""
+    # Eğer şifre güncelleniyorsa hashle
+    if "password" in request:
+        request["sifre_hash"] = get_password_hash(request["password"])
+        del request["password"]
+        
+    success = db.update_user(user_id, request)
+    if not success:
+        raise HTTPException(status_code=400, detail="Güncelleme başarısız")
+    return success
+
+@app.post("/api/auth/ekran-login")
+async def ekran_login(request: dict):
+    """Ekran müdahale şifresi ile firma tespiti"""
+    sifre = request.get("sifre")
+    if not sifre:
+        raise HTTPException(status_code=400, detail="Şifre gerekli")
+    
+    firma = db.get_firma_by_ekran_sifre(sifre)
+    if not firma:
+        raise HTTPException(status_code=401, detail="Geçersiz müdahale şifresi")
+    
+    return {
+        "firma_id": firma["id"],
+        "firma_ad": firma["ad"],
+        "status": "authorized"
+    }
 
 @app.get("/api/kiosk-config")
 async def get_kiosk_config():
@@ -241,7 +363,7 @@ async def get_servisler(firma_id: str, _: dict = Depends(get_current_active_user
 @app.get("/api/admin/users/{firma_id}")
 async def get_users(firma_id: str, _: dict = Depends(get_current_active_user)):
     return db.execute_query("""
-        SELECT id, email, ad_soyad, rol, servis_id 
+        SELECT id, email, kullanici_adi, ad_soyad, rol, servis_id, varsayilan_kuyruk_id, varsayilan_konum_id, aktif 
         FROM siramatik.kullanicilar 
         WHERE firma_id = :firma_id
         ORDER BY ad_soyad
@@ -257,6 +379,63 @@ async def update_user_servis(
     if not success:
         raise HTTPException(status_code=400, detail="Güncelleme başarısız")
     return {"message": "Kullanıcı servisi güncellendi"} 
+
+# KULLANICI CRUD
+@app.post("/api/admin/user")
+async def create_user(request: UserCreateRequest, _: dict = Depends(get_current_active_user)):
+    # Kullanıcı adı çakışma kontrolü
+    if request.kullanici_adi:
+        if db.get_user_by_username(request.kullanici_adi):
+            raise HTTPException(status_code=400, detail="Bu kullanıcı adı zaten kullanımda")
+    else:
+        # Default kullanıcı adı oluştur: Ad Soyad -> adsoyad (Türkçe karakter temizliği ile)
+        tr_map = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
+        base_username = request.ad_soyad.translate(tr_map).lower().replace(" ", "")
+        # Sadece alfanümerik karakterleri tut
+        base_username = "".join(c for c in base_username if c.isalnum())
+        
+        username = base_username
+        counter = 1
+        while db.get_user_by_username(username):
+            username = f"{base_username}{counter}"
+            counter += 1
+        request.kullanici_adi = username
+
+    # Email kontrolü (Opsiyonel olduğu için varsa kontrol et)
+    if request.email:
+        existing = db.get_user_by_email(request.email)
+        if existing:
+            raise HTTPException(status_code=400, detail="Bu email zaten kullanımda")
+    
+    sifre_hash = get_password_hash(request.password)
+    user = db.create_user(
+        kullanici_adi=request.kullanici_adi,
+        email=request.email,
+        ad_soyad=request.ad_soyad,
+        sifre_hash=sifre_hash,
+        firma_id=request.firma_id,
+        rol=request.rol,
+        servis_id=request.servis_id,
+        varsayilan_kuyruk_id=request.varsayilan_kuyruk_id,
+        varsayilan_konum_id=request.varsayilan_konum_id,
+        aktif=request.aktif
+    )
+    if not user:
+        raise HTTPException(status_code=400, detail="Kullanıcı oluşturulamadı")
+    return user
+
+@app.put("/api/admin/user/{user_id}")
+async def update_user(user_id: int, request: UserUpdateRequest, _: dict = Depends(get_current_active_user)):
+    update_data = request.model_dump(exclude_unset=True)
+    user = db.update_user(user_id, update_data)
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    return user
+
+@app.delete("/api/admin/user/{user_id}")
+async def delete_user(user_id: int, _: dict = Depends(get_current_active_user)):
+    db.delete_user(user_id)
+    return {"message": "Kullanıcı silindi"}
 
 
 @app.post("/api/sira/cagir/{sira_id}")
@@ -484,7 +663,7 @@ async def admin_stats(
 @app.post("/api/admin/cihaz/bildir")
 async def cihaz_bildir(request: DeviceHeartbeatRequest):
     """Cihazdan gelen nabız sinyali"""
-    cihaz = db.cihaz_bildir(request.firma_id, request.ad, request.tip, request.mac)
+    cihaz = db.cihaz_bildir(request.firma_id, request.ad, request.tip, request.mac, request.metadata)
     return {"status": "ok", "cihaz": cihaz}
 
 
@@ -562,7 +741,7 @@ async def create_kuyruk(
     request: KuyrukCreateRequest,
     current_user: dict = Depends(get_current_active_user)
 ):
-    return db.create_kuyruk(request.servis_id, request.ad, request.kod, request.oncelik)
+    return db.create_kuyruk(request.servis_id, request.ad, request.kod, request.oncelik, request.konumlar)
 
 @app.put("/api/admin/kuyruk/{kuyruk_id}")
 async def update_kuyruk(

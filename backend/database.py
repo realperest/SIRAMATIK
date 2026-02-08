@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 import os
+import json
 from dotenv import load_dotenv
 
 # .env dosyasını yükle
@@ -30,6 +31,29 @@ class Database:
     
     def __init__(self):
         self.engine = engine
+        self.init_tables()
+    
+    def init_tables(self):
+        """Eksik tabloları oluştur"""
+        self.execute_query("""
+            CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
+                id SERIAL PRIMARY KEY,
+                kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE CASCADE,
+                ad VARCHAR(50) NOT NULL,
+                aciklama TEXT,
+                aktif BOOLEAN DEFAULT TRUE,
+                olusturulma TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        
+        # Kullanıcı tablosuna yeni kolonları ekle (Hata alsa da devam et - Kolon varsa hata verir)
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN varsayilan_kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL")
+        except: pass
+        
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN varsayilan_konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL")
+        except: pass
     
     def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """SQL sorgusu çalıştır"""
@@ -60,6 +84,39 @@ class Database:
     def get_all_firmalar(self) -> List[Dict]:
         """Tüm firmaları getir"""
         return self.execute_query("SELECT * FROM siramatik.firmalar WHERE aktif = true ORDER BY ad")
+
+    def create_firma(self, data: Dict) -> Dict:
+        """Yeni firma oluştur"""
+        result = self.execute_query("""
+            INSERT INTO siramatik.firmalar (ad, sektor, ekran_sifre, aktif)
+            VALUES (:ad, :sektor, :ekran_sifre, :aktif)
+            RETURNING *
+        """, {
+            "ad": data.get("ad"),
+            "sektor": data.get("sektor"),
+            "ekran_sifre": data.get("ekran_sifre", "153624"),
+            "aktif": data.get("aktif", True)
+        })
+        return result[0] if result else None
+
+    def update_firma(self, firma_id: int, data: Dict) -> Dict:
+        """Firma bilgilerini güncelle (Örn: ekran_sifre)"""
+        fields = []
+        params = {"firma_id": firma_id}
+        for key, value in data.items():
+            fields.append(f"{key} = :{key}")
+            params[key] = value
+        query = f"UPDATE siramatik.firmalar SET {', '.join(fields)} WHERE id = :firma_id RETURNING *"
+        result = self.execute_query(query, params)
+        return result[0] if result else None
+
+    def get_firma_by_ekran_sifre(self, sifre: str) -> Optional[Dict]:
+        """Ekran müdahale şifresi ile firma bul"""
+        result = self.execute_query(
+            "SELECT * FROM siramatik.firmalar WHERE ekran_sifre = :sifre AND aktif = true",
+            {"sifre": sifre}
+        )
+        return result[0] if result else None
     
     # --- SERVİSLER ---
     
@@ -107,10 +164,17 @@ class Database:
     
     def get_kuyruklar(self, servis_id: int) -> List[Dict]:
         """Servise ait kuyrukları getir"""
-        return self.execute_query(
-            "SELECT * FROM siramatik.kuyruklar WHERE servis_id = :servis_id AND aktif = true ORDER BY kod",
+        queues = self.execute_query(
+            "SELECT * FROM siramatik.kuyruklar WHERE servis_id = :servis_id AND aktif = true ORDER BY oncelik DESC, kod",
             {"servis_id": servis_id}
         )
+        # Konumları ekle
+        for q in queues:
+            q['konumlar'] = self.execute_query(
+                "SELECT id, ad, aciklama FROM siramatik.kuyruk_konumlar WHERE kuyruk_id = :kid ORDER BY id",
+                {"kid": q['id']}
+            )
+        return queues
     
     def get_kuyruk(self, kuyruk_id: int) -> Optional[Dict]:
         """Kuyruk bilgisini getir"""
@@ -118,27 +182,65 @@ class Database:
             "SELECT * FROM siramatik.kuyruklar WHERE id = :kuyruk_id",
             {"kuyruk_id": kuyruk_id}
         )
-        return result[0] if result else None
+        if not result: return None
+        
+        q = result[0]
+        q['konumlar'] = self.execute_query(
+            "SELECT id, ad, aciklama FROM siramatik.kuyruk_konumlar WHERE kuyruk_id = :kid ORDER BY id",
+            {"kid": kuyruk_id}
+        )
+        return q
 
-    def create_kuyruk(self, servis_id: int, ad: str, kod: str, oncelik: int = 0) -> Dict:
+    def upsert_konumlar(self, kuyruk_id: int, konumlar: List[Dict]):
+        """Kuyruk konumlarını güncelle (Sil ve yeniden ekle)"""
+        # Önce eskileri sil
+        self.execute_query("DELETE FROM siramatik.kuyruk_konumlar WHERE kuyruk_id = :kid", {"kid": kuyruk_id})
+        
+        # Yenileri ekle
+        if konumlar:
+            for loc in konumlar:
+                self.execute_query("""
+                    INSERT INTO siramatik.kuyruk_konumlar (kuyruk_id, ad, aciklama)
+                    VALUES (:kid, :ad, :aciklama)
+                """, {"kid": kuyruk_id, "ad": loc.get('ad'), "aciklama": loc.get('aciklama')})
+
+    def create_kuyruk(self, servis_id: int, ad: str, kod: str, oncelik: int = 0, konumlar: List[Dict] = []) -> Dict:
         """Yeni kuyruk oluştur"""
         result = self.execute_query("""
             INSERT INTO siramatik.kuyruklar (servis_id, ad, kod, oncelik)
             VALUES (:servis_id, :ad, :kod, :oncelik)
             RETURNING *
         """, {"servis_id": servis_id, "ad": ad, "kod": kod, "oncelik": oncelik})
-        return result[0] if result else None
+        
+        q = result[0] if result else None
+        if not q: return None
+
+        # Konumları ekle
+        if konumlar:
+            self.upsert_konumlar(q['id'], konumlar)
+            q['konumlar'] = konumlar
+            
+        return q
 
     def update_kuyruk(self, kuyruk_id: int, data: Dict) -> Dict:
         """Kuyruk güncelle"""
+        konumlar = data.pop('konumlar', None) # Data'dan ayır
+
         fields = []
         params = {"kuyruk_id": kuyruk_id}
         for key, value in data.items():
             fields.append(f"{key} = :{key}")
             params[key] = value
-        query = f"UPDATE siramatik.kuyruklar SET {', '.join(fields)} WHERE id = :kuyruk_id RETURNING *"
-        result = self.execute_query(query, params)
-        return result[0] if result else None
+        
+        if fields:
+            query = f"UPDATE siramatik.kuyruklar SET {', '.join(fields)} WHERE id = :kuyruk_id RETURNING *"
+            result = self.execute_query(query, params)
+        
+        # Konumları güncelle
+        if konumlar is not None:
+             self.upsert_konumlar(kuyruk_id, konumlar)
+
+        return self.get_kuyruk(kuyruk_id)
 
     def delete_kuyruk(self, kuyruk_id: int) -> bool:
         """Kuyruk sil"""
@@ -252,6 +354,22 @@ class Database:
         )
         return result[0] if result else None
     
+    def get_user_by_username(self, username: str) -> Optional[Dict]:
+        """Kullanıcı adı ile kullanıcı bul"""
+        result = self.execute_query(
+            "SELECT * FROM siramatik.kullanicilar WHERE kullanici_adi = :username",
+            {"username": username}
+        )
+        return result[0] if result else None
+
+    def find_user_by_login(self, login: str) -> Optional[Dict]:
+        """Email VEYA Kullanıcı adı ile kullanıcı bul (Giriş için)"""
+        result = self.execute_query("""
+            SELECT * FROM siramatik.kullanicilar 
+            WHERE email = :login OR kullanici_adi = :login
+        """, {"login": login})
+        return result[0] if result else None
+    
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
         """ID ile kullanıcı bul"""
         result = self.execute_query(
@@ -260,21 +378,53 @@ class Database:
         )
         return result[0] if result else None
     
-    def create_user(self, email: str, ad_soyad: str, sifre_hash: str, 
-                    firma_id: int, rol: str = 'staff') -> Dict:
+    def create_user(self, email: Optional[str], ad_soyad: str, sifre_hash: str, 
+                    firma_id: Optional[int], rol: str = 'staff', servis_id: int = None, 
+                    varsayilan_kuyruk_id: int = None, varsayilan_konum_id: int = None,
+                    aktif: bool = True, kullanici_adi: str = None, ekran_ismi: str = None) -> Dict:
         """Yeni kullanıcı oluştur"""
+        # Ekran ismi yoksa ad_soyad kullan
+        if not ekran_ismi:
+            ekran_ismi = ad_soyad
+            
         result = self.execute_query("""
-            INSERT INTO siramatik.kullanicilar (email, ad_soyad, sifre_hash, firma_id, rol)
-            VALUES (:email, :ad_soyad, :sifre_hash, :firma_id, :rol)
+            INSERT INTO siramatik.kullanicilar (email, ad_soyad, sifre_hash, firma_id, rol, servis_id, varsayilan_kuyruk_id, varsayilan_konum_id, aktif, kullanici_adi, ekran_ismi)
+            VALUES (:email, :ad_soyad, :sifre_hash, :firma_id, :rol, :servis_id, :varsayilan_kuyruk_id, :varsayilan_konum_id, :aktif, :kullanici_adi, :ekran_ismi)
             RETURNING *
         """, {
             "email": email,
             "ad_soyad": ad_soyad,
             "sifre_hash": sifre_hash,
             "firma_id": firma_id,
-            "rol": rol
+            "rol": rol,
+            "servis_id": servis_id,
+            "varsayilan_kuyruk_id": varsayilan_kuyruk_id,
+            "varsayilan_konum_id": varsayilan_konum_id,
+            "aktif": aktif,
+            "kullanici_adi": kullanici_adi,
+            "ekran_ismi": ekran_ismi
         })
         return result[0] if result else None
+
+    def update_user(self, user_id: int, data: Dict) -> Dict:
+        """Kullanıcı bilgilerini güncelle"""
+        fields = []
+        params = {"user_id": user_id}
+        for key, value in data.items():
+            fields.append(f"{key} = :{key}")
+            params[key] = value
+        
+        if not fields:
+            return self.get_user_by_id(user_id)
+            
+        query = f"UPDATE siramatik.kullanicilar SET {', '.join(fields)} WHERE id = :user_id RETURNING *"
+        result = self.execute_query(query, params)
+        return result[0] if result else None
+
+    def delete_user(self, user_id: int) -> bool:
+        """Kullanıcıyı sil"""
+        self.execute_query("DELETE FROM siramatik.kullanicilar WHERE id = :user_id", {"user_id": user_id})
+        return True
     
 
     
@@ -330,12 +480,20 @@ class Database:
         
     def get_kuyruklar_by_firma(self, firma_id: int) -> List[Dict]:
         """Firmaya ait tüm kuyrukları getir"""
-        return self.execute_query("""
-            SELECT k.*, sv.id as servis_id, sv.ad as servis_ad
+        queues = self.execute_query("""
+            SELECT k.*, sv.ad as servis_ad
             FROM siramatik.kuyruklar k
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id
-        """, {"firma_id": firma_id})
+        """, {"firma_id": int(firma_id)})
+        
+        # Konumları ekle
+        for q in queues:
+            q['konumlar'] = self.execute_query(
+                "SELECT id, ad, aciklama FROM siramatik.kuyruk_konumlar WHERE kuyruk_id = :kid ORDER BY id",
+                {"kid": q['id']}
+            )
+        return queues
         
     def get_servisler_by_firma(self, firma_id: str) -> List[Dict]:
         """Firmaya ait servisleri getir"""
@@ -398,16 +556,16 @@ class Database:
         result = self.execute_query(query, params)
         return result[0] if result else None
 
-    def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: str = None) -> Dict:
+    def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: str = None, metadata: dict = {}) -> Dict:
         """Cihazın aktif olduğunu bildir (Upsert)"""
         # MAC adresi yoksa Ad üzerinden eşle
         result = self.execute_query("""
-            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_adresi, aktif, son_gorunme)
-            VALUES (:firma_id, :ad, :tip, :mac, TRUE, NOW())
+            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_adresi, aktif, son_gorunme, metadata)
+            VALUES (:firma_id, :ad, :tip, :mac, TRUE, NOW(), :metadata::jsonb)
             ON CONFLICT (firma_id, mac_adresi) DO UPDATE 
-            SET aktif = TRUE, son_gorunme = NOW(), tip = :tip
+            SET aktif = TRUE, son_gorunme = NOW(), tip = :tip, metadata = :metadata::jsonb
             RETURNING *
-        """, {"firma_id": firma_id, "ad": ad, "tip": tip, "mac": mac or ad})
+        """, {"firma_id": firma_id, "ad": ad, "tip": tip, "mac": mac or ad, "metadata": json.dumps(metadata)})
         return result[0] if result else None
 
     # --- İSTATİSTİKLER ---

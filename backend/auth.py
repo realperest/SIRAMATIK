@@ -104,10 +104,23 @@ async def get_current_active_user(current_user: dict = Depends(get_current_user)
 def require_role(required_role: str):
     """Belirli bir rol gerektir (decorator)"""
     async def role_checker(current_user: dict = Depends(get_current_active_user)):
-        if current_user.get("rol") != required_role and current_user.get("rol") != "admin":
+        # Superadmin her şeyi yapabilir, admin ise kendi yetkilerini.
+        user_rol = current_user.get("rol")
+        if user_rol not in [required_role, "admin", "superadmin"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Bu işlem için '{required_role}' yetkisi gerekli"
             )
         return current_user
     return role_checker
+
+def require_superadmin():
+    """Sadece Süper Admin erişimi"""
+    async def checker(current_user: dict = Depends(get_current_active_user)):
+        if current_user.get("rol") != "superadmin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bu sayfa sadece Süper Admin erişimine uygundur"
+            )
+        return current_user
+    return checker
