@@ -49,6 +49,9 @@
             padding: 20px 40px;
             max-width: 1400px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         /* Yeni Çağrı (Spotlight) Alanı */
@@ -113,43 +116,58 @@
             text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
         }
 
-        /* Normal/Geçmiş Çağrı Öğesi (Daraltılmış) */
+        /* Normal/Geçmiş Çağrı Öğesi (Daraltılmış & Ölçeklenmiş) */
         .cagri-item {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 0, 85, 0.1);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 0, 85, 0.2);
             padding: 15px 40px;
-            margin: 10px 0;
+            margin: 5px 0;
             border-radius: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.5s ease;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: top center;
+            animation: fadeInScale 0.6s ease-out;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @keyframes fadeInScale {
+            0% {
+                transform: scale(1.2);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .cagri-numara {
-            font-size: 48px;
             font-weight: bold;
             color: #fff;
+            font-size: 40px;
         }
 
         .cagri-detay {
             text-align: right;
             display: flex;
-            gap: 30px;
+            gap: 20px;
             align-items: center;
         }
 
         .cagri-departman {
-            font-size: 24px;
+            font-size: 20px;
             opacity: 0.8;
         }
 
         .cagri-oda {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: bold;
             color: #ffd700;
-            min-width: 150px;
         }
 
         .zaman {
@@ -578,15 +596,8 @@
                     });
                 }
 
-                // 0. SÜRE LİMİTİ (30 Saniye)
                 const simdi = Date.now();
-
-                // İlk kez görülenleri kaydet
-                data.forEach(c => {
-                    if (!seenIds[c.id]) seenIds[c.id] = simdi;
-                });
-
-                // 30 saniyeyi geçenleri filtrele (Hem spotlight hem history için)
+                data.forEach(c => { if (!seenIds[c.id]) seenIds[c.id] = simdi; });
                 data = data.filter(c => (simdi - seenIds[c.id]) < 30000);
 
                 const spotlightContainer = document.getElementById('spotlight-container');
@@ -606,9 +617,7 @@
                 const latest = data[0];
                 const gecenSure = simdi - seenIds[latest.id];
 
-                // SES KONTROLÜ
                 if (lastCagriId !== null && latest.id !== lastCagriId) {
-                    console.log("🔔 YENİ ÇAĞRI:", latest.numara);
                     if (!isMuted && audioContext) {
                         if (audioContext.state === 'suspended') audioContext.resume();
                         playDingDong();
@@ -618,7 +627,6 @@
 
                 let historyData = [...data];
 
-                // Eğer bu öğe son 15 saniyedir (15000ms) ekrandaysa spotlight'ta göster
                 if (gecenSure < 15000) {
                     spotlightContainer.innerHTML = `
                         <div class="spotlight-item">
@@ -629,20 +637,29 @@
                             </div>
                         </div>
                     `;
-                    historyData.shift(); // Spotlight'taki öğeyi history'den çıkar
+                    historyData.shift();
                 } else {
                     spotlightContainer.innerHTML = '';
-                    // 5 saniye dolduysa, history data olduğu gibi kalır (item history'e düşer)
                 }
 
-                // Kalanları History'e bas (Max 5 adet + Renk gradyanı)
                 historyContainer.innerHTML = historyData.slice(0, 5).map((cagri, i) => {
-                    // Kırmızı tonlarını kademeli azalt (Spotlight: #ff0055)
-                    const opacity = [0.4, 0.25, 0.15, 0.08, 0.04][i] || 0.02;
-                    const borderOpacity = [0.6, 0.4, 0.3, 0.2, 0.1][i] || 0.05;
+                    const scale = (1 - (i * 0.1)).toFixed(2);
+                    const width = (100 - (i * 10)) + "%";
+                    const opacity = [0.6, 0.4, 0.2, 0.1, 0.05][i] || 0.02;
+                    const blur = (i * 1.5) + "px";
+                    const marginShift = -1 * (i * 12); // Satırlar dikeyde birbirine yaklaşsın
 
                     return `
-                        <div class="cagri-item" style="background: rgba(255, 0, 85, ${opacity}); border-color: rgba(255, 0, 85, ${borderOpacity});">
+                        <div class="cagri-item" style="
+                            width: ${width}; 
+                            background: rgba(255, 0, 85, ${opacity}); 
+                            border-color: rgba(255, 0, 85, ${opacity * 1.5});
+                            filter: blur(${blur});
+                            transform: scale(${scale});
+                            margin-top: ${marginShift}px;
+                            margin-left: auto;
+                            margin-right: auto;
+                        ">
                             <div class="cagri-numara">${cagri.numara}</div>
                             <div class="cagri-detay">
                                 <div class="cagri-departman">${cagri.servis}</div>
@@ -657,8 +674,6 @@
             }
         }
 
-        // İlk yükleme
-        // Firma bilgilerini gerçeğiyle güncelle
         async function initFirma() {
             try {
                 const firma = await apiCall(`/firma/${FIRMA_ID}`);
@@ -675,7 +690,6 @@
         loadTVSettings();
         cagrilariGuncelle();
 
-        // Her 2 saniyede bir güncelle
         setInterval(cagrilariGuncelle, 1000);
     </script>
 </body>
