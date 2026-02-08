@@ -578,6 +578,17 @@
                     });
                 }
 
+                // 0. SÜRE LİMİTİ (30 Saniye)
+                const simdi = Date.now();
+
+                // İlk kez görülenleri kaydet
+                data.forEach(c => {
+                    if (!seenIds[c.id]) seenIds[c.id] = simdi;
+                });
+
+                // 30 saniyeyi geçenleri filtrele (Hem spotlight hem history için)
+                data = data.filter(c => (simdi - seenIds[c.id]) < 30000);
+
                 const spotlightContainer = document.getElementById('spotlight-container');
                 const historyContainer = document.getElementById('history-container');
 
@@ -592,14 +603,7 @@
                     return;
                 }
 
-                const simdi = Date.now();
                 const latest = data[0];
-
-                // Eğer ID ilk kez görüldüyse zaman damgasını kaydet
-                if (!seenIds[latest.id]) {
-                    seenIds[latest.id] = simdi;
-                }
-
                 const gecenSure = simdi - seenIds[latest.id];
 
                 // SES KONTROLÜ
@@ -631,14 +635,14 @@
                     // 5 saniye dolduysa, history data olduğu gibi kalır (item history'e düşer)
                 }
 
-                // Kalanları History'e bas (Max 5 adet)
+                // Kalanları History'e bas (Max 5 adet + Renk gradyanı)
                 historyContainer.innerHTML = historyData.slice(0, 5).map((cagri, i) => {
-                    // Her satırda opaklığı biraz daha azalt (Gradient etkisi)
-                    const opacity = Math.max(0.02, 0.1 - (i * 0.02));
-                    const borderOpacity = Math.max(0.05, 0.2 - (i * 0.04));
+                    // Kırmızı tonlarını kademeli azalt (Spotlight: #ff0055)
+                    const opacity = [0.4, 0.25, 0.15, 0.08, 0.04][i] || 0.02;
+                    const borderOpacity = [0.6, 0.4, 0.3, 0.2, 0.1][i] || 0.05;
 
                     return `
-                        <div class="cagri-item" style="background: rgba(255, 255, 255, ${opacity}); border-color: rgba(255, 255, 255, ${borderOpacity});">
+                        <div class="cagri-item" style="background: rgba(255, 0, 85, ${opacity}); border-color: rgba(255, 0, 85, ${borderOpacity});">
                             <div class="cagri-numara">${cagri.numara}</div>
                             <div class="cagri-detay">
                                 <div class="cagri-departman">${cagri.servis}</div>
