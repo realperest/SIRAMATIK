@@ -127,40 +127,56 @@
 
     <div class="cagri-listesi" id="cagrilar"></div>
 
-    <!-- SES BUTONU (Autoplay Policy) -->
-    <div id="ses-buton" onclick="enableAudio()"
-        style="position:fixed; bottom:20px; right:20px; background:#e74c3c; color:white; padding:15px 30px; border-radius:50px; cursor:pointer; font-size:18px; box-shadow:0 4px 15px rgba(0,0,0,0.3); z-index:9999; animation: pulse 2s infinite;">
-        🔊 Sesi Başlat
+    <!-- SES KONTROLÜ (Corner Toggle) -->
+    <div id="mute-toggle" onclick="toggleMute()"
+        style="position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.5); backdrop-filter: blur(5px); color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease; z-index:9999;">
+        🔊
     </div>
 
     <script src="static/app.js"></script>
     <script>
         const FIRMA_ID = 1;
-
-        // Base64 Ding-Dong Sesi (Kısa)
-        const dingSound = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...");
-        // Not: Base64 çok uzun olacağı için buraya koymak yerine, harici dosya daha iyi olurdu ama tek dosya istediğiniz için JS ile bip sesi üreteceğim (Web Audio API).
-
         let audioContext = null;
+        let isMuted = false;
 
-        function enableAudio() {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioContext.state === 'suspended') audioContext.resume();
+        // Sayfada herhangi bir tıklama ile sesi "unlocked" yap
+        function unlockAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log("🔊 Audio unlocked");
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
 
-            // Test sesi
-            playDingDong();
+        // Global tıklama ve tuş basımıyla sesi aktif et (browser kısıtlaması için)
+        window.addEventListener('click', unlockAudio, { once: false });
+        window.addEventListener('keydown', unlockAudio, { once: false });
 
-            document.getElementById('ses-buton').style.display = 'none';
+        function toggleMute() {
+            unlockAudio(); // Toggle basıldığında da Context'i aç
+            isMuted = !isMuted;
+            const btn = document.getElementById('mute-toggle');
+            btn.innerHTML = isMuted ? '🔇' : '🔊';
+            btn.style.background = isMuted ? 'rgba(231, 76, 60, 0.5)' : 'rgba(0,0,0,0.5)';
+
+            if (!isMuted) {
+                playDingDong(); // Sesi açtığında test için çal
+            }
         }
 
         function playDingDong() {
+            if (isMuted) return;
             if (!audioContext) return;
+
+            if (audioContext.state === 'suspended') audioContext.resume();
 
             const osc1 = audioContext.createOscillator();
             const gain1 = audioContext.createGain();
 
             osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(660, audioContext.currentTime); // Ding (E5)
+            osc1.frequency.setValueAtTime(660, audioContext.currentTime); // Ding
             osc1.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
 
             gain1.gain.setValueAtTime(0.5, audioContext.currentTime);
@@ -174,11 +190,12 @@
 
             // Dong
             setTimeout(() => {
+                if (isMuted) return;
                 const osc2 = audioContext.createOscillator();
                 const gain2 = audioContext.createGain();
 
                 osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(550, audioContext.currentTime); // Dong (C#5)
+                osc2.frequency.setValueAtTime(550, audioContext.currentTime); // Dong
 
                 gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
                 gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.2);
