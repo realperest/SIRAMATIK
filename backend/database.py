@@ -230,7 +230,7 @@ class Database:
             WHERE s.firma_id = :firma_id 
             AND s.durum = 'calling'
             AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
-            AND s.cagirilma > (NOW() - INTERVAL '60 seconds')
+            AND s.cagirilma > (NOW() - INTERVAL '10 minutes')
         """
         params = {"firma_id": firma_id, "limit": limit}
 
