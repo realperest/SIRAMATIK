@@ -618,8 +618,8 @@
 
                 let historyData = [...data];
 
-                // Eğer bu öğe son 5 saniyedir (5000ms) ekrandaysa spotlight'ta göster
-                if (gecenSure < 5000) {
+                // Eğer bu öğe son 15 saniyedir (15000ms) ekrandaysa spotlight'ta göster
+                if (gecenSure < 15000) {
                     spotlightContainer.innerHTML = `
                         <div class="spotlight-item">
                             <div class="spotlight-numara">${latest.numara}</div>
