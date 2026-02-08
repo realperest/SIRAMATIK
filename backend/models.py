@@ -107,6 +107,8 @@ class EkranCagriResponse(BaseModel):
     numara: str
     kuyruk: Optional[str] = "Bilinmiyor"
     servis: Optional[str] = "Bilinmiyor"
+    servis_id: Optional[int] = None
+    kuyruk_id: Optional[int] = None
     konum: Optional[str] = None
     oncelik: int = 0
     cagirilma: Optional[datetime] = None

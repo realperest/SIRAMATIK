@@ -429,6 +429,8 @@ async def ekran_son_cagrilar(firma_id: int, limit: int = 5, servis_id: Optional[
                 "numara": cagri.get("numara", "---"),
                 "kuyruk": cagri.get("kuyruk_ad", "-"),
                 "servis": cagri.get("servis_ad", "-"),
+                "servis_id": cagri.get("servis_id"),
+                "kuyruk_id": cagri.get("kuyruk_id"),
                 "konum": cagri.get("konum"),
                 "oncelik": cagri.get("oncelik", 0),
                 "cagirilma": cagri.get("cagirilma")

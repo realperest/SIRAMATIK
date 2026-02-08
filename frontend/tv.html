@@ -114,6 +114,120 @@
         .cagri-item:first-child {
             animation: pulse 2s ease-in-out infinite;
         }
+
+        /* Sol Alt Ayarlar Butonu */
+        .settings-button {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .settings-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        /* Ayarlar Modal */
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .settings-panel {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-panel h2 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .settings-panel label {
+            display: block;
+            margin: 15px 0 5px;
+            font-weight: bold;
+            color: #444;
+            text-align: left;
+        }
+
+        .settings-panel select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .settings-panel button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #16a34a;
+        }
+
+        .btn-cancel {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #c0392b;
+        }
+
+        .btn-reset {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: #d68910;
+        }
     </style>
 </head>
 
@@ -127,10 +241,44 @@
 
     <div class="cagri-listesi" id="cagrilar"></div>
 
+    <!-- Sol Alt Ayarlar Butonu -->
+    <button class="settings-button" onclick="openTVSettings()" title="Ekran Ayarları">
+        ⚙️
+    </button>
+
     <!-- SES KONTROLÜ (Corner Toggle) -->
     <div id="mute-toggle" onclick="toggleMute()"
         style="position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.5); backdrop-filter: blur(5px); color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease; z-index:9999;">
         🔊
+    </div>
+
+    <!-- Ayarlar Modal -->
+    <div class="settings-modal" id="tv-settings-modal">
+        <div class="settings-panel">
+            <h2>📺 Ekran Ayarları</h2>
+            <p style="color: #666; font-size: 14px; text-align: left;">Bu ekranda hangi bölüm ve kuyruklara ait
+                çağrıların gösterileceğini seçin.</p>
+
+            <label for="servis-filter">Bölümler (Servisler):</label>
+            <select id="servis-filter" multiple size="5" style="height: 120px;">
+                <!-- Dinamik dolar -->
+            </select>
+            <small style="color: #999; display: block; text-align: left;">Ctrl/Cmd ile çoklu seçim
+                yapabilirsiniz</small>
+
+            <label for="kuyruk-filter">Kuyruklar (Opsiyonel):</label>
+            <select id="kuyruk-filter" multiple size="5" style="height: 120px;">
+                <!-- Dinamik dolar -->
+            </select>
+            <small style="color: #999; display: block; text-align: left;">Boş bırakılırsa seçili bölümlerin tüm
+                kuyrukları listelenir</small>
+
+            <div style="margin-top: 25px; text-align: center;">
+                <button class="btn-save" onclick="saveTVSettings()">💾 Kaydet</button>
+                <button class="btn-reset" onclick="resetTVSettings()">🔄 Sıfırla</button>
+                <button class="btn-cancel" onclick="closeTVSettings()">❌ İptal</button>
+            </div>
+        </div>
     </div>
 
     <script src="static/app.js"></script>
@@ -218,12 +366,121 @@
 
         let lastDataJson = '';
         let lastCagriId = null;
+        const TV_PASSWORD = '153624';
+        let tvSettings = { servisIds: [], kuyrukIds: [] };
+
+        function loadTVSettings() {
+            const saved = localStorage.getItem('tv_settings');
+            if (saved) {
+                try {
+                    tvSettings = JSON.parse(saved);
+                    console.log('TV Ayarları yüklendi:', tvSettings);
+                } catch (e) {
+                    console.error('Ayarlar okunamadı:', e);
+                }
+            }
+        }
+
+        function openTVSettings() {
+            const pass = prompt('🔒 Ekran ayarlarına erişmek için şifreyi girin:');
+            if (pass !== TV_PASSWORD) {
+                alert('❌ Yanlış şifre!');
+                return;
+            }
+            document.getElementById('tv-settings-modal').style.display = 'flex';
+            loadSettingsData();
+        }
+
+        function closeTVSettings() {
+            document.getElementById('tv-settings-modal').style.display = 'none';
+        }
+
+        async function loadSettingsData() {
+            try {
+                const [servisler, kuyruklar] = await Promise.all([
+                    apiCall(`/servisler/${FIRMA_ID}`),
+                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                ]);
+
+                const sSelect = document.getElementById('servis-filter');
+                sSelect.innerHTML = '';
+                servisler.forEach(s => {
+                    const opt = new Option(s.ad, s.id);
+                    opt.selected = tvSettings.servisIds.includes(s.id);
+                    sSelect.add(opt);
+                });
+
+                // Servis seçimi değiştiğinde kuyrukları filtrele
+                const updateKuyruklar = () => {
+                    const kSelect = document.getElementById('kuyruk-filter');
+                    kSelect.innerHTML = '';
+                    const selectedServisIds = Array.from(sSelect.selectedOptions).map(o => parseInt(o.value));
+
+                    const filteredKuyruklar = selectedServisIds.length === 0
+                        ? kuyruklar
+                        : kuyruklar.filter(k => selectedServisIds.includes(k.servis_id));
+
+                    filteredKuyruklar.forEach(k => {
+                        const opt = new Option(`${k.ad} (${k.kod})`, k.id);
+                        opt.selected = tvSettings.kuyrukIds.includes(k.id);
+                        kSelect.add(opt);
+                    });
+                };
+
+                sSelect.onchange = updateKuyruklar;
+                updateKuyruklar();
+
+            } catch (err) {
+                console.error("Veri yükleme hatası:", err);
+            }
+        }
+
+        function saveTVSettings() {
+            const sSelect = document.getElementById('servis-filter');
+            const kSelect = document.getElementById('kuyruk-filter');
+
+            tvSettings = {
+                servisIds: Array.from(sSelect.selectedOptions).map(o => parseInt(o.value)),
+                kuyrukIds: Array.from(kSelect.selectedOptions).map(o => parseInt(o.value))
+            };
+
+            localStorage.setItem('tv_settings', JSON.stringify(tvSettings));
+            alert('✅ Ayarlar kaydedildi!');
+            closeTVSettings();
+            cagrilariGuncelle(); // Hemen uygula
+        }
+
+        function resetTVSettings() {
+            if (confirm('⚠️ Ayarları sıfırlamak istiyor musunuz?')) {
+                localStorage.removeItem('tv_settings');
+                location.reload();
+            }
+        }
 
         // Çağrıları yükle
         async function cagrilariGuncelle() {
             try {
                 // Backend sorgusundan gelen (son 1 dakikadaki) verileri gösteriyoruz.
-                const data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=5`);
+                let data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=20`);
+
+                // FİLTRELEME
+                if (tvSettings.servisIds.length > 0 || tvSettings.kuyrukIds.length > 0) {
+                    data = data.filter(cagri => {
+                        // Eğer kuyruk seçilmişse, sadece o kuyrukları göster
+                        if (tvSettings.kuyrukIds.length > 0) {
+                            return tvSettings.kuyrukIds.includes(cagri.kuyruk_id);
+                        }
+                        // Sadece servis seçilmişse, o servisin tüm kuyruklarını göster
+                        // Not: Backend EkranCagriResponse'da servis_id gelmiyor olabilir, numara/kuyruk üzerinden mi gitsek?
+                        // Backend veritabanında 'siralar' tablosunda servis_id var.
+                        // Ekran sorgusunda da servis_id dönmesini sağlayalım veya kuyruk_id üzerinden servis_id kontrolü yapalım.
+                        // Backend'deki get_son_cagrilar s.* dönüyor, yani servis_id gelmeli.
+                        return tvSettings.servisIds.includes(cagri.servis_id);
+                    });
+                }
+
+                // Sadece son 5 tanesini göster
+                data = data.slice(0, 5);
 
                 // SES KONTROLÜ
                 if (data && data.length > 0) {
@@ -279,6 +536,7 @@
         }
 
         initFirma();
+        loadTVSettings();
         cagrilariGuncelle();
 
         // Her 2 saniyede bir güncelle
