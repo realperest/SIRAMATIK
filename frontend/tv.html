@@ -630,11 +630,10 @@
                 }
 
                 historyContainer.innerHTML = historyData.slice(0, 5).map((cagri, i) => {
-                    const scale = (1 - (i * 0.1)).toFixed(2);
-                    const width = (100 - (i * 10)) + "%";
+                    const scale = (1 - (i * 0.05)).toFixed(2); // Daha yavaş küçülme
+                    const width = (100 - (i * 4)) + "%"; // Daha yavaş daralma
                     const opacity = [0.6, 0.4, 0.2, 0.1, 0.05][i] || 0.02;
-                    const blur = (i * 1.5) + "px";
-                    const marginShift = -1 * (i * 12); // Satırlar dikeyde birbirine yaklaşsın
+                    const blur = (i * 1.0) + "px"; // Daha hafif bulanıklık
 
                     return `
                         <div class="cagri-item" style="
@@ -643,7 +642,7 @@
                             border-color: rgba(255, 0, 85, ${opacity * 1.5});
                             filter: blur(${blur});
                             transform: scale(${scale});
-                            margin-top: ${marginShift}px;
+                            margin-top: 15px;
                             margin-left: auto;
                             margin-right: auto;
                         ">
