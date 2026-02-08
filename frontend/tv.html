@@ -17,29 +17,32 @@
 
         .header {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            padding: 40px 320px 40px 40px;
+            padding: 30px 400px 30px 40px;
+            /* Saate yer ayırıyoruz */
             text-align: center;
             position: relative;
-            min-height: 180px;
+            min-height: 160px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
         }
 
         .header h1 {
-            font-size: 64px;
+            font-size: 56px;
             margin: 0;
             letter-spacing: 2px;
             color: #fff;
-            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         }
 
         .header .subtitle {
-            font-size: 24px;
-            opacity: 0.9;
-            margin-top: 10px;
+            font-size: 22px;
+            opacity: 0.7;
+            margin-top: 5px;
+            letter-spacing: 1px;
         }
 
         .cagri-listesi {
@@ -50,24 +53,24 @@
 
         /* Yeni Çağrı (Spotlight) Alanı */
         .spotlight-area {
-            min-height: 280px;
+            min-height: 320px;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 20px;
+            margin: 20px 0;
         }
 
         .spotlight-item {
-            background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
-            width: 100%;
+            background: linear-gradient(135deg, #ff0055 0%, #ff00a2 100%);
+            width: 90%;
             padding: 40px;
-            border-radius: 30px;
+            border-radius: 40px;
             display: flex;
             justify-content: space-around;
             align-items: center;
-            box-shadow: 0 0 50px rgba(0, 198, 255, 0.6);
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            animation: zoomAndGlow 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 60px rgba(255, 0, 85, 0.4);
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            animation: heartbeat 1.5s ease-in-out infinite;
             position: relative;
             overflow: hidden;
         }
@@ -86,24 +89,28 @@
         }
 
         .spotlight-numara {
-            font-size: 160px;
+            font-size: 130px;
             font-weight: 900;
-            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            color: white;
         }
 
         .spotlight-detay {
             text-align: center;
+            color: white;
         }
 
         .spotlight-servis {
-            font-size: 48px;
+            font-size: 40px;
             margin-bottom: 5px;
+            font-weight: bold;
         }
 
         .spotlight-oda {
-            font-size: 64px;
+            font-size: 50px;
             font-weight: bold;
             color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
         }
 
         /* Normal/Geçmiş Çağrı Öğesi (Daraltılmış) */
@@ -150,17 +157,18 @@
             right: 40px;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 80px;
+            font-size: 100px;
             font-weight: 900;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
             color: #fff;
-            padding: 10px 30px;
+            padding: 10px 40px;
             border-radius: 20px;
             z-index: 2000;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             font-family: 'Courier New', monospace;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
         }
 
         .empty-state {
@@ -463,6 +471,7 @@
 
         let lastDataJson = '';
         let lastCagriId = null;
+        let seenIds = {}; // id -> firstSeenTime
         const TV_PASSWORD = '153624';
         let tvSettings = { servisIds: [], kuyrukIds: [] };
 
@@ -585,10 +594,15 @@
 
                 const simdi = Date.now();
                 const latest = data[0];
-                const cagriZamani = new Date(latest.cagirilma).getTime();
-                const gecenSure = simdi - cagriZamani;
 
-                // 2. SES KONTROLÜ (Yeni çağrı algılama)
+                // Eğer ID ilk kez görüldüyse zaman damgasını kaydet
+                if (!seenIds[latest.id]) {
+                    seenIds[latest.id] = simdi;
+                }
+
+                const gecenSure = simdi - seenIds[latest.id];
+
+                // SES KONTROLÜ
                 if (lastCagriId !== null && latest.id !== lastCagriId) {
                     console.log("🔔 YENİ ÇAĞRI:", latest.numara);
                     if (!isMuted && audioContext) {
@@ -598,12 +612,10 @@
                 }
                 lastCagriId = latest.id;
 
-                // 3. SPOTLIGHT vs HISTORY AYRIMI
-                // Eğer en son çağrı son 5 saniyede yapılmışsa Spotlight'a al
                 let historyData = [...data];
 
+                // Eğer bu öğe son 5 saniyedir (5000ms) ekrandaysa spotlight'ta göster
                 if (gecenSure < 5000) {
-                    // Spotlight Göster
                     spotlightContainer.innerHTML = `
                         <div class="spotlight-item">
                             <div class="spotlight-numara">${latest.numara}</div>
@@ -613,22 +625,28 @@
                             </div>
                         </div>
                     `;
-                    // History'den bu öğeyi çıkar
-                    historyData.shift();
+                    historyData.shift(); // Spotlight'taki öğeyi history'den çıkar
                 } else {
                     spotlightContainer.innerHTML = '';
+                    // 5 saniye dolduysa, history data olduğu gibi kalır (item history'e düşer)
                 }
 
                 // Kalanları History'e bas (Max 5 adet)
-                historyContainer.innerHTML = historyData.slice(0, 5).map(cagri => `
-                    <div class="cagri-item">
-                        <div class="cagri-numara">${cagri.numara}</div>
-                        <div class="cagri-detay">
-                            <div class="cagri-departman">${cagri.servis}</div>
-                            ${cagri.konum ? `<div class="cagri-oda">📍 ${cagri.konum}</div>` : ''}
+                historyContainer.innerHTML = historyData.slice(0, 5).map((cagri, i) => {
+                    // Her satırda opaklığı biraz daha azalt (Gradient etkisi)
+                    const opacity = Math.max(0.02, 0.1 - (i * 0.02));
+                    const borderOpacity = Math.max(0.05, 0.2 - (i * 0.04));
+
+                    return `
+                        <div class="cagri-item" style="background: rgba(255, 255, 255, ${opacity}); border-color: rgba(255, 255, 255, ${borderOpacity});">
+                            <div class="cagri-numara">${cagri.numara}</div>
+                            <div class="cagri-detay">
+                                <div class="cagri-departman">${cagri.servis}</div>
+                                ${cagri.konum ? `<div class="cagri-oda">📍 ${cagri.konum}</div>` : ''}
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
 
             } catch (error) {
                 console.error('TV Update Error:', error);
