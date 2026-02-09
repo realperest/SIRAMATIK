@@ -114,6 +114,7 @@ class EkranCagriResponse(BaseModel):
     konum: Optional[str] = None
     oncelik: int = 0
     cagirilma: Optional[datetime] = None
+    cagirilma_sayisi: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -153,6 +154,11 @@ class UserResponse(BaseModel):
     servis_id: Optional[int] = None
     varsayilan_kuyruk_id: Optional[int] = None
     varsayilan_konum_id: Optional[int] = None
+    servis_ids: Optional[List[int]] = []
+    kuyruk_ids: Optional[List[int]] = []
+    durum: Optional[str] = "available"
+    mola_nedeni: Optional[str] = None
+    mola_baslangic: Optional[datetime] = None
 
 class UserCreateRequest(BaseModel):
     firma_id: Optional[int] = None
@@ -162,9 +168,9 @@ class UserCreateRequest(BaseModel):
     ad_soyad: str
     ekran_ismi: Optional[str] = None
     rol: str = "staff" # 'admin', 'staff', 'superadmin' vb.
-    servis_id: Optional[int] = None
-    varsayilan_kuyruk_id: Optional[int] = None
     varsayilan_konum_id: Optional[int] = None
+    servis_ids: Optional[List[int]] = []
+    kuyruk_ids: Optional[List[int]] = []
     aktif: bool = True
 
 class UserUpdateRequest(BaseModel):
@@ -176,7 +182,20 @@ class UserUpdateRequest(BaseModel):
     servis_id: Optional[int] = None
     varsayilan_kuyruk_id: Optional[int] = None
     varsayilan_konum_id: Optional[int] = None
+    servis_ids: Optional[List[int]] = None
+    kuyruk_ids: Optional[List[int]] = None
     aktif: Optional[bool] = None
+
+class UserStatusUpdateRequest(BaseModel):
+    durum: str
+    mola_nedeni: Optional[str] = None
+
+class SiraTransferRequest(BaseModel):
+    yeni_kuyruk_id: int
+    yeni_servis_id: Optional[int] = None
+
+class SiraNotlarRequest(BaseModel):
+    notlar: str
 
 # --- İSTATİSTİK MODELS ---
 

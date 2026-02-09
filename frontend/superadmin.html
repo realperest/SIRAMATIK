@@ -305,10 +305,53 @@
         .tr-row:hover {
             background: rgba(255, 255, 255, 0.02);
         }
+
+        /* Loading Spinner */
+        #page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(245, 158, 11, 0.1);
+            border-left-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loader-text {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
-<body>
+<body onload="init()">
+    <div id="page-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">SİSTEM YÜKLENİYOR...</div>
+    </div>
     <aside class="sidebar">
         <div class="logo">
             <i class="fas fa-crown"></i>
@@ -393,8 +436,8 @@
                         <tr>
                             <th>Firma Adı</th>
                             <th>Sektör</th>
-                            <th>Ekran Şifresi</th>
-                            <th>Oluşturulma</th>
+                            <th>E. Şifresi</th>
+                            <th>Sözleşme Bitiş</th>
                             <th>Durum</th>
                             <th>İşlemler</th>
                         </tr>
@@ -507,24 +550,63 @@
             <h2 id="firma-modal-title">Firma Düzenle</h2>
             <form id="firma-form">
                 <input type="hidden" id="edit-firma-id">
-                <div class="form-group">
-                    <label>Firma Adı</label>
-                    <input type="text" id="edit-firma-ad" required oninput="autoGenerateFirmaPassword(this.value)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Firma Adı</label>
+                        <input type="text" id="edit-firma-ad" required oninput="autoGenerateFirmaPassword(this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Sektör</label>
+                        <input type="text" id="edit-firma-sektor">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Sektör</label>
-                    <input type="text" id="edit-firma-sektor">
-                </div>
+
                 <div class="form-group">
                     <label>Ekran Müdahale Şifresi (TV/Kiosk)</label>
-                    <input type="text" id="edit-firma-ekran-sifre" required placeholder="Örn: temir">
+                    <div style="display:flex; gap:10px;">
+                        <input type="password" id="edit-firma-ekran-sifre" required placeholder="Örn: 153624"
+                            style="flex:1;">
+                        <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;"
+                            title="Bu kilitli ise firma admini şifreyi değiştiremez">
+                            <input type="checkbox" id="edit-firma-sifre-kilitli" style="width:18px; height:18px;">
+                            <i class="fas fa-lock"></i> Kilitli
+                        </label>
+                    </div>
                 </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Lisans Tipi</label>
+                        <select id="edit-firma-lisans-tipi">
+                            <option value="Kiralama">Kiralama (Abonelik)</option>
+                            <option value="Satın Alma">Satın Alma (Ömür Boyu)</option>
+                            <option value="Demo">Demo / Deneme</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Sözleşme Bitiş Tarihi</label>
+                        <input type="date" id="edit-firma-sozlesme-bitis" required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Cihaz Limiti (Max Cihaz)</label>
+                        <input type="number" id="edit-firma-max-cihaz" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Durum</label>
+                        <select id="edit-firma-aktif">
+                            <option value="true">Aktif</option>
+                            <option value="false">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="form-group">
-                    <label>Durum</label>
-                    <select id="edit-firma-aktif">
-                        <option value="true">Aktif</option>
-                        <option value="false">Pasif</option>
-                    </select>
+                    <label>Notlar / Sözleşme Detayları</label>
+                    <textarea id="edit-firma-notlar"
+                        style="width: 100%; height: 80px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; color: white; padding: 12px; outline: none; resize: none;"></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="action-btn" onclick="closeFirmaModal()">İptal</button>
@@ -558,15 +640,24 @@
             }
         }
 
+        function showLoading() { document.getElementById('page-loader').style.display = 'flex'; }
+        function hideLoading() {
+            const loader = document.getElementById('page-loader');
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 500);
+        }
+
         let currentUser = null;
         let allFirmalar = [];
         let allUsers = [];
 
         async function init() {
+            showLoading();
             const token = localStorage.getItem('token');
             const user = JSON.parse(localStorage.getItem('user'));
 
             if (!token || !user || user.rol !== 'superadmin') {
+                hideLoading();
                 window.location.href = 'index.html';
                 return;
             }
@@ -576,9 +667,15 @@
             document.getElementById('admin-name').textContent = displayNm;
             document.getElementById('welcome-name').textContent = displayNm;
 
-            // Ön yükleme
-            await fetchFirmalar();
-            showView('dashboard');
+            try {
+                // Ön yükleme
+                await fetchFirmalar();
+                showView('dashboard');
+            } catch (err) {
+                console.error("Init fetch error:", err);
+            } finally {
+                hideLoading();
+            }
         }
 
         function showView(viewId) {
@@ -627,7 +724,44 @@
 
         function loadDashboard() {
             document.getElementById('stat-firmalar').textContent = allFirmalar.length;
-            renderFirmalar(); // Dashboard'da da tablo var
+            renderFirmalar();
+            checkContracts();
+        }
+
+        function checkContracts() {
+            const today = new Date();
+            const warningLimit = new Date();
+            warningLimit.setMonth(today.getMonth() + 2);
+
+            const expiringArr = allFirmalar.filter(f => {
+                if (!f.sozlesme_bitis) return false;
+                const end = new Date(f.sozlesme_bitis);
+                return end <= warningLimit && end >= today;
+            });
+
+            const dashboard = document.getElementById('view-dashboard');
+            const oldWarning = document.getElementById('contract-warning-box');
+            if (oldWarning) oldWarning.remove();
+
+            if (expiringArr.length > 0) {
+                const warningBox = document.createElement('div');
+                warningBox.id = 'contract-warning-box';
+                warningBox.className = 'info-box';
+                warningBox.style.background = 'rgba(239, 68, 68, 0.1)';
+                warningBox.style.border = '1px solid #ef4444';
+                warningBox.style.color = '#ef4444';
+
+                let firmsHtml = expiringArr.map(f => `<li><strong>${f.ad}</strong> (${new Date(f.sozlesme_bitis).toLocaleDateString('tr-TR')})</li>`).join('');
+
+                warningBox.innerHTML = `
+                    <i class="fas fa-exclamation-triangle" style="font-size: 24px;"></i>
+                    <div>
+                        <strong>Sözleşme Uyarıları (Son 2 Ay):</strong>
+                        <ul style="margin-top:10px; padding-left:20px;">${firmsHtml}</ul>
+                    </div>
+                `;
+                dashboard.insertBefore(warningBox, dashboard.querySelector('.info-box'));
+            }
         }
 
         function renderFirmalar() {
@@ -638,12 +772,24 @@
             }
             tbody.innerHTML = allFirmalar.map(f => {
                 const dateStr = f.olusturulma ? new Date(f.olusturulma).toLocaleDateString('tr-TR') : '-';
+                const sozlesmeDate = f.sozlesme_bitis ? new Date(f.sozlesme_bitis).toLocaleDateString('tr-TR') : '---';
+
+                // Sözleşme rengi
+                let sozlesmeStil = '';
+                if (f.sozlesme_bitis) {
+                    const today = new Date();
+                    const end = new Date(f.sozlesme_bitis);
+                    const diffMonths = (end - today) / (1000 * 60 * 60 * 24 * 30);
+                    if (diffMonths < 0) sozlesmeStil = 'color:#ef4444; font-weight:800;';
+                    else if (diffMonths < 2) sozlesmeStil = 'color:#f59e0b; font-weight:700;';
+                }
+
                 return `
                 <tr class="tr-row">
                     <td style="font-weight:600; color:var(--accent-primary);">${f.ad}</td>
                     <td style="font-size:13px;">${f.sektor || 'Genel'}</td>
-                    <td style="font-family:monospace; font-weight:700; color:#fbbf24;">${f.ekran_sifre || '153624'}</td>
-                    <td style="color:var(--text-muted); font-size:12px;">${dateStr}</td>
+                    <td style="font-family:monospace; font-weight:700; color:#fbbf24;">****</td>
+                    <td style="font-size:12px; ${sozlesmeStil}">${sozlesmeDate}</td>
                     <td><span class="status-badge" style="background:${f.aktif ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color:${f.aktif ? '#10b981' : '#ef4444'};">${f.aktif ? 'AKTİF' : 'PASİF'}</span></td>
                     <td>
                         <button class="action-btn" title="Düzenle" onclick="openFirmaModal(${f.id})"><i class="fas fa-edit"></i></button>
@@ -662,11 +808,33 @@
                 document.getElementById('edit-firma-ad').value = f.ad;
                 document.getElementById('edit-firma-sektor').value = f.sektor || "";
                 document.getElementById('edit-firma-ekran-sifre').value = f.ekran_sifre || "153624";
+                document.getElementById('edit-firma-sifre-kilitli').checked = !!f.sifre_kilitli;
+                document.getElementById('edit-firma-lisans-tipi').value = f.lisans_tipi || "Kiralama";
+                document.getElementById('edit-firma-max-cihaz').value = f.max_cihaz || 10;
+                document.getElementById('edit-firma-notlar').value = f.notlar || "";
+
+                if (f.sozlesme_bitis) {
+                    const d = new Date(f.sozlesme_bitis);
+                    document.getElementById('edit-firma-sozlesme-bitis').value = d.toISOString().split('T')[0];
+                } else {
+                    document.getElementById('edit-firma-sozlesme-bitis').value = "";
+                }
+
                 document.getElementById('edit-firma-aktif').value = f.aktif.toString();
             } else {
                 document.getElementById('edit-firma-ad').value = "";
                 document.getElementById('edit-firma-sektor').value = "";
                 document.getElementById('edit-firma-ekran-sifre').value = "153624";
+                document.getElementById('edit-firma-sifre-kilitli').checked = false;
+                document.getElementById('edit-firma-lisans-tipi').value = "Kiralama";
+                document.getElementById('edit-firma-max-cihaz').value = 10;
+                document.getElementById('edit-firma-notlar').value = "";
+
+                // Varsayılan kiralama 1 yıl
+                const nextYear = new Date();
+                nextYear.setFullYear(nextYear.getFullYear() + 1);
+                document.getElementById('edit-firma-sozlesme-bitis').value = nextYear.toISOString().split('T')[0];
+
                 document.getElementById('edit-firma-aktif').value = "true";
             }
             document.getElementById('firma-modal').style.display = 'flex';
@@ -681,6 +849,11 @@
                 ad: document.getElementById('edit-firma-ad').value,
                 sektor: document.getElementById('edit-firma-sektor').value,
                 ekran_sifre: document.getElementById('edit-firma-ekran-sifre').value,
+                sifre_kilitli: document.getElementById('edit-firma-sifre-kilitli').checked,
+                sozlesme_bitis: document.getElementById('edit-firma-sozlesme-bitis').value,
+                lisans_tipi: document.getElementById('edit-firma-lisans-tipi').value,
+                max_cihaz: parseInt(document.getElementById('edit-firma-max-cihaz').value),
+                notlar: document.getElementById('edit-firma-notlar').value,
                 aktif: document.getElementById('edit-firma-aktif').value === 'true'
             };
             try {
@@ -866,7 +1039,7 @@
             localStorage.clear();
             window.location.href = 'personel.html';
         }
-        init();
+        // init(); // Added to body onload
     </script>
 </body>
 

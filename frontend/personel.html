@@ -163,73 +163,133 @@
             border-color: #667eea;
         }
 
-        /* Modern Switch Styles */
-        .switch-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #f8f9fa;
-            padding: 12px 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #edf2f7;
-            transition: all 0.3s ease;
-        }
-
-        .switch-container:hover {
-            background: #f1f4f8;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 48px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #cbd5e0;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        input:checked+.slider {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        input:checked+.slider:before {
-            transform: translateX(24px);
-        }
-
         select:disabled {
             background-color: #f7fafc;
             cursor: not-allowed;
             opacity: 0.6;
+        }
+
+        /* Status Colors */
+        .status-badge-personel {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-available {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-break {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+
+        .status-offline {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        /* Active Ticket Card */
+        .active-ticket-card {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .active-ticket-card .numara {
+            font-size: 64px;
+            font-weight: 800;
+            margin: 0;
+            color: #fbbf24;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .action-btn-large {
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .btn-recall {
+            background: #4f46e5;
+        }
+
+        .btn-start {
+            background: #10b981;
+        }
+
+        .btn-skip {
+            background: #ef4444;
+        }
+
+        .btn-transfer {
+            background: #8b5cf6;
+        }
+
+        .btn-finish {
+            background: #10b981;
+            border: 2px solid white !important;
+        }
+
+        .action-btn-large:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        .notes-area {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .notes-area textarea {
+            width: 100%;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 8px;
+            padding: 10px;
+            resize: none;
+            outline: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
@@ -244,18 +304,89 @@
                 <!-- Dinamik olarak dolacak: Servis Adları (Büyük) + Konum Badge -->
             </div>
             <div class="user-info">
-                <div>
+                <div style="text-align: right; margin-right: 15px;">
+                    <div id="personel-status-container">
+                        <span class="status-badge-personel status-available">
+                            <span class="pulse-icon"
+                                style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block;"></span>
+                            Aktif Çalışıyor
+                        </span>
+                    </div>
+                </div>
+                <div style="margin-right: 20px;">
                     <div class="name" id="user-name"></div>
                     <div class="role" id="user-role"></div>
                 </div>
-                <!-- AYAR BUTONU -->
-                <button onclick="openSettingsModal()" class="btn"
-                    style="background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d;"
-                    title="Çalışma Ayarları">
-                    ⚙️
+
+                <div style="display:flex; gap:10px;">
+                    <button onclick="toggleMola()" id="btn-mola" class="btn"
+                        style="background: #fbbf24; color: #92400e; font-weight: 600; padding: 8px 15px; border-radius: 10px; border:none; cursor:pointer;">
+                        ☕ MOLAYA ÇIK
+                    </button>
+                    <button onclick="openSettingsModal()" class="btn"
+                        style="background: #f1f5f9; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; color: #475569;"
+                        title="Çalışma Ayarları">
+                        ⚙️
+                    </button>
+                    <button onclick="logout()" class="btn"
+                        style="background: #fee2e2; color: #b91c1c; padding: 8px 15px; border-radius: 10px; border:none; font-weight:600; cursor:pointer;">ÇIKIŞ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MOLA EKRANI (OVERLAY GİBİ) - BURADAN TAŞINDI -->
+
+        <!-- AKTİF BİLET PANELİ -->
+        <div id="active-ticket-panel" class="active-ticket-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <span style="text-transform:uppercase; font-size:12px; letter-spacing:1px; opacity:0.8;">Şu Anki
+                        İşlem</span>
+                    <h1 class="numara" id="active-ticket-numara">---</h1>
+                    <div id="active-ticket-info" style="margin-top:5px; opacity:0.9;"></div>
+                </div>
+                <div style="text-align:right;">
+                    <div id="active-ticket-timer" style="font-size:24px; font-weight:700; font-family:monospace;">00:00
+                    </div>
+                    <div style="font-size:11px; opacity:0.7;">İşlem Süresi</div>
+                </div>
+            </div>
+
+            <div class="action-grid" id="active-actions-initial">
+                <button class="action-btn-large btn-recall" onclick="activeTicketRecall()">
+                    <span>🔊</span>
+                    <span>TEKRAR ÇAĞIR</span>
                 </button>
-                <button onclick="logout()" class="btn"
-                    style="background: #e74c3c; color: white; padding: 5px 15px; font-size: 14px;">Çıkış</button>
+                <button class="action-btn-large btn-start" onclick="activeTicketStart()">
+                    <span>✅</span>
+                    <span>GELDİ / BAŞLAT</span>
+                </button>
+                <button class="action-btn-large btn-skip" onclick="activeTicketNoShow()">
+                    <span>❌</span>
+                    <span>GELMEDİ</span>
+                </button>
+            </div>
+
+            <div class="action-grid" id="active-actions-serving" style="display:none;">
+                <button class="action-btn-large btn-finish"
+                    style="grid-column: span 2; background: linear-gradient(135deg, #10b981 0%, #059669 100%);"
+                    onclick="activeTicketFinishAndNext()">
+                    <span>⏩</span>
+                    <span>BİTİR VE YENİ ÇAĞIR</span>
+                </button>
+                <button class="action-btn-large btn-finish" onclick="activeTicketFinish()">
+                    <span>🏁</span>
+                    <span>SADECE BİTİR</span>
+                </button>
+            </div>
+
+            <div class="notes-area">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:12px; font-weight:600;">İŞLEM NOTLARI</span>
+                    <span id="save-status" style="font-size:10px; opacity:0.6;">Otomatik kaydediliyor...</span>
+                </div>
+                <textarea id="active-ticket-notes" rows="2"
+                    placeholder="Müşteri hakkında notlar bu alana yazılabilir..." oninput="autoSaveNotes()"></textarea>
             </div>
         </div>
 
@@ -279,6 +410,10 @@
                 <div class="number" id="stat-bugun">0</div>
                 <div class="label">Bugün Toplam</div>
             </div>
+            <div class="stat-card">
+                <div class="number" id="stat-avg-time">--:--</div>
+                <div class="label">Ort. İşlem Süresi</div>
+            </div>
         </div>
 
         <div class="sira-listesi">
@@ -287,6 +422,17 @@
             </div>
             <div id="sira-liste-container"></div>
         </div>
+    </div>
+
+    <!-- MOLA EKRANI (OVERLAY GİBİ) - BURAYA TAŞINDI -->
+    <div id="mola-overlay"
+        style="display:none; text-align:center; padding:50px; background:white; border-radius:20px; margin-bottom:30px; box-shadow:0 10px 30px rgba(0,0,0,0.1); pointer-events: auto !important;">
+        <div style="font-size: 80px; margin-bottom: 20px;">☕</div>
+        <h2 id="mola-title" style="color:#92400e; font-size:32px; margin-bottom:10px;">Moladasınız</h2>
+        <p id="mola-time" style="font-size:24px; font-weight:600; color:#475569; margin-bottom:30px;">00:00:00</p>
+        <button onclick="molaBitir()" class="btn btn-success"
+            style="padding:15px 40px; font-size:18px; pointer-events: auto !important;">MOLAYI
+            BİTİR VE DÖN</button>
     </div>
 
     <!-- AYARLAR MODAL -->
@@ -452,6 +598,7 @@
 
         // Ayarlar: Artık çoklu id tutuyor
         let activeSettings = {
+            userId: null,
             servisIds: [],
             kuyrukIds: [],
             konumId: null,
@@ -506,16 +653,30 @@
             // Eğer ayar yoksa veya eksikse varsayılanları uygula
             let settingsChanged = false;
 
-            // 1. Hiç ayar yoksa (İlk giriş veya sıfırlama sonrası) -> Veritabanı Varsayılanlarını Uygula
-            if ((!activeSettings.servisIds || activeSettings.servisIds.length === 0) && currentUser.servis_id) {
+            // 1. Kullanıcı değiştiyse veya hiç ayar yoksa -> Varsayılanları Uygula
+            const isUserChanged = !activeSettings.userId || activeSettings.userId != currentUser.id;
+            const hasNoSettings = !activeSettings.servisIds || activeSettings.servisIds.length === 0;
+
+            if (isUserChanged || hasNoSettings) {
+                // Öncelik yeni çoklu seçim kolonlarında, yoksa eskileri kullan
+                const defaultServisIds = (currentUser.servis_ids && currentUser.servis_ids.length > 0)
+                    ? currentUser.servis_ids
+                    : (currentUser.servis_id ? [currentUser.servis_id] : []);
+
+                const defaultKuyrukIds = (currentUser.kuyruk_ids && currentUser.kuyruk_ids.length > 0)
+                    ? currentUser.kuyruk_ids
+                    : (currentUser.varsayilan_kuyruk_id ? [currentUser.varsayilan_kuyruk_id] : []);
+
                 activeSettings = {
-                    servisIds: [currentUser.servis_id],
-                    kuyrukIds: currentUser.varsayilan_kuyruk_id ? [currentUser.varsayilan_kuyruk_id] : [],
+                    userId: currentUser.id,
+                    servisIds: defaultServisIds,
+                    kuyrukIds: defaultKuyrukIds,
                     konumId: currentUser.varsayilan_konum_id || null,
                     konumAdi: null,
                     konumGerekli: !!currentUser.varsayilan_konum_id
                 };
                 settingsChanged = true;
+                if (isUserChanged) console.log("User changed, resetting to defaults.");
             }
 
             // Konum Adını güncelle (ID var ama Ad yoksa veya değiştiyse)
@@ -725,26 +886,48 @@
         }
 
         function resetSettings() {
-            // Servis seçimini kaldır
+            if (!currentUser) return;
+
+            // Veritabanı varsayılanlarını modal'a yansıt
             const sSelect = document.getElementById('setting-servis-ids');
-            Array.from(sSelect.options).forEach(option => option.selected = false);
+            const defaultServisIds = (currentUser.servis_ids && currentUser.servis_ids.length > 0)
+                ? currentUser.servis_ids
+                : (currentUser.servis_id ? [currentUser.servis_id] : []);
 
-            // Kuyruk seçimini kaldır ve listeyi boşalt
+            Array.from(sSelect.options).forEach(opt => {
+                opt.selected = defaultServisIds.includes(parseInt(opt.value));
+            });
+
+            // Servis bazlı kuyrukları yükle
+            updateQueueOptions();
+
+            // Kuyruk seçimini ayarla
             const qSelect = document.getElementById('setting-kuyruk-ids');
-            qSelect.innerHTML = '';
+            const defaultKuyrukIds = (currentUser.kuyruk_ids && currentUser.kuyruk_ids.length > 0)
+                ? currentUser.kuyruk_ids
+                : (currentUser.varsayilan_kuyruk_id ? [currentUser.varsayilan_kuyruk_id] : []);
 
-            // Konum seçimini kaldır ve switch kapat
-            document.getElementById('setting-konum-gerekli').checked = false;
-            toggleKonumSelect(false);
+            Array.from(qSelect.options).forEach(opt => {
+                opt.selected = defaultKuyrukIds.includes(parseInt(opt.value));
+            });
+
+            // Konum seçimini ayarla
+            document.getElementById('setting-konum-gerekli').checked = !!currentUser.varsayilan_konum_id;
+            toggleKonumSelect(!!currentUser.varsayilan_konum_id);
+
+            // Konum listesini yenile ve seç
+            const currentlySelectedQIds = Array.from(qSelect.selectedOptions).map(opt => parseInt(opt.value));
+            const selectedQs = allQueues.filter(q => currentlySelectedQIds.includes(q.id));
+            updateLocationOptions(selectedQs);
 
             const locSelect = document.getElementById('setting-konum-id');
-            locSelect.innerHTML = `
-                <option value="none">🚫 Konum Yok</option>
-                <option value="ask_always">❓ Her Seferinde Sor</option>
-            `;
+            if (currentUser.varsayilan_konum_id) {
+                locSelect.value = currentUser.varsayilan_konum_id;
+            } else {
+                locSelect.value = 'none';
+            }
 
-            // Kullanıcıya bilgi ver
-            showToast('Seçimler temizlendi. Kaydet butonuna basarak onaylayın.', 'info');
+            showToast('Varsayılan ayarlara dönüldü. Kaydetmeyi unutmayın.', 'info');
         }
 
         document.getElementById('settings-form').onsubmit = (e) => {
@@ -784,6 +967,7 @@
             }
 
             activeSettings = {
+                userId: currentUser.id,
                 servisIds: sIds,
                 kuyrukIds: qIds,
                 konumId: locId,
@@ -793,7 +977,7 @@
 
             localStorage.setItem('personel_settings_v2', JSON.stringify(activeSettings));
             closeSettingsModal();
-            updateSettingsInfo();
+            updateActiveSettingsDisplay();
             siralariYukle(); // Listeyi yenile
         }
 
@@ -916,6 +1100,14 @@
                 try {
                     const stats = await apiCall(`/sira/istatistik/gunluk/${currentUser.firma_id}`);
                     document.getElementById('stat-bugun').textContent = stats.toplam;
+
+                    if (stats.ort_islem_dk) {
+                        const mins = Math.floor(stats.ort_islem_dk);
+                        const secs = Math.round((stats.ort_islem_dk - mins) * 60);
+                        document.getElementById('stat-avg-time').textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    } else {
+                        document.getElementById('stat-avg-time').textContent = "00:00";
+                    }
                 } catch (e) { console.error("Istatistik hatasi:", e); }
 
             } catch (error) {
@@ -1084,6 +1276,231 @@
             }
         }
 
+        // --- OPERASYONEL FONKSİYONLAR (YENİ) ---
+        let activeTicket = null;
+        let activeTimerInterval = null;
+        let molaTimerInterval = null;
+        let activeSeconds = 0;
+
+        async function toggleMola() {
+            if (activeTicket) {
+                showToast("Aktif işleminiz varken molaya çıkamazsınız!", "warning");
+                return;
+            }
+
+            const reasons = ['Öğle Yemeği', 'Çay Molası', 'Toplantı', 'İdari İşler', 'Teknik Arıza'];
+            const reason = prompt("Mola Nedeni Seçin:\n" + reasons.join(", "), reasons[1]);
+
+            if (reason === null) return;
+
+            try {
+                const user = await apiCall('/personel/status', {
+                    method: 'POST',
+                    body: JSON.stringify({ durum: 'break', mola_nedeni: reason })
+                });
+
+                currentUser.durum = 'break';
+                currentUser.mola_baslangic = user.mola_baslangic;
+                currentUser.mola_nedeni = reason;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                startMolaUI(reason);
+            } catch (e) { showToast("Mola başlatılamadı", "error"); }
+        }
+
+        function startMolaUI(reason, startTime = null) {
+            document.getElementById('main-panel').style.filter = 'blur(8px)';
+            document.getElementById('main-panel').style.pointerEvents = 'none';
+            document.getElementById('mola-overlay').style.display = 'block';
+            document.getElementById('mola-overlay').style.position = 'fixed'; // Fixed olması daha güvenli
+            document.getElementById('mola-overlay').style.top = '50%';
+            document.getElementById('mola-overlay').style.left = '50%';
+            document.getElementById('mola-overlay').style.transform = 'translate(-50%, -50%)';
+            document.getElementById('mola-overlay').style.zIndex = '10000';
+            document.getElementById('mola-title').textContent = (reason || "Mola") + " Molasındasınız";
+
+            let seconds = 0;
+            if (startTime) {
+                const now = new Date();
+                const start = new Date(startTime);
+                seconds = Math.floor((now - start) / 1000);
+            }
+
+            clearInterval(molaTimerInterval);
+            molaTimerInterval = setInterval(() => {
+                seconds++;
+                const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+                const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                document.getElementById('mola-time').textContent = `${h}:${m}:${s}`;
+            }, 1000);
+        }
+
+        async function molaBitir() {
+            try {
+                await apiCall('/personel/status', {
+                    method: 'POST',
+                    body: JSON.stringify({ durum: 'available' })
+                });
+
+                currentUser.durum = 'available';
+                currentUser.mola_baslangic = null;
+                currentUser.mola_nedeni = null;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+
+                clearInterval(molaTimerInterval);
+                document.getElementById('main-panel').style.filter = 'none';
+                document.getElementById('main-panel').style.pointerEvents = 'auto';
+                document.getElementById('mola-overlay').style.display = 'none';
+                showToast("Göreve dönüldü", "success");
+            } catch (e) { showToast("Mola bitirilemedi", "error"); }
+        }
+
+        // --- AKTİF BİLET YÖNETİMİ ---
+        async function activeTicketRecall() {
+            if (!activeTicket) return;
+            try {
+                await apiCall(`/sira/tekrar-cagir/${activeTicket.id}`, { method: 'POST' });
+                showToast("Tekrar çağrıldı", "info");
+            } catch (e) { showToast("Hata oluştu", "error"); }
+        }
+
+        async function activeTicketStart() {
+            if (!activeTicket) return;
+            try {
+                await apiCall(`/sira/baslat/${activeTicket.id}`, { method: 'POST' });
+                document.getElementById('active-actions-initial').style.display = 'none';
+                document.getElementById('active-actions-serving').style.display = 'grid';
+                activeTicket.durum = 'serving';
+                showToast("İşlem başlatıldı", "success");
+            } catch (e) { showToast("Hata oluştu", "error"); }
+        }
+
+        async function activeTicketNoShow() {
+            if (!activeTicket) return;
+            if (!confirm("Müşteri gelmedi olarak işaretlensin mi?")) return;
+            try {
+                await apiCall(`/sira/gelmedi/${activeTicket.id}`, { method: 'POST' });
+                closeActiveTicketUI();
+                siralariYukle();
+                showToast("Gelmedi olarak işaretlendi", "info");
+            } catch (e) { showToast("Hata oluştu", "error"); }
+        }
+
+        async function activeTicketFinish() {
+            if (!activeTicket) return;
+            try {
+                await apiCall(`/sira/tamamla/${activeTicket.id}`, { method: 'POST' });
+                closeActiveTicketUI();
+                siralariYukle();
+                showToast("İşlem başarıyla tamamlandı", "success");
+            } catch (e) { showToast("Hata oluştu", "error"); }
+        }
+
+        async function activeTicketFinishAndNext() {
+            if (!activeTicket) return;
+            try {
+                await apiCall(`/sira/tamamla/${activeTicket.id}`, { method: 'POST' });
+                showToast("İşlem tamamlandı, sıradaki çağrılıyor...", "success");
+                closeActiveTicketUI();
+                siralariYukle();
+                // Küçük bir gecikme ile yeni çağrı yap
+                setTimeout(() => {
+                    siradakiniCagir();
+                }, 400);
+            } catch (e) { showToast("Hata oluştu", "error"); }
+        }
+
+        async function activeTicketTransfer() {
+            if (!activeTicket) return;
+            const targetQId = prompt("Transfer edilecek Kuyruk ID girin (Gelişmiş transfer yakında):");
+            if (!targetQId) return;
+
+            try {
+                await apiCall(`/sira/transfer/${activeTicket.id}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ yeni_kuyruk_id: parseInt(targetQId) })
+                });
+                closeActiveTicketUI();
+                siralariYukle();
+                showToast("Bilet transfer edildi", "success");
+            } catch (e) { showToast("Transfer başarısız", "error"); }
+        }
+
+        function openActiveTicketUI(ticket) {
+            activeTicket = ticket;
+            const panel = document.getElementById('active-ticket-panel');
+            panel.style.display = 'block';
+            document.getElementById('active-ticket-numara').textContent = ticket.numara;
+            document.getElementById('active-ticket-info').textContent = `${ticket.servis_ad} - ${ticket.kuyruk_ad}`;
+            document.getElementById('active-ticket-notes').value = ticket.notlar || "";
+
+            document.getElementById('active-actions-initial').style.display = 'grid';
+            document.getElementById('active-actions-serving').style.display = 'none';
+
+            // Sayaç başlat
+            activeSeconds = 0;
+            clearInterval(activeTimerInterval);
+            activeTimerInterval = setInterval(() => {
+                activeSeconds++;
+                const m = Math.floor(activeSeconds / 60).toString().padStart(2, '0');
+                const s = (activeSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('active-ticket-timer').textContent = `${m}:${s}`;
+            }, 1000);
+
+            // Üstteki butonu pasife çek
+            document.querySelector('[onclick="siradakiniCagir()"]').disabled = true;
+            document.querySelector('[onclick="siradakiniCagir()"]').style.opacity = '0.5';
+        }
+
+        function closeActiveTicketUI() {
+            activeTicket = null;
+            clearInterval(activeTimerInterval);
+            document.getElementById('active-ticket-panel').style.display = 'none';
+            document.querySelector('[onclick="siradakiniCagir()"]').disabled = false;
+            document.querySelector('[onclick="siradakiniCagir()"]').style.opacity = '1';
+        }
+
+        let autoSaveTimeout = null;
+        function autoSaveNotes() {
+            if (!activeTicket) return;
+            const notes = document.getElementById('active-ticket-notes').value;
+            document.getElementById('save-status').textContent = "Kaydediliyor...";
+
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(async () => {
+                try {
+                    await apiCall(`/sira/notlar/${activeTicket.id}`, {
+                        method: 'POST',
+                        body: JSON.stringify({ notlar: notes })
+                    });
+                    document.getElementById('save-status').textContent = "Kaydedildi";
+                } catch (e) {
+                    document.getElementById('save-status').textContent = "Hata!";
+                }
+            }, 1000);
+        }
+
+        // Sesli Uyarı
+        function playNotifySound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } catch (e) { }
+        }
+
         // Init
         const initToken = localStorage.getItem('token');
         const initUser = localStorage.getItem('user');
@@ -1091,10 +1508,8 @@
         if (initToken && initUser) {
             token = initToken;
             currentUser = JSON.parse(initUser);
-            // Ana paneli göster
             document.getElementById('main-panel').style.display = 'block';
 
-            // Kullanıcı bilgilerini göster
             const roleLabels = {
                 'staff': 'PERSONEL',
                 'dep_manager': 'BÖLÜM YÖNETİCİSİ',
@@ -1106,23 +1521,48 @@
             document.getElementById('user-name').textContent = currentUser.ekran_ismi || currentUser.ad_soyad;
             document.getElementById('user-role').textContent = roleLabels[currentUser.rol] || currentUser.rol.toUpperCase();
 
-            initApp(); // YENİ BAŞLANGIÇ
+            initApp();
+
+            // Mola kontrolü (Sayfa yenilense bile mola ekranını aç)
+            if (currentUser.durum === 'break') {
+                startMolaUI(currentUser.mola_nedeni || "Mola", currentUser.mola_baslangic);
+            }
         }
 
-        setInterval(() => {
-            if (currentUser) siralariYukle();
-        }, 5000);
+        // WebSocket Listener (Uyarılama ile)
+        initWebSocket((data) => {
+            if (data.type === 'new_ticket') {
+                const myKuyruks = activeSettings.kuyrukIds || [];
+                if (myKuyruks.includes(parseInt(data.kuyruk_id))) {
+                    playNotifySound();
+                    showToast("Yeni bilet geldi: " + (data.numara || data.sira_no), "info");
+                    if (typeof siralariYukle === 'function') siralariYukle(false);
+                }
+            } else if (['call_ticket', 'complete_ticket', 'ticket_transferred'].includes(data.type)) {
+                if (typeof siralariYukle === 'function') siralariYukle(false);
+            }
+        });
 
-        function siradakiniCagir() {
-            if (!bekleyenSiralar || bekleyenSiralar.length === 0) {
-                showToast('Bekleyen sıra yok!', 'warning');
+        // Function overrides for flow
+        const originalHastaCagir = hastaCagir;
+        hastaCagir = async function (siraId, numara) {
+            if (activeTicket) {
+                showToast("Zaten aktif bir işleminiz var!", "warning");
                 return;
             }
-            const sonraki = bekleyenSiralar[0];
-            hastaCagir(sonraki.id, sonraki.numara);
-        }
+            const bilet = bekleyenSiralar.find(x => x.id == siraId);
+            await originalHastaCagir(siraId, numara);
+            if (bilet) openActiveTicketUI(bilet);
+        };
 
-        // Artık login formu yok, bu kod kaldırıldı
+        async function siradakiniCagir() {
+            if (bekleyenSiralar.length === 0) {
+                showToast("Bekleyen kimse yok", "info");
+                return;
+            }
+            const s = bekleyenSiralar[0];
+            await hastaCagir(s.id, s.numara);
+        }
     </script>
 </body>
 

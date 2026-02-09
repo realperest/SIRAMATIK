@@ -6,6 +6,9 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import uvicorn
+from fastapi import WebSocket, WebSocketDisconnect
+import json
+import logging
 
 from config import settings
 from database import db
@@ -37,8 +40,49 @@ from models import (
     DeviceHeartbeatRequest,
     UserResponse,
     UserCreateRequest,
-    UserUpdateRequest
+    UserUpdateRequest,
+    UserStatusUpdateRequest,
+    SiraTransferRequest,
+    SiraNotlarRequest
 )
+from datetime import datetime, timedelta, date
+import json
+import logging
+
+# --- WEBSOCKET MANAGER ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logging.info(f"WebSocket connected. Total: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+            logging.info(f"WebSocket disconnected. Total: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        # Mesajı JSON stringe çevir (Date/Time objelerini string yap)
+        try:
+            msg_str = json.dumps(message, default=str)
+            to_remove = []
+            for connection in self.active_connections:
+                try:
+                    await connection.send_text(msg_str)
+                except Exception as e:
+                    logging.error(f"WebSocket send error: {e}")
+                    to_remove.append(connection)
+            
+            # Hatalı bağlantıları temizle
+            for c in to_remove:
+                self.disconnect(c)
+        except Exception as e:
+            logging.error(f"Broadcast error: {e}")
+
+manager = ConnectionManager()
 
 # FastAPI uygulaması
 app = FastAPI(
@@ -55,6 +99,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Client'dan gelen mesajları dinle (şimdilik sadece bağlantıyı açık tut)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+        manager.disconnect(websocket)
 
 
 # ============================================
@@ -168,6 +225,13 @@ async def update_firma(
         if user_rol != "admin" or user_firma_id != firma_id:
              raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok")
              
+        # Admin ise, şifre kilitli mi kontrol et
+        current_firma = db.get_firma(firma_id)
+        if current_firma and current_firma.get("sifre_kilitli") and "ekran_sifre" in data:
+            # Şifre değiştirilmeye çalışılıyor ama kilitli
+            if data["ekran_sifre"] != current_firma.get("ekran_sifre"):
+                raise HTTPException(status_code=403, detail="Müdahale şifresi kilitlendiği için değiştirilemez!")
+
     # Veritabanı güncelleme
     res = db.update_firma(firma_id, data)
     if not res:
@@ -175,58 +239,9 @@ async def update_firma(
         
     return {"status": "success", "message": "Firma güncellendi", "id": firma_id}
 
-# --- KULLANICI YÖNETİMİ (Süper Admin Paneli İçin) ---
+# --- KULLANICI YÖNETİMİ TEK MANTIK ---
+# Eski gereksiz kod bloğu kaldırıldı.
 
-@app.post("/api/admin/user")
-async def create_user_admin(
-    request: UserCreateRequest,
-    current_user: dict = Depends(require_superadmin())
-):
-    """Sistem geneli kullanıcı oluştur (Sadece Süper Admin)"""
-    # Şifreyi hashle
-    hashed_password = get_password_hash(request.password)
-    
-    # Kullanıcıyı oluştur
-@app.post("/api/admin/user")
-async def create_user_admin(
-    request: UserCreateRequest,
-    current_user: dict = Depends(require_superadmin())
-):
-    """Sistem geneli kullanıcı oluştur (Sadece Süper Admin)"""
-    # Şifreyi hashle
-    hashed_password = get_password_hash(request.password)
-    
-    # Kullanıcıyı oluştur
-    success = db.create_user(
-        firma_id=request.firma_id,
-        kullanici_adi=request.kullanici_adi,
-        sifre_hash=hashed_password,
-        ad_soyad=request.ad_soyad,
-        ekran_ismi=request.ekran_ismi,
-        email=request.email,
-        rol=request.rol
-    )
-    
-    if not success:
-        raise HTTPException(status_code=400, detail="Kullanıcı adı veya email zaten kullanımda")
-    return success
-
-@app.put("/api/admin/user/{user_id}")
-async def update_user_admin(
-    user_id: int,
-    request: dict,
-    current_user: dict = Depends(require_superadmin())
-):
-    """Sistem geneli kullanıcı güncelle (Sadece Süper Admin)"""
-    # Eğer şifre güncelleniyorsa hashle
-    if "password" in request:
-        request["sifre_hash"] = get_password_hash(request["password"])
-        del request["password"]
-        
-    success = db.update_user(user_id, request)
-    if not success:
-        raise HTTPException(status_code=400, detail="Güncelleme başarısız")
-    return success
 
 @app.post("/api/auth/ekran-login")
 async def ekran_login(request: dict):
@@ -296,6 +311,16 @@ async def sira_al(request: SiraAlRequest):
         if request.oncelik > 0:
             mesaj += " (Öncelikli sıra)"
         
+        # WebSocket Bildirimi: Yeni Sıra
+        try:
+            await manager.broadcast({
+                "type": "new_ticket",
+                "kuyruk_id": request.kuyruk_id,
+                "numara": sira["numara"]
+            })
+        except:
+            pass
+
         return SiraAlResponse(
             sira_id=sira["id"],
             numara=sira["numara"],
@@ -363,7 +388,7 @@ async def get_servisler(firma_id: str, _: dict = Depends(get_current_active_user
 @app.get("/api/admin/users/{firma_id}")
 async def get_users(firma_id: str, _: dict = Depends(get_current_active_user)):
     return db.execute_query("""
-        SELECT id, email, kullanici_adi, ad_soyad, rol, servis_id, varsayilan_kuyruk_id, varsayilan_konum_id, aktif 
+        SELECT id, email, kullanici_adi, ad_soyad, rol, servis_id, varsayilan_kuyruk_id, varsayilan_konum_id, servis_ids, kuyruk_ids, aktif 
         FROM siramatik.kullanicilar 
         WHERE firma_id = :firma_id
         ORDER BY ad_soyad
@@ -382,7 +407,14 @@ async def update_user_servis(
 
 # KULLANICI CRUD
 @app.post("/api/admin/user")
-async def create_user(request: UserCreateRequest, _: dict = Depends(get_current_active_user)):
+async def create_user(request: UserCreateRequest, current_user: dict = Depends(get_current_active_user)):
+    # YETKİ KONTROLÜ
+    if current_user["rol"] != "superadmin":
+        if current_user["rol"] != "admin":
+             raise HTTPException(status_code=403, detail="Bu işlem için Admin yetkisi gereklidir")
+        # Admin ise, oluşturacağı kullanıcıyı zorla kendi firmasına ekle
+        request.firma_id = current_user["firma_id"]
+
     # Kullanıcı adı çakışma kontrolü
     if request.kullanici_adi:
         if db.get_user_by_username(request.kullanici_adi):
@@ -425,15 +457,39 @@ async def create_user(request: UserCreateRequest, _: dict = Depends(get_current_
     return user
 
 @app.put("/api/admin/user/{user_id}")
-async def update_user(user_id: int, request: UserUpdateRequest, _: dict = Depends(get_current_active_user)):
+async def update_user(user_id: int, request: UserUpdateRequest, current_user: dict = Depends(get_current_active_user)):
+    # YETKİ KONTROLÜ
+    target_user = db.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+
+    if current_user["rol"] != "superadmin":
+        if current_user["rol"] != "admin":
+             raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        # Admin ise, sadece kendi firmasındaki kullanıcıyı güncelleyebilir
+        if target_user["firma_id"] != current_user["firma_id"]:
+             raise HTTPException(status_code=403, detail="Bu kullanıcı üzerinde işlem yapma yetkiniz yok")
+
     update_data = request.model_dump(exclude_unset=True)
     user = db.update_user(user_id, update_data)
     if not user:
-        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        raise HTTPException(status_code=404, detail="Kullanıcı güncellenemedi")
     return user
 
 @app.delete("/api/admin/user/{user_id}")
-async def delete_user(user_id: int, _: dict = Depends(get_current_active_user)):
+async def delete_user(user_id: int, current_user: dict = Depends(get_current_active_user)):
+    # YETKİ KONTROLÜ
+    target_user = db.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+
+    if current_user["rol"] != "superadmin":
+        if current_user["rol"] != "admin":
+             raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        # Admin ise, sadece kendi firmasındaki kullanıcıyı silebilir
+        if target_user["firma_id"] != current_user["firma_id"]:
+             raise HTTPException(status_code=403, detail="Bu kullanıcı üzerinde işlem yapma yetkiniz yok")
+
     db.delete_user(user_id)
     return {"message": "Kullanıcı silindi"}
 
@@ -453,6 +509,15 @@ async def sira_cagir(
         if not sira:
             raise HTTPException(status_code=404, detail="Sıra bulunamadı")
         
+        # WebSocket Bildirimi: Çağrı Yapıldı
+        try:
+            await manager.broadcast({
+                "type": "call_ticket",
+                "sira": sira
+            })
+        except:
+            pass
+            
         return {
             "success": True,
             "mesaj": f"{sira['numara']} numaralı sıra çağrıldı",
@@ -462,28 +527,96 @@ async def sira_cagir(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/api/sira/tamamla/{sira_id}")
-async def sira_tamamla(
-    sira_id: int,
-    current_user: dict = Depends(get_current_active_user)
-):
-    """
-    İşlemi tamamla
-    """
+async def sira_tamamla(sira_id: int, current_user: dict = Depends(get_current_active_user)):
+    """İşlemi tamamla"""
     try:
         sira = db.tamamla_sira(sira_id)
+        if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        return {"success": True, "mesaj": "İşlem tamamlandı", "sira": sira}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/sira/tekrar-cagir/{sira_id}")
+async def sira_tekrar_cagir(sira_id: int, current_user: dict = Depends(get_current_active_user)):
+    """Sırayı tekrar çağır (TV'de flaşlat)"""
+    try:
+        sira = db.tekrar_cagir(sira_id)
+        if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
         
-        if not sira:
-            raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        await manager.broadcast({"type": "call_ticket", "sira": sira})
+        return {"success": True, "sira": sira}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/sira/baslat/{sira_id}")
+async def sira_islem_baslat(sira_id: int, current_user: dict = Depends(get_current_active_user)):
+    """Müşteri geldi, işlemi başlat"""
+    try:
+        sira = db.islem_baslat(sira_id)
+        if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        return {"success": True, "sira": sira}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/sira/gelmedi/{sira_id}")
+async def sira_gelmedi(sira_id: int, current_user: dict = Depends(get_current_active_user)):
+    """Müşteri gelmedi olarak işaretle"""
+    try:
+        sira = db.gelmedi_sira(sira_id)
+        if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        return {"success": True, "sira": sira}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/sira/transfer/{sira_id}")
+async def sira_transfer(sira_id: int, request: SiraTransferRequest, current_user: dict = Depends(get_current_active_user)):
+    """Sırayı transfer et"""
+    try:
+        sira = db.transfer_sira(sira_id, request.yeni_kuyruk_id, request.yeni_servis_id)
+        if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
         
-        return {
-            "success": True,
-            "mesaj": "İşlem tamamlandı",
-            "sira": sira
-        }
+        # Bekleyen listesini yeniletmek için broadcast
+        await manager.broadcast({"type": "ticket_transferred", "sira_id": sira_id, "kuyruk_id": request.yeni_kuyruk_id})
+        return {"success": True, "sira": sira}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/personel/status")
+async def update_personel_status(request: UserStatusUpdateRequest, current_user: dict = Depends(get_current_active_user)):
+    """Mola sistemi için personel durumunu güncelle"""
+    try:
+        user = db.update_user_status(current_user["id"], request.durum, request.mola_nedeni)
+        if not user: raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        
+        # WebSocket ile diğer ekranlara (Admin vb) durum değişikliğini bildir?
+        await manager.broadcast({"type": "staff_status_changed", "user_id": user["id"], "durum": user["durum"]})
+        
+        return user
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/sira/notlar/{sira_id}")
+async def save_sira_notlar(sira_id: int, request: SiraNotlarRequest, current_user: dict = Depends(get_current_active_user)):
+    """Sıraya not ekle"""
+    try:
+        sira = db.update_sira_notlar(sira_id, request.notlar)
+        if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        return {"success": True}
+    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
     
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sira/durum/{sira_id}")
+async def sira_durum(sira_id: int):
+    """
+    Misafir için sıra durumunu sorgula (Public)
+    """
+    try:
+        status = db.get_my_ticket_status(sira_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        return status
+    except Exception as e:
+        # Pydantic validation error gibi görünmesin diye str(e)
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -497,35 +630,13 @@ async def kuyruk_listele(servis_id: int):
     Kiosk ekranında kuyruk seçimi için
     Public endpoint
     """
-    kuyruklar = db.get_kuyruklar(servis_id)
-    
-    result = []
-    for kuyruk in kuyruklar:
-        bekleyen = len(db.get_bekleyen_siralar(kuyruk["id"]))
-        vip_bekleyen = len([s for s in db.get_bekleyen_siralar(kuyruk["id"]) if s.get("oncelik", 0) > 0])
-        
-        result.append({
-            **kuyruk,
-            "bekleyen_sayisi": bekleyen,
-            "vip_bekleyen_sayisi": vip_bekleyen
-        })
-    
-    return result
+    return db.get_kuyruklar(servis_id)
 
 
 @app.get("/api/kuyruklar/firma/{firma_id}", response_model=List[KuyrukResponse])
 async def kuyruk_listele_by_firma(firma_id: int):
     """Firmaya ait tüm kuyrukları listele"""
-    kuyruklar = db.get_kuyruklar_by_firma(firma_id)
-    result = []
-    for kuyruk in kuyruklar:
-        bekleyen = len(db.get_bekleyen_siralar(kuyruk["id"]))
-        result.append({
-            **kuyruk,
-            "bekleyen_sayisi": bekleyen,
-            "vip_bekleyen_sayisi": 0 
-        })
-    return result
+    return db.get_kuyruklar_by_firma(firma_id)
 
 
 @app.get("/api/kuyruklar/{kuyruk_id}/bekleyen-sayisi")
@@ -541,27 +652,11 @@ async def kuyruk_listele_generic(id: int):
     
     # Önce servis ID mi diye bak
     kuyruklar = db.get_kuyruklar(id)
-    print(f"DEBUG: Servis ID ({id}) sorgusu sonucu (Yerel): {len(kuyruklar)} kayıt")
     
     if not kuyruklar:
-        print(f"DEBUG: Servis bulunamadı, Firma ID olarak deneniyor: {id}")
         kuyruklar = db.get_kuyruklar_by_firma(id)
-        print(f"DEBUG: Firma ID sorgusu sonucu: {len(kuyruklar)} kayıt")
         
-    result = []
-    for kuyruk in kuyruklar:
-        bekleyen = len(db.get_bekleyen_siralar(kuyruk["id"]))
-        # DEBUG LOG
-        print(f"DEBUG: İşlenen Kuyruk: {kuyruk.get('ad')}, ID: {kuyruk.get('id')}, ServisID: {kuyruk.get('servis_id')}")
-        
-        result.append({
-            **kuyruk,
-            "bekleyen_sayisi": bekleyen,
-            "vip_bekleyen_sayisi": 0
-        })
-        
-    print(f"DEBUG: Dönen toplam sonuç: {len(result)}")
-    return result
+    return kuyruklar
 
 
 # ============================================
@@ -574,17 +669,7 @@ async def servis_listele(firma_id: int):
     Firma servislerini listele
     Public endpoint
     """
-    servisler = db.get_servisler(firma_id)
-    
-    result = []
-    for servis in servisler:
-        kuyruklar = db.get_kuyruklar(servis["id"])
-        result.append({
-            **servis,
-            "kuyruk_sayisi": len(kuyruklar)
-        })
-    
-    return result
+    return db.get_servisler(firma_id)
 
 
 # ============================================
@@ -612,7 +697,8 @@ async def ekran_son_cagrilar(firma_id: int, limit: int = 5, servis_id: Optional[
                 "kuyruk_id": cagri.get("kuyruk_id"),
                 "konum": cagri.get("konum"),
                 "oncelik": cagri.get("oncelik", 0),
-                "cagirilma": cagri.get("cagirilma")
+                "cagirilma": cagri.get("cagirilma"),
+                "cagirilma_sayisi": cagri.get("cagirilma_sayisi", 1)
             })
         
         return result
@@ -629,6 +715,7 @@ async def ekran_son_cagrilar(firma_id: int, limit: int = 5, servis_id: Optional[
 async def admin_stats(
     firma_id: int,
     servis_id: Optional[int] = None,
+    kullanici_id: Optional[int] = None,
     period_type: str = "hour",
     time_range: str = "today",
     start_date: Optional[str] = None,
@@ -639,6 +726,7 @@ async def admin_stats(
     stats = db.get_firma_istatistikleri(
         firma_id, 
         servis_id=servis_id,
+        kullanici_id=kullanici_id,
         period_type=period_type,
         time_range=time_range,
         start_date=start_date,
@@ -660,7 +748,59 @@ async def admin_stats(
     )
 
 
-@app.post("/api/admin/cihaz/bildir")
+@app.get("/api/kiosk/init/{firma_id}")
+async def kiosk_init(firma_id: int):
+    """Kiosk açılışında gereken tüm verileri tek seferde getir (Yüksek Performans)"""
+    firma = db.get_firma(firma_id)
+    if not firma:
+        raise HTTPException(status_code=404, detail="Firma bulunamadı")
+        
+    # Config
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+    except:
+        ip = "localhost"
+    config = {"host_ip": ip, "port": 3000}
+    
+    # Veriler
+    servisler = db.get_servisler(firma_id)
+    kuyruklar = db.get_kuyruklar_by_firma(firma_id)
+    
+    return {
+        "firma": firma,
+        "config": config,
+        "servisler": servisler,
+        "kuyruklar": kuyruklar
+    }
+
+
+@app.get("/api/admin/reports/{firma_id}")
+async def admin_reports(
+    firma_id: int,
+    report_type: str = "transaction_log",
+    servis_id: Optional[int] = None,
+    kuyruk_id: Optional[int] = None,
+    kullanici_id: Optional[int] = None,
+    time_range: str = "today",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Admin paneli için geliştirilmiş çok boyutlu raporlar"""
+    return db.get_detailed_reports(
+        firma_id,
+        report_type=report_type,
+        servis_id=servis_id,
+        kuyruk_id=kuyruk_id,
+        kullanici_id=kullanici_id,
+        time_range=time_range,
+        start_date=start_date,
+        end_date=end_date
+    )
 async def cihaz_bildir(request: DeviceHeartbeatRequest):
     """Cihazdan gelen nabız sinyali"""
     cihaz = db.cihaz_bildir(request.firma_id, request.ad, request.tip, request.mac, request.metadata)
@@ -707,6 +847,17 @@ async def manuel_sira_al(request: ManuelSiraRequest, current_user: dict = Depend
     )
     if not sira:
         raise HTTPException(status_code=400, detail="Sıra oluşturulamadı")
+    
+    # WebSocket Bildirimi: Manuel Sıra
+    try:
+        await manager.broadcast({
+            "type": "new_ticket",
+            "kuyruk_id": request.kuyruk_id,
+            "numara": sira["numara"]
+        })
+    except:
+        pass
+
     return sira
 
 # --- SERVIS CRUD ---

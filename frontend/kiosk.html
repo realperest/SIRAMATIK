@@ -11,11 +11,13 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-align: center;
-            padding: 15px 20px;
-            min-height: 100vh;
-            max-height: 100vh;
+            padding: 10px 20px;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
-            /* Scroll engelleme */
+            /* Scroll tamamen engellendi */
         }
 
         .header {
@@ -76,64 +78,117 @@
 
         .departman-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            max-width: 1200px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1400px;
             margin: 0 auto;
+            flex: 1;
+            /* Mevcut boşluğu doldur */
+            align-content: center;
+            /* Dikeyde ortala */
             padding: 10px;
         }
 
         .departman-card {
             background: white;
             color: #667eea;
-            padding: 25px 20px;
-            border-radius: 15px;
+            padding: 2vh 20px;
+            /* Ekrana göre padding */
+            border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* Sabit min-height kaldırıldı, içerik sığmak için küçülebilecek */
+            max-height: 40vh;
+            /* Çok büyümesini engelle */
+            overflow: hidden;
         }
 
         .departman-card:hover {
-            transform: translateY(-10px) scale(1.05);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
         }
 
         .departman-card h2 {
-            font-size: 22px;
-            margin-bottom: 10px;
+            font-size: clamp(18px, 2.5vh, 28px);
+            /* Dinamik font */
+            margin: 10px 0;
         }
 
         .departman-card .kod {
-            font-size: 36px;
+            font-size: clamp(24px, 4vh, 48px);
+            /* Dinamik font */
             font-weight: bold;
-            margin-bottom: 8px;
             color: #764ba2;
         }
 
         .departman-card .bekleyen {
-            font-size: 14px;
+            font-size: clamp(12px, 1.5vh, 16px);
             color: #666;
-            margin-top: 8px;
+            margin-top: 5px;
+        }
+
+        #departman-secimi {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #alt-secenekler-konteynir {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            margin-top: 20px !important;
+            padding: 20px !important;
+            overflow: hidden;
         }
 
         #numara-ekrani {
             display: none;
-            animation: fadeIn 0.5s ease-in;
-            max-width: 1200px;
-            margin: 0 auto;
+            position: fixed;
+            /* Tam ekran kaplayacak */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: fadeInSimple 0.2s ease-in;
+            overflow: hidden;
+        }
+
+        @keyframes fadeInSimple {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .bilet-konteynir {
             display: grid;
-            grid-template-columns: 1.2fr 1fr;
-            gap: 40px;
-            background: rgba(255, 255, 255, 0.1);
+            grid-template-columns: 450px 320px;
+            /* Sabit genişlikler */
+            gap: 30px;
+            background: rgba(255, 255, 255, 0.15);
             padding: 40px;
             border-radius: 40px;
-            backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
             align-items: center;
+            width: fit-content;
         }
 
         @media (max-width: 992px) {
@@ -314,8 +369,8 @@
             color: #333;
             padding: 30px;
             border-radius: 20px;
-            max-width: 600px;
-            width: 90%;
+            max-width: 900px;
+            width: 95%;
             max-height: 80vh;
             overflow-y: auto;
             box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
@@ -386,6 +441,22 @@
         ⚙️
     </button>
 
+    <!-- Şifre Sorgulama Modalı -->
+    <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 9999;">
+        <div class="settings-panel" style="max-width: 400px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 20px;">🔒</div>
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
+            <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Ayarlara erişmek için şifreyi giriniz.</p>
+            <input type="password" id="ask-password-input"
+                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px; font-size: 24px; text-align: center; margin-bottom: 25px; outline: none;"
+                placeholder="****">
+            <div style="display: flex; gap: 10px;">
+                <button id="ask-password-confirm" class="btn-save" style="flex: 2; margin: 0;">GİRİŞ</button>
+                <button id="ask-password-cancel" class="btn-cancel" style="flex: 1; margin: 0;">İPTAL</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ayarlar Modal -->
     <div class="settings-modal" id="settings-modal">
         <div class="settings-panel">
@@ -403,6 +474,20 @@
                 <!-- Dinamik olarak doldurulacak -->
             </select>
             <small style="color: #999;">Boş bırakırsanız seçili bölümlerin tüm kuyrukları gösterilir</small>
+
+            <div
+                style="margin-top: 20px; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <label
+                    style="display: flex; align-items: center; cursor: pointer; font-size: 15px; color: #2c3e50; font-weight: 600; margin: 0;">
+                    <input type="checkbox" id="hide-servis-checkbox"
+                        style="width: 22px; height: 22px; margin-right: 12px; cursor: pointer;">
+                    Bölüm Seçimini Atla (Direkt Hizmetleri Göster)
+                </label>
+                <p style="margin: 8px 0 0 34px; font-size: 12px; color: #7f8c8d; line-height: 1.4;">
+                    Aktif edilirse, "Hangi Bölüme Gideceksiniz?" ekranı gösterilmez, seçili bölümlerin tüm hizmetleri
+                    doğrudan listelenir.
+                </p>
+            </div>
 
             <div style="margin-top: 30px; text-align: center;">
                 <button class="btn-save" onclick="saveSettings()">💾 Kaydet</button>
@@ -456,14 +541,14 @@
     <div id="departman-secimi">
         <h2 style="font-size: 36px; margin-bottom: 40px;">Hangi Bölüme Gideceksiniz?</h2>
         <div class="departman-grid" id="departman-listesi"></div>
+    </div>
 
-        <!-- Alt seçenekler alanı -->
-        <div id="alt-secenekler-konteynir"
-            style="display:none; margin-top: 50px; padding: 40px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 2px dashed rgba(255,255,255,0.3);">
-            <h3 id="alt-secenek-baslik" style="font-size: 32px; margin-bottom: 30px; color: #ffd700;">Hizmet Türü
-                Seçiniz</h3>
-            <div id="alt-secenek-listesi" class="departman-grid"></div>
-        </div>
+    <!-- Alt seçenekler alanı -->
+    <div id="alt-secenekler-konteynir"
+        style="display:none; margin-top: 50px; padding: 40px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 2px dashed rgba(255,255,255,0.3);">
+        <h3 id="alt-secenek-baslik" style="font-size: 32px; margin-bottom: 30px; color: #ffd700;">Hizmet Türü
+            Seçiniz</h3>
+        <div id="alt-secenek-listesi" class="departman-grid"></div>
     </div>
 
     <div id="fis-modal">
@@ -505,8 +590,9 @@
             </div>
 
             <!-- Sağ Panel: QR Kod -->
-            <div class="qr-section">
-                <div id="qrcode" style="display: inline-block; padding: 10px; background: white;"></div>
+            <div class="qr-section" style="width: 320px; flex-shrink: 0;">
+                <div id="qrcode"
+                    style="display: inline-block; padding: 10px; background: white; width: 250px; height: 250px;"></div>
                 <p>Karekod Okut</p>
                 <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">
                     Sıranızı telefondan canlı takip edin
@@ -532,14 +618,17 @@
         // Kiosk Ayarları Yönetimi
         let kioskSettings = {
             servisIds: [],
-            kuyrukIds: []
+            kuyrukIds: [],
+            hideServisSelection: false
         };
 
         function loadKioskSettings() {
             const saved = localStorage.getItem('kiosk_settings');
             if (saved) {
                 try {
-                    kioskSettings = JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    // Eski ayarlarda yeni alan olmayabilir, spread ile güvenli birleştirme yapıyoruz
+                    kioskSettings = { ...kioskSettings, ...parsed };
                 } catch (e) {
                     console.error('Ayarlar yüklenemedi:', e);
                 }
@@ -547,7 +636,8 @@
         }
 
         async function openSettings() {
-            const password = prompt('🔒 Kiosk ayarlarına erişmek için müdahale şifresini girin:');
+            // Modal ile şifre sor
+            const password = await askPasswordModal();
             if (!password) return;
 
             try {
@@ -575,6 +665,42 @@
             }
         }
 
+        function askPasswordModal() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('password-ask-modal');
+                const input = document.getElementById('ask-password-input');
+                const confirmBtn = document.getElementById('ask-password-confirm');
+                const cancelBtn = document.getElementById('ask-password-cancel');
+
+                input.value = '';
+                modal.style.display = 'flex';
+                input.focus();
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    input.onkeydown = null;
+                };
+
+                confirmBtn.onclick = () => {
+                    const val = input.value;
+                    cleanup();
+                    resolve(val);
+                };
+
+                cancelBtn.onclick = () => {
+                    cleanup();
+                    resolve(null);
+                };
+
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') confirmBtn.click();
+                    if (e.key === 'Escape') cancelBtn.click();
+                };
+            });
+        }
+
         function closeSettings() {
             document.getElementById('settings-modal').style.display = 'none';
         }
@@ -588,7 +714,8 @@
 
             kioskSettings = {
                 servisIds: selectedServisIds,
-                kuyrukIds: selectedKuyrukIds
+                kuyrukIds: selectedKuyrukIds,
+                hideServisSelection: document.getElementById('hide-servis-checkbox').checked
             };
 
             localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
@@ -626,6 +753,10 @@
 
                 // İlk yüklemede kuyrukları güncelle
                 updateKuyrukList();
+
+                // Checkbox durumunu ayarla
+                const checkbox = document.getElementById('hide-servis-checkbox');
+                if (checkbox) checkbox.checked = kioskSettings.hideServisSelection;
 
             } catch (error) {
                 console.error('Ayarlar verisi yüklenemedi:', error);
@@ -718,10 +849,10 @@
         }
 
         // Tüm verileri yükle
-        async function verileriYukle() {
+        async function verileriYukle(silent = false) {
             console.log("Servis ve kuyruk verileri yükleniyor...");
             try {
-                showLoading(true);
+                if (!silent) showLoading(true);
                 const [servisler, kuyruklar] = await Promise.all([
                     apiCall(`/servisler/${FIRMA_ID}`),
                     apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
@@ -732,15 +863,13 @@
 
                 // Kiosk ayarlarına göre filtrele
                 const filtered = applyFilters(servisler || [], kuyruklar || []);
-                console.log("Filtrelenmiş Servisler:", filtered.servisler.length);
-                console.log("Filtrelenmiş Kuyruklar:", filtered.kuyruklar.length);
-
                 allQueues = filtered.kuyruklar;
                 renderServisler(filtered.servisler);
-                showLoading(false);
+
+                if (!silent) showLoading(false);
             } catch (error) {
                 console.error("Veri yükleme hatası:", error);
-                showLoading(false);
+                if (!silent) showLoading(false);
                 showToast('Veriler yüklenemedi: ' + error.message, 'error');
             }
         }
@@ -749,20 +878,43 @@
             const list = document.getElementById('departman-listesi');
             const subContainer = document.getElementById('alt-secenekler-konteynir');
             const exitBtn = document.getElementById('exit-btn');
+            const mainHeader = document.getElementById('departman-secimi');
+            const numEkrani = document.getElementById('numara-ekrani');
+
             if (!list) return;
+
+            // Bilet ekranı AÇIKSA (display flex ise), arka plan güncellemelerinin onu kapatmasını engelle
+            if (numEkrani && numEkrani.style.display === 'flex') {
+                console.log("Bilet ekranı açık, arka plan güncellemesi bilet ekranını kapatmayacak.");
+                // Sadece verileri güncellemek için devam et ama ekranı bozma
+            } else if (numEkrani) {
+                numEkrani.style.display = 'none';
+            }
+
+            // Bölüm seçimini atlama ayarı aktifse
+            if (kioskSettings.hideServisSelection && allQueues.length > 0) {
+                if (mainHeader) mainHeader.style.display = 'none';
+                renderKuyruklar(allQueues, "Hizmet Türü Seçiniz");
+                return;
+            } else {
+                if (mainHeader) mainHeader.style.display = 'flex';
+            }
 
             // Alt alanı gizle ve geri dön butonunu gizle (ana ekrandayız)
             if (subContainer) subContainer.style.display = 'none';
             if (exitBtn) exitBtn.classList.remove('show');
 
             if (servisler.length === 0) {
-                list.innerHTML = '<p style="grid-column:1/-1; font-size:24px; opacity:0.7;">Tanımlı servis bulunamadı.</p>';
+                list.innerHTML = `<p style="grid-column:1/-1; font-size:24px; opacity:0.7;">Tanımlı servis bulunamadı.</p>`;
                 return;
             }
 
-            // Not: Admin panelinden Eczane'ye bir kuyruk ekledim.
+            // Eleman sayısına göre grid yapısını kolon sayısına zorla
+            const columnCount = Math.min(servisler.length, 4);
+            list.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`;
+
             list.innerHTML = servisler.map(s => `
-                <div class="departman-card fade-in" id="servis-card-${s.id}" onclick="servisSecildi(${s.id}, '${s.ad}')">
+                <div class="departman-card fade-in" id="servis-card-${s.id}" onclick="servisSecildi(${s.id}, '${s.ad}')" style="flex: 1;">
                     <div class="kod">${s.kod}</div>
                     <h2>${s.ad}</h2>
                     <div class="bekleyen">${s.kuyruk_sayisi > 0 ? `🕐 ${s.kuyruk_sayisi} Seçenek` : (s.id === 2 ? '🕐 1 Sıra' : 'Sıra Al')}</div>
@@ -773,7 +925,6 @@
         function servisSecildi(servisId, servisAd) {
             console.log("Servis seçildi:", servisAd, servisId);
 
-            // Tüm kartlardan aktifliği kaldır, seçilene ekle
             document.querySelectorAll('.departman-card').forEach(el => el.classList.remove('active'));
             const selectedIcon = document.getElementById(`servis-card-${servisId}`);
             if (selectedIcon) selectedIcon.classList.add('active');
@@ -781,7 +932,6 @@
             const uygunKuyruklar = allQueues.filter(k => k.servis_id === servisId);
 
             if (uygunKuyruklar.length <= 1) {
-                // Eğer tek kuyruk varsa alt alanı gizle ve direkt sıra al
                 const subContainer = document.getElementById('alt-secenekler-konteynir');
                 if (subContainer) subContainer.style.display = 'none';
 
@@ -789,7 +939,6 @@
                 if (kuyrukId) siraAl(kuyrukId, servisId);
                 else showToast("Bu servise bağlı kuyruk bulunamadı!", "error");
             } else {
-                // Birden fazla kuyruk varsa alt alanda göster
                 renderKuyruklar(uygunKuyruklar, servisAd);
             }
         }
@@ -800,21 +949,26 @@
             const subTitle = document.getElementById('alt-secenek-baslik');
             const exitBtn = document.getElementById('exit-btn');
 
-            subTitle.textContent = `${servisAd} - Hizmet Türü Seçiniz`;
-            subContainer.style.display = 'block';
+            subTitle.textContent = servisAd;
+            subContainer.style.display = 'flex';
+            // Eğer bölüm seçimi gizliyse "Geri Dön" butonunu gösterme (çünkü dönecek yer yok)
+            if (exitBtn) {
+                if (kioskSettings.hideServisSelection) exitBtn.classList.remove('show');
+                else exitBtn.classList.add('show');
+            }
 
-            // Geri dön butonunu göster (alt ekrandayız)
-            if (exitBtn) exitBtn.classList.add('show');
+            // Eleman sayısına göre grid yapısını kolon sayısına zorla
+            const columnCount = Math.min(kuyruklar.length, 3);
+            subList.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`;
 
             subList.innerHTML = kuyruklar.map(k => `
-                <div class="departman-card fade-in" onclick="siraAl(${k.id}, ${k.servis_id})" style="border-bottom: 8px solid #f0932b; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                    <div class="kod" style="font-size: 32px;">${k.kod}</div>
-                    <h2 style="font-size: 24px;">${k.ad}</h2>
+                <div class="departman-card fade-in" onclick="siraAl(${k.id}, ${k.servis_id})" style="border-bottom: 8px solid #f0932b; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;">
+                    <div class="kod" style="font-size: clamp(24px, 4vh, 48px);">${k.kod}</div>
+                    <h2 style="font-size: clamp(18px, 2.5vh, 28px);">${k.ad}</h2>
                 </div>
             `).join('');
 
-            // Alt alana yumuşak kaydır
-            subContainer.scrollIntoView({ behavior: 'smooth' });
+            // scrollIntoView kaldırıldı (scroll olmamalı)
         }
 
         let lastSiraResponse = null;
@@ -835,9 +989,8 @@
 
                 lastSiraResponse = response;
                 lastSiraResponse.servis_id = servisId;
-                lastSiraResponse.kuyruk_id = kuyrukId; // Bu bilgiyi telefona aktarmak için saklıyoruz
+                lastSiraResponse.kuyruk_id = kuyrukId;
 
-                // Verileri ekrana bas
                 const numaraEl = document.getElementById('numara');
                 if (numaraEl) numaraEl.textContent = response.numara;
                 const mesajEl = document.getElementById('mesaj');
@@ -850,15 +1003,13 @@
                 const exitBtn = document.getElementById('exit-btn');
 
                 if (depSecimi) depSecimi.style.display = 'none';
-                if (numEkrani) numEkrani.style.display = 'block';
-
-                // Geri dön butonunu göster (numara ekranındayız)
+                if (numEkrani) {
+                    numEkrani.style.display = 'flex'; // Overlay olduğu için flex yap
+                }
                 if (exitBtn) exitBtn.classList.add('show');
 
-                // DOM'un render olması için yarım saniye bekle (Özellikle uzun isimli servisler için kritik)
-                setTimeout(() => {
-                    karekodGoster();
-                }, 500);
+                // Gecikmeyi kaldırdık, anında gösteriyoruz
+                karekodGoster();
 
             } catch (error) {
                 console.error("Sıra alma hatası:", error);
@@ -876,14 +1027,12 @@
 
             showToast("Fişiniz yazdırılıyor...", "success");
 
-            // Fiş bilgilerini modal'a doldur
             const hospEl = document.getElementById('hospital-name');
             document.getElementById('fis-hospital').textContent = hospEl ? hospEl.textContent : "İRMET HOSPITAL";
             document.getElementById('fis-numara').textContent = lastSiraResponse.numara;
             document.getElementById('fis-kuyruk').textContent = lastSiraResponse.kuyruk_ad;
             document.getElementById('fis-tarih').textContent = new Date().toLocaleString('tr-TR');
 
-            // Fiş üzerindeki Takip Karekodunu oluştur
             const fisQrContainer = document.getElementById('fis-qrcode');
             fisQrContainer.innerHTML = '';
             const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}&sira_id=${lastSiraResponse.sira_id}`;
@@ -899,7 +1048,6 @@
 
             document.getElementById('fis-modal').style.display = 'flex';
 
-            // 15 saniye sonra veya kullanıcı basınca ana sayfaya dön
             if (reloadTimer) clearInterval(reloadTimer);
             setTimeout(() => {
                 location.reload();
@@ -925,9 +1073,8 @@
                 const qrContainer = document.getElementById('qrcode');
                 if (!qrContainer) return;
 
-                qrContainer.innerHTML = '<div style="font-size:14px; color:#333;">Hazırlanıyor...</div>';
+                // "Hazırlanıyor" yazısını kaldırdık ki boyut zıplaması olmasın
 
-                // Bilet bilgilerini güvenli al
                 const n = lastSiraResponse.numara || '---';
                 const k = lastSiraResponse.kuyruk_ad || 'Sıra';
                 const b = Math.max(0, (lastSiraResponse.bekleyen_sayisi || 1) - 1);
@@ -935,7 +1082,6 @@
                 const h = hEl ? hEl.textContent.trim() : "İRMET HOSPITAL";
                 const kid = lastSiraResponse.kuyruk_id || 0;
 
-                // URL'i oluştururken TÜM karakterleri (özellikle Ç, ş, ı, İ) şifrele
                 const safeN = encodeURIComponent(n);
                 const safeH = encodeURIComponent(h);
                 const safeK = encodeURIComponent(k);
@@ -945,7 +1091,6 @@
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 
-                // Temizle ve çiz
                 qrContainer.innerHTML = '';
 
                 if (typeof QRCode === 'undefined') {
@@ -962,7 +1107,6 @@
                     correctLevel: QRCode.CorrectLevel.M
                 });
 
-                // Geri sayım
                 let saniye = 15;
                 const sayacEl = document.getElementById('qr-sayac');
                 if (sayacEl) sayacEl.textContent = `${saniye} sn içinde kapanacak`;
@@ -986,13 +1130,51 @@
 
         // Başlat
         async function baslat() {
-            await initFirma();
-            await initConfig();
-            await verileriYukle();
+            // Başlangaçta tüm verileri TEK BİR PAKET (init) olarak çekerek hızı maksimuma çıkarıyoruz
+            try {
+                showLoading(true);
+                const initData = await apiCall(`/kiosk/init/${FIRMA_ID}`);
+
+                // 1. Firma Bilgileri
+                if (initData.firma && initData.firma.ad) {
+                    const el = document.getElementById('hospital-name');
+                    if (el) el.textContent = initData.firma.ad;
+                    document.title = initData.firma.ad + " - Sıra Al";
+                }
+
+                // 2. Config IP/Port
+                kioskConfig = initData.config || kioskConfig;
+
+                // 3. Servis ve Kuyruklar (Filtreleri uygula ve render et)
+                const filtered = applyFilters(initData.servisler || [], initData.kuyruklar || []);
+                allQueues = filtered.kuyruklar;
+                renderServisler(filtered.servisler);
+
+                // 4. Heartbeat Başlat
+                bildirCihaz();
+                setInterval(bildirCihaz, 30000);
+
+            } catch (err) {
+                console.error("Kiosk başlatma hatası:", err);
+                // Eğer init patlarsa eski yöntemle tek tek denemesi için (fallback)
+                await initFirma();
+                await initConfig();
+                await verileriYukle(true);
+            } finally {
+                showLoading(false);
+            }
         }
 
         baslat();
-        setInterval(verileriYukle, 30000);
+        // WebSocket Dinleyici
+        initWebSocket((data) => {
+            if (['new_ticket', 'call_ticket', 'complete_ticket', 'delete_ticket'].includes(data.type)) {
+                // Sessiz güncelleme (loader göstermeden)
+                verileriYukle(true);
+            }
+        });
+
+
     </script>
 </body>
 

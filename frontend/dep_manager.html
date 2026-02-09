@@ -1112,9 +1112,21 @@
             initApp(); // YENİ BAŞLANGIÇ
         }
 
-        setInterval(() => {
-            if (currentUser) siralariYukle();
-        }, 5000);
+        // App.js Kontrolü (Eğer ekli değilse)
+        if (typeof apiCall === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'static/app.js';
+            document.head.appendChild(script);
+        }
+
+        // WebSocket Dinleyici
+        initWebSocket((data) => {
+            if (['new_ticket', 'call_ticket', 'complete_ticket'].includes(data.type)) {
+                siralariYukle();
+            }
+        });
+
+
 
         function siradakiniCagir() {
             if (!bekleyenSiralar || bekleyenSiralar.length === 0) {

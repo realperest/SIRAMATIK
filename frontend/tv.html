@@ -86,6 +86,16 @@
             font-weight: bold;
             letter-spacing: 5px;
             color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.8);
+            animation: none;
+            /* Varsayılan: Yanıp sönmez */
+        }
+
+        .spotlight-item.animasyonlu {
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+
+        .spotlight-item.animasyonlu::after {
             animation: blink 1s infinite;
         }
 
@@ -217,6 +227,18 @@
 
             50% {
                 opacity: 0.3;
+            }
+        }
+
+        @keyframes slideIn {
+            0% {
+                transform: translateY(-20px) scale(0.9);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
             }
         }
 
@@ -360,6 +382,22 @@
         🔊
     </div>
 
+    <!-- Şifre Sorgulama Modalı -->
+    <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 10002;">
+        <div class="settings-panel" style="max-width: 400px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 20px;">🔒</div>
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
+            <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Ayarlara erişmek için şifreyi giriniz.</p>
+            <input type="password" id="ask-password-input"
+                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px; font-size: 24px; text-align: center; margin-bottom: 25px; outline: none; box-sizing: border-box;"
+                placeholder="****">
+            <div style="display: flex; gap: 10px;">
+                <button id="ask-password-confirm" class="btn-save" style="flex: 2; margin: 0;">GİRİŞ</button>
+                <button id="ask-password-cancel" class="btn-cancel" style="flex: 1; margin: 0;">İPTAL</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ayarlar Modal -->
     <div class="settings-modal" id="tv-settings-modal">
         <div class="settings-panel">
@@ -453,7 +491,9 @@
 
         let lastDataJson = '';
         let lastCagriId = null;
+        let lastCagirilmaSayisi = 0; // RECALL takibi için (Sayı)
         let seenIds = {};
+        let isFirstLoad = true;
         let tvSettings = { servisIds: [], kuyrukIds: [] };
 
         function loadTVSettings() {
@@ -468,7 +508,7 @@
         }
 
         async function openTVSettings() {
-            const password = prompt('🔒 Ekran ayarlarına erişmek için müdahale şifresini girin:');
+            const password = await askPasswordModal();
             if (!password) return;
 
             try {
@@ -492,6 +532,42 @@
             }
         }
 
+        function askPasswordModal() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('password-ask-modal');
+                const input = document.getElementById('ask-password-input');
+                const confirmBtn = document.getElementById('ask-password-confirm');
+                const cancelBtn = document.getElementById('ask-password-cancel');
+
+                input.value = '';
+                modal.style.display = 'flex';
+                input.focus();
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    input.onkeydown = null;
+                };
+
+                confirmBtn.onclick = () => {
+                    const val = input.value;
+                    cleanup();
+                    resolve(val);
+                };
+
+                cancelBtn.onclick = () => {
+                    cleanup();
+                    resolve(null);
+                };
+
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') confirmBtn.click();
+                    if (e.key === 'Escape') cancelBtn.click();
+                };
+            });
+        }
+
         function closeTVSettings() {
             document.getElementById('tv-settings-modal').style.display = 'none';
         }
@@ -511,7 +587,6 @@
                     sSelect.add(opt);
                 });
 
-                // Servis seçimi değiştiğinde kuyrukları filtrele
                 const updateKuyruklar = () => {
                     const kSelect = document.getElementById('kuyruk-filter');
                     kSelect.innerHTML = '';
@@ -548,7 +623,7 @@
             localStorage.setItem('tv_settings', JSON.stringify(tvSettings));
             alert('✅ Ayarlar kaydedildi!');
             closeTVSettings();
-            cagrilariGuncelle(); // Hemen uygula
+            cagrilariGuncelle();
         }
 
         function resetTVSettings() {
@@ -558,24 +633,18 @@
             }
         }
 
-        // Çağrıları yükle
         async function cagrilariGuncelle() {
             try {
                 let data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=20`);
 
-                // FİLTRELEME
                 if (tvSettings.servisIds.length > 0 || tvSettings.kuyrukIds.length > 0) {
-                    data = data.filter(cagri => {
+                    data = data.filter(c => {
                         if (tvSettings.kuyrukIds.length > 0) {
-                            return tvSettings.kuyrukIds.includes(cagri.kuyruk_id);
+                            return tvSettings.kuyrukIds.includes(c.kuyruk_id);
                         }
-                        return tvSettings.servisIds.includes(cagri.servis_id);
+                        return tvSettings.servisIds.includes(c.servis_id);
                     });
                 }
-
-                const simdi = Date.now();
-                data.forEach(c => { if (!seenIds[c.id]) seenIds[c.id] = simdi; });
-                data = data.filter(c => (simdi - seenIds[c.id]) < 30000);
 
                 const spotlightContainer = document.getElementById('spotlight-container');
                 const historyContainer = document.getElementById('history-container');
@@ -588,54 +657,63 @@
                             <div>Sıradaki çağrı bekleniyor...</div>
                         </div>
                     `;
+                    lastCagriId = null;
                     return;
                 }
 
                 const latest = data[0];
-                const gecenSure = simdi - seenIds[latest.id];
 
-                if (lastCagriId !== null && latest.id !== lastCagriId) {
-                    if (!isMuted && audioContext) {
-                        if (audioContext.state === 'suspended') audioContext.resume();
-                        playDingDong();
+                let isNew = false;
+                // cagirilma_sayisi değişmişse TEKRAR ÇAĞIR yapılmıştır
+                if (lastCagriId !== latest.id || lastCagirilmaSayisi !== latest.cagirilma_sayisi) {
+                    isNew = true;
+                    if (!isFirstLoad) {
+                        if (typeof playDingDong === 'function') playDingDong();
                     }
+                    lastCagriId = latest.id;
+                    lastCagirilmaSayisi = latest.cagirilma_sayisi;
                 }
-                lastCagriId = latest.id;
+                isFirstLoad = false;
 
-                let historyData = [...data];
+                const animClass = isNew ? 'animasyonlu' : '';
 
-                if (gecenSure < 30000) {
-                    const needsAnimation = gecenSure < 5000;
-                    spotlightContainer.innerHTML = `
-                        <div class="spotlight-item" style="${needsAnimation ? 'animation: heartbeat 1.5s ease-in-out infinite;' : 'animation: none; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);'}">
-                            <div class="spotlight-numara">${latest.numara}</div>
-                            <div class="spotlight-detay">
-                                <div class="spotlight-servis">${latest.servis}</div>
-                                ${latest.konum ? `<div class="spotlight-oda">📍 ${latest.konum}</div>` : ''}
-                            </div>
+                spotlightContainer.innerHTML = `
+                    <div class="spotlight-item ${animClass}" id="main-spotlight">
+                        <div class="spotlight-numara">${latest.numara}</div>
+                        <div class="spotlight-detay">
+                            <div class="spotlight-servis">${latest.servis}</div>
+                            ${latest.konum ? `<div class="spotlight-oda">📍 ${latest.konum}</div>` : ''}
                         </div>
-                    `;
-                    historyData.shift();
-                } else {
-                    spotlightContainer.innerHTML = '';
+                    </div>
+                `;
+
+                if (isNew) {
+                    setTimeout(() => {
+                        const el = document.getElementById('main-spotlight');
+                        if (el) el.classList.remove('animasyonlu');
+                    }, 5000);
                 }
 
-                historyContainer.innerHTML = historyData.slice(0, 5).map((cagri, i) => {
-                    const scale = (1 - (i * 0.05)).toFixed(2); // Daha yavaş küçülme
-                    const width = (100 - (i * 4)) + "%"; // Daha yavaş daralma
-                    const opacity = [0.6, 0.4, 0.2, 0.1, 0.05][i] || 0.02;
-                    const blur = (i * 1.0) + "px"; // Daha hafif bulanıklık
+                const historyData = data.slice(1, 6);
+
+                historyContainer.innerHTML = historyData.map((cagri, i) => {
+                    const scale = (1 - (i * 0.05)).toFixed(2);
+                    const width = (100 - (i * 4)) + "%";
+                    const opacity = [0.8, 0.6, 0.4, 0.2, 0.1][i] || 0.05;
+                    const blur = (i * 1.5) + "px";
 
                     return `
                         <div class="cagri-item" style="
                             width: ${width}; 
                             background: rgba(255, 0, 85, ${opacity}); 
-                            border-color: rgba(255, 0, 85, ${opacity * 1.5});
+                            border-color: rgba(255, 0, 85, ${opacity});
                             filter: blur(${blur});
                             transform: scale(${scale});
+                            opacity: ${opacity};
                             margin-top: 15px;
                             margin-left: auto;
                             margin-right: auto;
+                            animation: slideIn 0.5s ease-out;
                         ">
                             <div class="cagri-numara">${cagri.numara}</div>
                             <div class="cagri-detay">
@@ -682,11 +760,66 @@
             }
         }
 
+        const overlay = document.createElement('div');
+        overlay.id = 'start-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 14, 23, 0.98); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; text-align: center; font-family: 'Segoe UI', system-ui, sans-serif;
+            backdrop-filter: blur(10px);
+        `;
+        overlay.innerHTML = `
+            <div style="font-size: 80px; margin-bottom: 30px; animation: bounce 2s infinite;">📺</div>
+            <h1 style="font-size: 48px; margin: 0 0 20px 0; font-weight:800; letter-spacing:-1px;">TV Ekranı Hazır</h1>
+            <p style="font-size: 20px; color: #8892b0; margin-bottom: 50px; max-width: 600px; line-height: 1.6;">
+                Tarayıcı politikaları gereği sesin çalabilmesi için kullanıcı etkileşimi gerekmektedir.
+            </p>
+            <button id="btn-baslat" style="
+                padding: 25px 80px; font-size: 24px; font-weight: 800;
+                background: linear-gradient(135deg, #00b09b, #96c93d);
+                color: white; border: none; border-radius: 20px;
+                cursor: pointer; box-shadow: 0 20px 40px rgba(0, 176, 155, 0.3);
+                transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 2px;
+                display: flex; align-items: center; gap: 15px;
+            ">
+                <span>BAŞLAT</span> 🚀
+            </button>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('btn-baslat').onclick = () => {
+            unlockAudio();
+            playDingDong();
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log("Tam ekran reddedildi:", e));
+            }
+            overlay.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+            overlay.style.opacity = '0';
+            overlay.style.transform = 'scale(1.1)';
+            setTimeout(() => overlay.remove(), 600);
+        };
+
         initFirma();
         loadTVSettings();
         cagrilariGuncelle();
 
-        setInterval(cagrilariGuncelle, 1000);
+        let updateTimeout = null;
+
+        function debouncedUpdate() {
+            if (updateTimeout) clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+                cagrilariGuncelle();
+            }, 300);
+        }
+
+        initWebSocket((data) => {
+            if (data.type === 'call_ticket') {
+                debouncedUpdate();
+            }
+        });
+
+
     </script>
 </body>
 

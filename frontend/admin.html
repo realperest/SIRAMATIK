@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- Dışa Aktarma Kütüphaneleri -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
         :root {
             --admin-bg: #0f172a;
@@ -358,10 +362,53 @@
         .secondary-btn:hover {
             background: #475569;
         }
+
+        /* Loading Spinner */
+        #page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--admin-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(99, 102, 241, 0.1);
+            border-left-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loader-text {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
-<body>
+<body onload="init()">
+    <div id="page-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">VERİLER YÜKLENİYOR...</div>
+    </div>
 
     <aside class="sidebar">
         <div class="logo">
@@ -377,6 +424,9 @@
             <div class="nav-header">RAPORLAR</div>
             <a onclick="showView('istatistik')" class="nav-item" id="nav-istatistik">
                 <i class="fas fa-chart-line"></i> İstatistikler
+            </a>
+            <a onclick="showView('raporlar')" class="nav-item" id="nav-raporlar">
+                <i class="fas fa-file-invoice"></i> Raporlar
             </a>
 
             <div class="nav-header">TANIMLAR & AYARLAR</div>
@@ -406,7 +456,25 @@
 
     <main class="main-content">
         <header class="header-top">
-            <h1 id="view-title">Dashboard</h1>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h1 id="view-title">Dashboard</h1>
+                <div id="header-report-selector-container"
+                    style="display: none; align-items: center; gap: 10px; background: rgba(99, 102, 241, 0.1); padding: 5px 15px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                    <span
+                        style="font-size: 11px; color: var(--accent-secondary); font-weight: 700; white-space: nowrap;">RAPOR
+                        TÜRÜ:</span>
+                    <select id="header-report-type" class="action-btn" onchange="syncReportType(this.value)"
+                        style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; width: 440px; font-weight: 600; cursor: pointer;">
+                        <option value="transaction_log">Detaylı Hareket Listesi</option>
+                        <option value="staff_performance">Personel Performans Analizi</option>
+                        <option value="service_summary">Bölüm & Kuyruk Özeti</option>
+                        <option value="hourly_density">Saatlik Yoğunluk Analizi</option>
+                        <option value="waiting_seg">Bekleme Süresi Segmentasyonu</option>
+                        <option value="abandonment">Müşteri Kayıp/İptal Analizi</option>
+                        <option value="bonus_calc">Prim & Ödüllendirme Raporu</option>
+                    </select>
+                </div>
+            </div>
             <div class="user-profile">
                 <span id="admin-name">Yönetici</span>
                 <img src="https://ui-avatars.com/api/?name=Admin&background=6366f1&color=fff" alt="Profile">
@@ -421,8 +489,17 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">BÖLÜM:</span>
                         <select id="filter-servis-dashboard" class="action-btn"
-                            style="background: var(--admin-bg); width: 180px;" onchange="loadStats()">
+                            style="background: var(--admin-bg); width: 180px;"
+                            onchange="filterUsersByService('dashboard')">
                             <option value="">Tüm Bölümler</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">PERSONEL:</span>
+                        <select id="filter-user-dashboard" class="action-btn"
+                            style="background: var(--admin-bg); width: 180px;" onchange="loadStats()">
+                            <option value="">Tüm Personeller</option>
                         </select>
                     </div>
 
@@ -432,7 +509,7 @@
                             style="background: var(--admin-bg); width: 150px;" onchange="loadStats()">
                             <option value="hour">Günün Saatleri</option>
                             <option value="weekday">Haftanın Günleri</option>
-                            <option value="monthday">Ayın Günleri</option>
+                            <option value="monthday" selected>Ayın Günleri</option>
                             <option value="week">Yılın Haftaları</option>
                             <option value="month">Yılın Ayları</option>
                         </select>
@@ -445,7 +522,7 @@
                             onchange="handleTimeRangeChange('dashboard')">
                             <option value="today">Bugün</option>
                             <option value="this_week">Bu Hafta</option>
-                            <option value="this_month">Bu Ay</option>
+                            <option value="this_month" selected>Bu Ay</option>
                             <option value="this_year">Bu Yıl</option>
                             <option value="all_time">Tüm Zamanlar</option>
                             <option value="custom">Tarih Aralığı...</option>
@@ -513,8 +590,24 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">BÖLÜM:</span>
                         <select id="filter-servis-stats" class="action-btn"
-                            style="background: var(--admin-bg); width: 180px;" onchange="loadStats()">
+                            style="background: var(--admin-bg); width: 180px;" onchange="filterUsersByService('stats')">
                             <option value="">Tüm Bölümler</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">KUYRUK:</span>
+                        <select id="filter-kuyruk-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 150px;" onchange="loadStats()">
+                            <option value="">Tüm Kuyruklar</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">PERSONEL:</span>
+                        <select id="filter-user-stats" class="action-btn"
+                            style="background: var(--admin-bg); width: 180px;" onchange="loadStats()">
+                            <option value="">Tüm Personeller</option>
                         </select>
                     </div>
 
@@ -524,7 +617,7 @@
                             style="background: var(--admin-bg); width: 150px;" onchange="loadStats()">
                             <option value="hour">Günün Saatleri</option>
                             <option value="weekday">Haftanın Günleri</option>
-                            <option value="monthday">Ayın Günleri</option>
+                            <option value="monthday" selected>Ayın Günleri</option>
                             <option value="week">Yılın Haftaları</option>
                             <option value="month">Yılın Ayları</option>
                         </select>
@@ -537,7 +630,7 @@
                             onchange="handleTimeRangeChange('stats')">
                             <option value="today">Bugün</option>
                             <option value="this_week">Bu Hafta</option>
-                            <option value="this_month">Bu Ay</option>
+                            <option value="this_month" selected>Bu Ay</option>
                             <option value="this_year">Bu Yıl</option>
                             <option value="all_time">Tüm Zamanlar</option>
                             <option value="custom">Tarih Aralığı...</option>
@@ -606,6 +699,150 @@
             </div>
         </div>
 
+        <!-- RAPORLAR VIEW -->
+        <div id="view-raporlar" style="display: none;">
+            <!-- Gelişmiş Rapor Filtreleri -->
+            <div class="admin-section" style="margin-bottom: 24px; padding: 20px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                    <!-- Rapor Türü artık yukarıda Header'da -->
+
+                    <!-- Bölüm Seçimi -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">BÖLÜM:</span>
+                        <select id="report-filter-servis" class="action-btn"
+                            style="background: var(--admin-bg); width: 140px;"
+                            onchange="updateReportQueues(this.value)">
+                            <option value="">Tümü</option>
+                        </select>
+                    </div>
+
+                    <!-- Kuyruk Seçimi -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">KUYRUK:</span>
+                        <select id="report-filter-kuyruk" class="action-btn"
+                            style="background: var(--admin-bg); width: 120px;">
+                            <option value="">Tümü</option>
+                        </select>
+                    </div>
+
+                    <!-- Personel Seçimi -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">PERSONEL:</span>
+                        <select id="report-filter-user" class="action-btn"
+                            style="background: var(--admin-bg); width: 140px;">
+                            <option value="">Tümü</option>
+                        </select>
+                    </div>
+
+                    <!-- Zaman Seçimi -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">ZAMAN:</span>
+                        <select id="report-filter-range" class="action-btn"
+                            style="background: var(--admin-bg); width: 110px;"
+                            onchange="handleReportRangeChange(this.value)">
+                            <option value="today">Bugün</option>
+                            <option value="this_week">Bu Hafta</option>
+                            <option value="this_month" selected>Bu Ay</option>
+                            <option value="this_year">Bu Yıl</option>
+                            <option value="all_time">Tüm Zamanlar</option>
+                            <option value="custom">Özel...</option>
+                        </select>
+                    </div>
+
+                    <!-- Periyot Seçimi (YENİ - İstatistikten alındı) -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">DETAY:</span>
+                        <select id="report-filter-period" class="action-btn"
+                            style="background: var(--admin-bg); width: 130px;">
+                            <option value="hour">Günün Saatleri</option>
+                            <option value="weekday">Haftanın Günleri</option>
+                            <option value="monthday" selected>Ayın Günleri</option>
+                            <option value="week">Yılın Haftaları</option>
+                            <option value="month">Yılın Ayları</option>
+                        </select>
+                    </div>
+
+                    <!-- Özel Tarihler -->
+                    <div id="report-custom-dates" style="display: none; align-items: center; gap: 5px;">
+                        <input type="date" id="report-start-date" class="action-btn"
+                            style="background: var(--admin-bg); width: 130px; padding: 6px;">
+                        <span style="color:var(--text-muted)">-</span>
+                        <input type="date" id="report-end-date" class="action-btn"
+                            style="background: var(--admin-bg); width: 130px; padding: 6px;">
+                    </div>
+
+                    <!-- Sorgula Butonu -->
+                    <button onclick="runDetailedReport()" class="primary-btn"
+                        style="padding: 10px 25px; border-radius: 12px; height: 40px; margin-left: auto;">
+                        <i class="fas fa-search-dollar"></i> RAPORU OLUŞTUR
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rapor Özet Kartları -->
+            <div class="stats-grid" id="report-summary-cards"
+                style="grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; display: grid;">
+                <div class="stat-card" style="padding: 15px; background: rgba(255,255,255,0.02);">
+                    <div class="stat-label" style="font-size: 11px;">Toplam İşlem</div>
+                    <div id="rep-stat-total" class="stat-value" style="font-size: 24px;">0</div>
+                </div>
+                <div class="stat-card" style="padding: 15px; background: rgba(255,255,255,0.02);">
+                    <div class="stat-label" style="font-size: 11px;">Ort. Bekleme</div>
+                    <div id="rep-stat-wait" class="stat-value" style="font-size: 24px; color: #f59e0b;">0 <span
+                            style="font-size:12px">dk</span></div>
+                </div>
+                <div class="stat-card" style="padding: 15px; background: rgba(255,255,255,0.02);">
+                    <div class="stat-label" style="font-size: 11px;">Ort. İşlem</div>
+                    <div id="rep-stat-proc" class="stat-value" style="font-size: 24px; color: #3b82f6;">0 <span
+                            style="font-size:12px">dk</span></div>
+                </div>
+                <div class="stat-card" style="padding: 15px; background: rgba(255,255,255,0.02);">
+                    <div class="stat-label" style="font-size: 11px;">Max Bekleme</div>
+                    <div id="rep-stat-max" class="stat-value" style="font-size: 24px; color: #ef4444;">0 <span
+                            style="font-size:12px">dk</span></div>
+                </div>
+                <div class="stat-card" style="padding: 15px; background: rgba(255,255,255,0.02);">
+                    <div class="stat-label" style="font-size: 11px;">Verimlilik</div>
+                    <div id="rep-stat-efficiency" class="stat-value" style="font-size: 24px; color: #22c55e;">0 <span
+                            style="font-size:12px">is/saat</span></div>
+                </div>
+            </div>
+
+            <!-- Rapor Tablosu & Dışa Aktarma -->
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2 id="report-title-display">Rapor Sonuçları</h2>
+                    <div style="display:flex; gap: 10px;">
+                        <button onclick="exportToExcel()" class="action-btn"
+                            style="border-color: #22c55e; color: #22c55e;">
+                            <i class="fas fa-file-excel"></i> EXCEL
+                        </button>
+                        <button onclick="exportToPDF()" class="action-btn"
+                            style="border-color: #ef4444; color: #ef4444;">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="admin-table" id="detailed-report-table">
+                        <thead id="report-table-head">
+                            <tr id="report-header-row">
+                                <th>Veri Yükleniyor...</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body">
+                            <tr>
+                                <td colspan="10"
+                                    style="text-align:center; padding:50px; color:var(--text-muted); opacity: 0.5;">
+                                    Filtreleri seçin ve "RAPORU OLUŞTUR" butonuna basın.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- AYARLAR VIEW -->
         <div id="view-ayarlar" style="display: none;">
             <div class="admin-section">
@@ -626,7 +863,7 @@
                         <div class="form-group" style="margin-bottom: 20px;">
                             <label style="display:block; margin-bottom:8px; opacity:0.8;">Ekran Müdahale Şifresi
                                 (TV/Kiosk)</label>
-                            <input type="text" id="setting-firma-ekran-sifre" class="admin-input" required
+                            <input type="password" id="setting-firma-ekran-sifre" class="admin-input" required
                                 placeholder="Örn: 153624">
                             <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">TV
                                 ve Kiosk ekranlarında çark simgesine tıklandığında sorulacak şifredir.</small>
@@ -756,6 +993,18 @@
             <h2 id="service-modal-title">Bölüm Ekle/Düzenle</h2>
             <form id="service-form">
                 <input type="hidden" id="service-id">
+                <div class="filter-item">
+                    <label>Rapor Türü</label>
+                    <select id="report-filter-type">
+                        <option value="transaction_log">Detaylı Hareket Listesi</option>
+                        <option value="staff_performance">Personel Performans Analizi</option>
+                        <option value="service_summary">Bölüm & Kuyruk Özeti</option>
+                        <option value="hourly_density">Saatlik Yoğunluk Analizi</option>
+                        <option value="waiting_seg">Bekleme Süresi Segmentasyonu</option>
+                        <option value="abandonment">Müşteri Kayıp/İptal Analizi</option>
+                        <option value="bonus_calc">Prim & Ödüllendirme Raporu</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Bölüm Adı</label>
                     <input type="text" id="service-ad" required placeholder="Örn: Laboratuvar">
@@ -881,7 +1130,7 @@
                         </div>
                         <div class="form-group">
                             <label>Rol</label>
-                            <select id="user-rol" required>
+                            <select id="user-rol" required onchange="toggleUserFields(this.value)">
                                 <option value="staff">Personel (Staff)</option>
                                 <option value="dep_manager">Bölüm Yöneticisi</option>
                                 <option value="manager">Müdür</option>
@@ -895,16 +1144,21 @@
                     <!-- Sağ Kolon: Atama Bilgileri -->
                     <div class="form-column">
                         <div class="form-group">
-                            <label>Varsayılan Bölüm</label>
-                            <select id="user-servis-id" onchange="populateUserQueues(this.value)">
-                                <option value="">Bölüm Seçin (Opsiyonel)</option>
+                            <label>Çalışma Bölümleri (Çoklu Seçilebilir)</label>
+                            <select id="user-servis-id" multiple style="height: 100px;"
+                                onchange="updateUserQueuesFromSelection()">
+                                <option value="">Bölüm Seçin</option>
                             </select>
+                            <small style="color:var(--text-muted); font-size:11px;">Ctrl + Tıklayarak çoklu
+                                seçebilirsiniz</small>
                         </div>
                         <div class="form-group">
-                            <label>Varsayılan Kuyruk</label>
-                            <select id="user-kuyruk-id" onchange="populateUserLocations(this.value)">
+                            <label>Çalışma Kuyrukları (Çoklu Seçilebilir)</label>
+                            <select id="user-kuyruk-id" multiple style="height: 100px;">
                                 <option value="">Önce Bölüm Seçin</option>
                             </select>
+                            <small style="color:var(--text-muted); font-size:11px;">Hangi kuyruklarda bilet
+                                çağırabilir?</small>
                         </div>
                         <div class="form-group">
                             <label>Varsayılan Konum (Masa/Banko)</label>
@@ -968,7 +1222,7 @@
             if (nav) nav.classList.add('active');
 
             // İçerik gösterimi
-            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar', 'istatistik', 'ayarlar'];
+            const views = ['dashboard', 'cihazlar', 'servisler', 'kuyruklar', 'kullanicilar', 'istatistik', 'ayarlar', 'raporlar'];
             views.forEach(v => {
                 const el = document.getElementById('view-' + v);
                 if (el) el.style.display = 'none';
@@ -980,6 +1234,7 @@
                 const titleMap = {
                     'dashboard': 'Genel Bakış',
                     'istatistik': 'Detaylı İstatistikler',
+                    'raporlar': 'Raporlama Merkezi',
                     'cihazlar': 'Cihaz Yönetimi',
                     'servisler': 'Bölüm Tanımları',
                     'kuyruklar': 'Kuyruk Tanımları',
@@ -989,8 +1244,19 @@
                 document.getElementById('view-title').textContent = titleMap[viewId] || 'Yönetim Paneli';
             }
 
+            // Header Rapor Seçici Kontrolü
+            const headerReportSelector = document.getElementById('header-report-selector-container');
+            if (headerReportSelector) {
+                headerReportSelector.style.display = (viewId === 'raporlar') ? 'flex' : 'none';
+            }
+
             if (viewId === 'dashboard' || viewId === 'istatistik') loadStats();
             if (viewId === 'ayarlar') loadFirmaSettings();
+        }
+
+        function syncReportType(val) {
+            // Rapor türü değiştiğinde isterseniz otomatik tabloyu tazeleyebilirsiniz
+            // runDetailedReport(); 
         }
 
         async function loadFirmaSettings() {
@@ -999,7 +1265,21 @@
                 if (firma) {
                     document.getElementById('setting-firma-ad').value = firma.ad || '';
                     document.getElementById('setting-firma-sektor').value = firma.sektor || '';
-                    document.getElementById('setting-firma-ekran-sifre').value = firma.ekran_sifre || '153624';
+
+                    const passInput = document.getElementById('setting-firma-ekran-sifre');
+                    passInput.value = firma.ekran_sifre || '153624';
+
+                    if (firma.sifre_kilitli) {
+                        passInput.disabled = true;
+                        passInput.title = "Bu şifre Super Admin tarafından kilitlenmiştir.";
+                        passInput.style.opacity = "0.5";
+                        passInput.style.cursor = "not-allowed";
+                    } else {
+                        passInput.disabled = false;
+                        passInput.title = "";
+                        passInput.style.opacity = "1";
+                        passInput.style.cursor = "auto";
+                    }
                 }
             } catch (err) { console.error("Firma settings load error", err); }
         }
@@ -1023,7 +1303,15 @@
             }
         };
 
+        function showLoading() { document.getElementById('page-loader').style.display = 'flex'; }
+        function hideLoading() {
+            const loader = document.getElementById('page-loader');
+            loader.style.opacity = '0';
+            setTimeout(() => { loader.style.display = 'none'; }, 500);
+        }
+
         async function init() {
+            showLoading();
             try {
                 const user = JSON.parse(localStorage.getItem('user'));
                 if (!user || user.rol !== 'admin') {
@@ -1035,14 +1323,16 @@
 
                 await loadFirmaInfo();
                 await loadServices(); // Bölümleri önce yükle (Selectler için)
+                await loadQueues();   // Kuyrukları yükle (İsim eşleştirmeleri için)
+                await loadUsers();    // Personelleri yükle (Listeleme için)
 
                 // Diğerleri paralel yüklenip birbirini bloklamasın
                 try { await loadStats(); } catch (e) { console.error("Stats Error", e); }
                 try { await loadDevices(); } catch (e) { console.error("Devices Error", e); }
-                try { await loadQueues(); } catch (e) { console.error("Queues Error", e); }
-                try { await loadUsers(); } catch (e) { console.error("Users Error", e); }
 
+                hideLoading();
             } catch (err) {
+                hideLoading();
                 console.error(err);
                 alert("Panel yüklenirken hata oluştu: " + err.message);
                 window.location.href = 'personel.html';
@@ -1090,12 +1380,47 @@
         let hourlyChart = null;
         let serviceChart = null;
 
+        function filterUsersByService(suffix) {
+            const selectedServisId = document.getElementById(`filter-servis-${suffix}`)?.value;
+
+            // 1. Personelleri Filtrele
+            const uSelect = document.getElementById(`filter-user-${suffix}`);
+            if (uSelect) {
+                uSelect.innerHTML = '<option value="">Tüm Personeller</option>';
+                const filteredU = selectedServisId ? users.filter(u => u.servis_id == selectedServisId) : users;
+                filteredU.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = u.ad_soyad;
+                    uSelect.appendChild(opt);
+                });
+            }
+
+            // 2. Kuyrukları Filtrele (İstatistik sayfası için yeni)
+            const qSelect = document.getElementById(`filter-kuyruk-${suffix}`);
+            if (qSelect) {
+                qSelect.innerHTML = '<option value="">Tüm Kuyruklar</option>';
+                const filteredQ = selectedServisId ? queues.filter(q => q.servis_id == selectedServisId) : queues;
+                filteredQ.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = q.ad;
+                    qSelect.appendChild(opt);
+                });
+            }
+
+            // Verileri tazele
+            if (suffix === 'dashboard' || suffix === 'stats') loadStats();
+        }
+
         async function loadStats() {
             try {
                 const isStatsView = document.getElementById('view-istatistik').style.display === 'block';
                 const suffix = isStatsView ? 'stats' : 'dashboard';
 
                 const selectedServis = document.getElementById(`filter-servis-${suffix}`)?.value;
+                const selectedKuyruk = document.getElementById(`filter-kuyruk-${suffix}`)?.value; // YENİ
+                const selectedUser = document.getElementById(`filter-user-${suffix}`)?.value;
                 const period = document.getElementById(`filter-period-${suffix}`)?.value || 'hour';
                 const range = document.getElementById(`filter-range-${suffix}`)?.value || 'today';
                 const start = document.getElementById(`start-date-${suffix}`)?.value;
@@ -1103,6 +1428,8 @@
 
                 let url = `/admin/stats/${currentUser.firma_id}?period_type=${period}&time_range=${range}`;
                 if (selectedServis) url += `&servis_id=${selectedServis}`;
+                if (selectedKuyruk) url += `&kuyruk_id=${selectedKuyruk}`; // YENİ
+                if (selectedUser) url += `&kullanici_id=${selectedUser}`;
                 if (range === 'custom') {
                     if (start) url += `&start_date=${start}`;
                     if (end) url += `&end_date=${end}`;
@@ -1260,10 +1587,299 @@
             }
         }
 
+        // ============================================
+        // RAPORLAMA VE DIŞA AKTARMA MANTIĞI
+        // ============================================
+
+        function handleReportRangeChange(val) {
+            document.getElementById('report-custom-dates').style.display = (val === 'custom') ? 'flex' : 'none';
+        }
+
+        async function updateReportQueues(servisId) {
+            // 1. Kuyrukları Filtrele
+            const qSelect = document.getElementById('report-filter-kuyruk');
+            qSelect.innerHTML = '<option value="">Tümü</option>';
+
+            if (servisId && queues) {
+                const filteredQ = queues.filter(q => q.servis_id == servisId);
+                filteredQ.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = q.ad;
+                    qSelect.appendChild(opt);
+                });
+            }
+
+            // 2. Personelleri Filtrele
+            const uSelect = document.getElementById('report-filter-user');
+            if (uSelect) {
+                uSelect.innerHTML = '<option value="">Tümü</option>';
+                const filteredU = servisId ? users.filter(u => u.servis_id == servisId) : users;
+                filteredU.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = u.ad_soyad;
+                    uSelect.appendChild(opt);
+                });
+            }
+        }
+
+        async function runDetailedReport() {
+            const btn = document.querySelector('button[onclick="runDetailedReport()"]');
+            const type = document.getElementById('header-report-type').value;
+            const originalHtml = btn.innerHTML;
+
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> HAZIRLANIYOR...';
+
+                const servisId = document.getElementById('report-filter-servis').value;
+                const kuyrukId = document.getElementById('report-filter-kuyruk').value;
+                const userId = document.getElementById('report-filter-user').value;
+                const range = document.getElementById('report-filter-range').value;
+                const period = document.getElementById('report-filter-period').value; // YENİ
+                const start = document.getElementById('report-start-date').value;
+                const end = document.getElementById('report-end-date').value;
+
+                let url = `/admin/reports/${currentUser.firma_id}?report_type=${type}&time_range=${range}&period_type=${period}`;
+                if (servisId) url += `&servis_id=${servisId}`;
+                if (kuyrukId) url += `&kuyruk_id=${kuyrukId}`;
+                if (userId) url += `&kullanici_id=${userId}`;
+                if (range === 'custom') {
+                    if (start) url += `&start_date=${start}`;
+                    if (end) url += `&end_date=${end}`;
+                }
+
+                const result = await apiCall(url);
+                const { summary, data } = result;
+
+                // 1. Özet Kartlarını Güncelle
+                document.getElementById('rep-stat-total').textContent = summary.toplam_bilet || 0;
+                document.getElementById('rep-stat-wait').innerHTML = `${Math.round(summary.ort_bekleme || 0)} <span style="font-size:12px">dk</span>`;
+                document.getElementById('rep-stat-proc').innerHTML = `${Math.round(summary.ort_islem || 0)} <span style="font-size:12px">dk</span>`;
+
+                // 2. Tablo yapısını dinamik olarak kur
+                const thead = document.getElementById('report-header-row');
+                const titleDisp = document.getElementById('report-title-display');
+                const tbody = document.getElementById('report-table-body');
+
+                let headers = [];
+                let rowsHtml = "";
+
+                switch (type) {
+                    case 'transaction_log':
+                        titleDisp.innerText = "Detaylı Hareket Listesi";
+                        headers = ["Bilet No", "Bölüm", "Kuyruk", "Personel", "Sıra Saati", "Bekleme", "İşlem", "Durum"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.numara}</b></td>
+                                <td>${r.servis}</td>
+                                <td>${r.kuyruk}</td>
+                                <td>${r.personel || '-'}</td>
+                                <td>${r.saat}</td>
+                                <td style="color:#f59e0b;">${r.bekleme} dk</td>
+                                <td style="color:#3b82f6;">${r.islem} dk</td>
+                                <td><span class="status-badge" style="background:${r.durum === 'completed' ? '#22c55e' : (r.durum === 'calling' ? '#6366f1' : '#94a3b8')}; font-size:10px;">${r.durum.toUpperCase()}</span></td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'staff_performance':
+                        titleDisp.innerText = "Personel Performans Analizi";
+                        headers = ["Personel", "Top. İşlem", "Ort. İşlem Süresi", "En Uzun İşlem", "İptal Sayısı"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.personel}</b></td>
+                                <td>${r.toplam_islem} bilet</td>
+                                <td style="color:#3b82f6;">${r.ort_islem} dk</td>
+                                <td>${r.max_islem} dk</td>
+                                <td style="color:#ef4444;">${r.iptal_sayisi}</td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'service_summary':
+                        titleDisp.innerText = "Bölüm & Kuyruk Özeti";
+                        headers = ["Bölüm Adı", "Top. Bilet", "Tamamlanan", "Ort. Bekleme", "Geciken (>15dk)"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.servis}</b></td>
+                                <td>${r.toplam_bilet}</td>
+                                <td style="color:#22c55e;">${r.tamamlanan}</td>
+                                <td style="color:#f59e0b;">${r.ort_bekleme} dk</td>
+                                <td style="color:#ef4444;">${r.geciken_bilet}</td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'hourly_density':
+                        titleDisp.innerText = "Saatlik Yoğunluk Analizi";
+                        headers = ["Saat Aralığı", "Bilet Sayısı", "Hizmet Verilen", "Ort. Bekleme Süresi"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.saat_araligi}</b></td>
+                                <td>${r.bilet_sayisi}</td>
+                                <td style="color:#22c55e;">${r.hizmet_verilen}</td>
+                                <td style="color:#f59e0b;">${r.ort_bekleme} dk</td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'waiting_seg':
+                        titleDisp.innerText = "Bekleme Süresi Segmentasyonu";
+                        headers = ["Bekleme Grubu", "Bilet Sayısı", "Dağılım Oranı"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.bekleme_grubu}</b></td>
+                                <td>${r.bilet_sayisi}</td>
+                                <td style="font-weight:700; color:#6366f1;">%${r.yuzde}</td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'abandonment':
+                        titleDisp.innerText = "Müşteri Kayıp/İptal Analizi";
+                        headers = ["Bölüm", "Top. Bilet", "İptal", "Cevapsız", "Kayıp Oranı"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.servis}</b></td>
+                                <td>${r.toplam_bilet}</td>
+                                <td style="color:#f87171;">${r.iptal}</td>
+                                <td style="color:#fcd34d;">${r.cevapsiz}</td>
+                                <td style="color:#ef4444; font-weight:700;">%${r.kayip_orani}</td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'bonus_calc':
+                        titleDisp.innerText = "Prim & Ödüllendirme Raporu";
+                        headers = ["Personel", "İşlem Sayısı", "Ort. İşlem Hızı", "Performans Puanı"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.personel}</b></td>
+                                <td>${r.islem_sayisi}</td>
+                                <td style="color:#3b82f6;">${r.ort_islem_suresi} dk</td>
+                                <td style="font-weight:700; color:#10b981;">${r.performans_puani} Puan</td>
+                            </tr>
+                        `).join('');
+                        break;
+                }
+
+                // Headerları bas
+                thead.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+
+                // Datayı bas
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center; padding:50px;">Kriterlere uygun sonuç bulunamadı.</td></tr>`;
+                } else {
+                    tbody.innerHTML = rowsHtml;
+                }
+
+            } catch (err) {
+                console.error("Report error", err);
+                showToast("Rapor oluşturulurken bir hata oluştu.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // --- DIŞA AKTARMA ---
+
+        function exportToExcel() {
+            const table = document.getElementById("detailed-report-table");
+            if (!table || table.rows.length <= 2) {
+                showToast("Dışa aktarılacak veri bulunamadı.", "error");
+                return;
+            }
+
+            // Tablo verilerini diziye aktar (Türkçe karakter güvenliği için manuel çekim)
+            const rows = [];
+            const trs = table.querySelectorAll("tr");
+            trs.forEach(tr => {
+                const rowData = [];
+                const tds = tr.querySelectorAll("th, td");
+                tds.forEach(td => rowData.push(td.innerText.trim()));
+                rows.push(rowData);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Rapor");
+
+            // XLSX formatı Türkçe karakterleri (UTF-8) doğuştan destekler
+            XLSX.writeFile(wb, `Siramatik_Rapor_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        }
+
+        async function exportToPDF() {
+            const reportTable = document.getElementById("detailed-report-table");
+            if (!reportTable || reportTable.rows.length <= 2) {
+                showToast("Dışa aktarılacak veri bulunamadı.", "error");
+                return;
+            }
+
+            // PDF için geçici bir konteyner oluştur (Beyaz arka plan ve siyah yazılar için)
+            const wrapper = document.createElement('div');
+            wrapper.style.padding = '30px';
+            wrapper.style.background = '#ffffff';
+            wrapper.style.color = '#000000';
+            wrapper.style.fontFamily = 'Arial, sans-serif';
+
+            const title = document.createElement('h2');
+            title.innerText = "Sıramatik Detaylı İşlem Raporu";
+            title.style.margin = '0 0 10px 0';
+            title.style.color = '#0f172a';
+
+            const dateInfo = document.createElement('p');
+            dateInfo.innerText = `Rapor Tarihi: ${new Date().toLocaleString('tr-TR')}`;
+            dateInfo.style.margin = '0 0 20px 0';
+            dateInfo.style.fontSize = '12px';
+            dateInfo.style.color = '#64748b';
+
+            // Tabloyu kopyala ve stillerini PDF'e uygun düzenle
+            const tableClone = reportTable.cloneNode(true);
+            tableClone.style.width = '100%';
+            tableClone.style.borderCollapse = 'collapse';
+            tableClone.style.color = '#000000';
+            tableClone.style.fontSize = '10px';
+
+            const allCells = tableClone.querySelectorAll('th, td');
+            allCells.forEach(cell => {
+                cell.style.border = '1px solid #e2e8f0';
+                cell.style.padding = '8px';
+                cell.style.textAlign = 'left';
+            });
+
+            const headers = tableClone.querySelectorAll('th');
+            headers.forEach(th => {
+                th.style.background = '#f8fafc';
+                th.style.color = '#0f172a';
+            });
+
+            wrapper.appendChild(title);
+            wrapper.appendChild(dateInfo);
+            wrapper.appendChild(tableClone);
+
+            const opt = {
+                margin: [0.5, 0.5],
+                filename: `Siramatik_Rapor_${new Date().toISOString().slice(0, 10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+
+            // PDF oluştur ve yeni sekmede aç
+            html2pdf().set(opt).from(wrapper).output('blob').then(function (blob) {
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            });
+        }
+
         async function loadServices() {
             try {
                 services = await apiCall(`/servisler/${currentUser.firma_id}`);
                 renderServiceTable();
+                renderUserTable(); // Kullanıcı tablosundaki bölüm isimlerini güncelle
 
                 // Update selects
                 const dSelect = document.getElementById('edit-servis');
@@ -1271,8 +1887,9 @@
                 const uSelect = document.getElementById('user-servis-id');
                 const fDash = document.getElementById('filter-servis-dashboard');
                 const fStat = document.getElementById('filter-servis-stats');
+                const fReport = document.getElementById('report-filter-servis');
 
-                [dSelect, qSelect, uSelect, fDash, fStat].forEach(s => {
+                [dSelect, qSelect, uSelect, fDash, fStat, fReport].forEach(s => {
                     if (!s) return;
                     const first = s.options[0];
                     s.innerHTML = '';
@@ -1291,6 +1908,7 @@
             try {
                 queues = await apiCall(`/kuyruklar/firma/${currentUser.firma_id}`);
                 renderQueueTable();
+                renderUserTable(); // Kullanıcı tablosundaki kuyruk isimlerini güncelle
             } catch (err) { }
         }
 
@@ -1305,6 +1923,23 @@
             try {
                 users = await apiCall(`/admin/users/${currentUser.firma_id}`);
                 renderUserTable();
+
+                const uDash = document.getElementById('filter-user-dashboard');
+                const uStat = document.getElementById('filter-user-stats');
+                const uReport = document.getElementById('report-filter-user');
+
+                [uDash, uStat, uReport].forEach(s => {
+                    if (!s) return;
+                    const first = s.options[0];
+                    s.innerHTML = '';
+                    if (first) s.appendChild(first);
+                    users.forEach(u => {
+                        const opt = document.createElement('option');
+                        opt.value = u.id;
+                        opt.textContent = u.ad_soyad;
+                        s.appendChild(opt);
+                    });
+                });
             } catch (err) { console.error("Users load error", err); }
         }
 
@@ -1338,8 +1973,8 @@
                     <td style="color:#818cf8; font-family: monospace;">${u.kullanici_adi || '-'}</td>
                     <td style="color:var(--text-muted); font-size: 13px;">${u.email || '-'}</td>
                     <td><span class="status-badge" style="background:${getRoleColor(u.rol)}; color:white; font-size: 11px;">${getRoleLabel(u.rol)}</span></td>
-                    <td>${serviceUser ? serviceUser.ad : '<span style="color:var(--text-muted)">-</span>'}</td>
-                    <td style="font-size:13px; color:#94a3b8;">${qName}</td>
+                    <td>${u.servis_ids && u.servis_ids.length > 1 ? u.servis_ids.length + ' Bölüm' : (serviceUser ? serviceUser.ad : '<span style="color:var(--text-muted)">-</span>')}</td>
+                    <td style="font-size:13px; color:#94a3b8;">${u.kuyruk_ids && u.kuyruk_ids.length > 1 ? u.kuyruk_ids.length + ' Kuyruk' : qName}</td>
                     <td style="font-size:13px; color:#94a3b8;">${locName}</td>
                     <td><span class="status-badge" style="background:${u.aktif !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color:${u.aktif !== false ? '#10b981' : '#ef4444'};">${u.aktif !== false ? 'AKTİF' : 'PASİF'}</span></td>
                     <td>
@@ -1587,12 +2222,17 @@
 
                 document.getElementById('user-email').value = u.email || "";
                 document.getElementById('user-rol').value = u.rol;
-                document.getElementById('user-servis-id').value = u.servis_id || "";
-                document.getElementById('user-aktif').value = u.aktif !== false ? "true" : "false";
+                toggleUserFields(u.rol); // Rol durumuna göre güncelle
+                // Çoklu seçimleri ayarla
+                const sSelect = document.getElementById('user-servis-id');
+                const sIds = u.servis_ids || (u.servis_id ? [u.servis_id] : []);
+                Array.from(sSelect.options).forEach(opt => {
+                    if (sIds.includes(parseInt(opt.value))) opt.selected = true;
+                });
 
                 // Kuyrukları ve Konumları doldur
-                if (u.servis_id) {
-                    populateUserQueues(u.servis_id, u.varsayilan_kuyruk_id);
+                if (sIds.length > 0) {
+                    populateUserQueues(sIds, u.kuyruk_ids || (u.varsayilan_kuyruk_id ? [u.varsayilan_kuyruk_id] : []));
                     if (u.varsayilan_kuyruk_id) {
                         populateUserLocations(u.varsayilan_kuyruk_id, u.varsayilan_konum_id);
                     }
@@ -1601,6 +2241,9 @@
                 document.getElementById('user-modal-title').textContent = "Personel Düzenle";
             } else {
                 document.getElementById('user-modal-title').textContent = "Yeni Personel Ekle";
+                document.getElementById('user-rol').value = 'staff'; // Varsayılan
+                toggleUserFields('staff');
+
                 // Reset child selects
                 document.getElementById('user-kuyruk-id').innerHTML = '<option value="">Önce Bölüm Seçin</option>';
                 document.getElementById('user-konum-id').innerHTML = '<option value="">Önce Kuyruk Seçin</option>';
@@ -1608,25 +2251,61 @@
             document.getElementById('user-modal').style.display = 'flex';
         }
 
-        function populateUserQueues(servisId, selectedId = null) {
+
+
+        function updateUserQueuesFromSelection() {
+            const sSelect = document.getElementById('user-servis-id');
+            const selectedIds = Array.from(sSelect.selectedOptions).map(opt => parseInt(opt.value)).filter(v => !isNaN(v));
+            populateUserQueues(selectedIds);
+        }
+
+        function toggleUserFields(rol) {
+            const isStaff = (rol === 'staff');
+            const servisSelect = document.getElementById('user-servis-id');
+            const servisLabel = servisSelect.previousElementSibling;
+
+            if (isStaff) {
+                // Multi-select için required özelliği bazen kafa karıştırabilir ama kalsın
+                servisSelect.required = true;
+                servisLabel.innerHTML = 'Çalışma Bölümleri <span style="color:red">*</span>';
+                if (servisSelect.options[0] && !servisSelect.options[0].value)
+                    servisSelect.options[0].textContent = 'Bölüm Seçin (En az bir tane)';
+            } else {
+                servisSelect.required = false;
+                servisLabel.textContent = 'Gözlem Bölümleri (Opsiyonel)';
+                if (servisSelect.options[0] && !servisSelect.options[0].value)
+                    servisSelect.options[0].textContent = 'Bölüm Seçin (Opsiyonel)';
+            }
+        }
+
+        function populateUserQueues(servisIds, selectedIds = []) {
             const el = document.getElementById('user-kuyruk-id');
-            el.innerHTML = '<option value="">Seçiniz (Opsiyonel)</option>';
-            document.getElementById('user-konum-id').innerHTML = '<option value="">Önce Kuyruk Seçin</option>';
+            el.innerHTML = ''; // Temizle
 
-            if (!servisId) return;
+            if (!servisIds || (Array.isArray(servisIds) && servisIds.length === 0)) {
+                el.innerHTML = '<option value="">Önce Bölüm Seçin</option>';
+                return;
+            }
 
-            // queues global değişkenini kullan (sayfa açılışında doluyor)
-            // Servis ID string gelebilir, == kullan
-            const filtered = queues.filter(q => q.servis_id == servisId);
+            const sIdsArray = Array.isArray(servisIds) ? servisIds : [parseInt(servisIds)];
+            const sIdsSafe = sIdsArray.map(id => parseInt(id)).filter(id => !isNaN(id));
+
+            const filtered = queues.filter(q => sIdsSafe.includes(parseInt(q.servis_id)));
+
+            if (filtered.length === 0) {
+                el.innerHTML = '<option value="">Bu bölümlerde kuyruk bulunamadı</option>';
+                return;
+            }
+
+            const currentSelected = Array.isArray(selectedIds) ? selectedIds : (selectedIds ? [parseInt(selectedIds)] : []);
+
             filtered.forEach(q => {
                 const opt = document.createElement('option');
                 opt.value = q.id;
                 opt.textContent = `${q.kod} - ${q.ad}`;
-                if (selectedId && q.id == selectedId) opt.selected = true;
+                if (currentSelected.includes(q.id)) opt.selected = true;
                 el.appendChild(opt);
             });
-
-            // Eğer seçili kuyruk varsa konumları da güncelle (ama UI'da change tetiklenmez)
         }
 
         function populateUserLocations(queueId, selectedId = null) {
@@ -1705,13 +2384,21 @@
         document.getElementById('user-form').onsubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('user-id').value;
+            const sSelect = document.getElementById('user-servis-id');
+            const qSelect = document.getElementById('user-kuyruk-id');
+
+            const selectedServisIds = Array.from(sSelect.selectedOptions).map(o => parseInt(o.value)).filter(v => !isNaN(v));
+            const selectedKuyrukIds = Array.from(qSelect.selectedOptions).map(o => parseInt(o.value)).filter(v => !isNaN(v));
+
             const data = {
                 ad_soyad: document.getElementById('user-ad-soyad').value,
                 kullanici_adi: document.getElementById('user-kullanici-adi').value.trim() || null,
                 email: document.getElementById('user-email').value.trim() || null,
                 rol: document.getElementById('user-rol').value,
-                servis_id: document.getElementById('user-servis-id').value ? parseInt(document.getElementById('user-servis-id').value) : null,
-                varsayilan_kuyruk_id: document.getElementById('user-kuyruk-id').value ? parseInt(document.getElementById('user-kuyruk-id').value) : null,
+                servis_id: selectedServisIds[0] || null, // Geriye dönük uyumluluk
+                servis_ids: selectedServisIds,
+                varsayilan_kuyruk_id: selectedKuyrukIds[0] || null, // Geriye dönük uyumluluk
+                kuyruk_ids: selectedKuyrukIds,
                 varsayilan_konum_id: document.getElementById('user-konum-id').value ? parseInt(document.getElementById('user-konum-id').value) : null,
                 aktif: document.getElementById('user-aktif').value === "true"
             };
@@ -1769,8 +2456,15 @@
         }
 
         function logout() { localStorage.clear(); window.location.href = 'personel.html'; }
-        init();
-        setInterval(loadStats, 10000);
+        // init(); // Removed from here, added to body onload
+        // WebSocket Dinleyici
+        initWebSocket((data) => {
+            if (['new_ticket', 'call_ticket', 'complete_ticket', 'delete_ticket'].includes(data.type)) {
+                setTimeout(loadStats, 1000);
+            }
+        });
+
+
     </script>
 </body>
 

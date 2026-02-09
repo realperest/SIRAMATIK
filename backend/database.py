@@ -34,7 +34,7 @@ class Database:
         self.init_tables()
     
     def init_tables(self):
-        """Eksik tabloları oluştur"""
+        """Eksik tabloları oluştur ve kolonları güncelle"""
         self.execute_query("""
             CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
                 id SERIAL PRIMARY KEY,
@@ -46,13 +46,69 @@ class Database:
             );
         """)
         
-        # Kullanıcı tablosuna yeni kolonları ekle (Hata alsa da devam et - Kolon varsa hata verir)
+        # Firmalar tablosuna yeni kiralama ve kilit kolonlarını ekle
+        try:
+            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN sifre_kilitli BOOLEAN DEFAULT FALSE")
+        except: pass
+        
+        try:
+            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN sozlesme_bitis TIMESTAMP DEFAULT (NOW() + INTERVAL '1 year')")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN lisans_tipi VARCHAR(20) DEFAULT 'Kiralama'")
+        except: pass
+        
+        try:
+            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN max_cihaz INTEGER DEFAULT 10")
+        except: pass
+        
+        try:
+            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN notlar TEXT")
+        except: pass
         try:
             self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN varsayilan_kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL")
         except: pass
         
         try:
             self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN varsayilan_konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN servis_ids INTEGER[]")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN kuyruk_ids INTEGER[]")
+        except: pass
+
+        # --- YENİ EKLENEN OPERASYONEL KOLONLAR ---
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN durum VARCHAR(20) DEFAULT 'available'")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN mola_baslangic TIMESTAMP")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN mola_nedeni VARCHAR(50)")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN islem_baslangic TIMESTAMP")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN tamamlanma TIMESTAMP")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN cagirilma_sayisi INTEGER DEFAULT 1")
+        except: pass
+
+        try:
+            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN notlar TEXT")
         except: pass
     
     def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
@@ -88,14 +144,19 @@ class Database:
     def create_firma(self, data: Dict) -> Dict:
         """Yeni firma oluştur"""
         result = self.execute_query("""
-            INSERT INTO siramatik.firmalar (ad, sektor, ekran_sifre, aktif)
-            VALUES (:ad, :sektor, :ekran_sifre, :aktif)
+            INSERT INTO siramatik.firmalar (ad, sektor, ekran_sifre, aktif, sifre_kilitli, sozlesme_bitis, lisans_tipi, max_cihaz, notlar)
+            VALUES (:ad, :sektor, :ekran_sifre, :aktif, :sifre_kilitli, :sozlesme_bitis, :lisans_tipi, :max_cihaz, :notlar)
             RETURNING *
         """, {
             "ad": data.get("ad"),
             "sektor": data.get("sektor"),
             "ekran_sifre": data.get("ekran_sifre", "153624"),
-            "aktif": data.get("aktif", True)
+            "aktif": data.get("aktif", True),
+            "sifre_kilitli": data.get("sifre_kilitli", False),
+            "sozlesme_bitis": data.get("sozlesme_bitis"),
+            "lisans_tipi": data.get("lisans_tipi", "Kiralama"),
+            "max_cihaz": data.get("max_cihaz", 10),
+            "notlar": data.get("notlar", "")
         })
         return result[0] if result else None
 
@@ -121,11 +182,14 @@ class Database:
     # --- SERVİSLER ---
     
     def get_servisler(self, firma_id: int) -> List[Dict]:
-        """Firmaya ait servisleri getir"""
-        return self.execute_query(
-            "SELECT * FROM siramatik.servisler WHERE firma_id = :firma_id AND aktif = true ORDER BY ad",
-            {"firma_id": firma_id}
-        )
+        """Firmaya ait servisleri getir (Kuyruk sayıları ile birlikte)"""
+        return self.execute_query("""
+            SELECT s.*, 
+                   (SELECT COUNT(*) FROM siramatik.kuyruklar k WHERE k.servis_id = s.id AND k.aktif = true) as kuyruk_sayisi
+            FROM siramatik.servisler s 
+            WHERE s.firma_id = :firma_id AND s.aktif = true 
+            ORDER BY s.ad
+        """, {"firma_id": firma_id})
     
     def get_servis(self, servis_id: int) -> Optional[Dict]:
         """Servis bilgisini getir"""
@@ -163,17 +227,35 @@ class Database:
     # --- KUYRUKLAR ---
     
     def get_kuyruklar(self, servis_id: int) -> List[Dict]:
-        """Servise ait kuyrukları getir"""
-        queues = self.execute_query(
-            "SELECT * FROM siramatik.kuyruklar WHERE servis_id = :servis_id AND aktif = true ORDER BY oncelik DESC, kod",
-            {"servis_id": servis_id}
-        )
-        # Konumları ekle
+        """Servise ait kuyrukları getir (Bekleyen sayıları ile birlikte)"""
+        queues = self.execute_query("""
+            SELECT k.*, 
+                   (SELECT COUNT(*) FROM siramatik.siralar s 
+                    WHERE s.kuyruk_id = k.id AND s.durum = 'waiting' 
+                    AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+                   ) as bekleyen_sayisi
+            FROM siramatik.kuyruklar k 
+            WHERE k.servis_id = :servis_id AND k.aktif = true 
+            ORDER BY k.oncelik DESC, k.kod
+        """, {"servis_id": servis_id})
+        
+        if not queues:
+            return []
+            
+        # Toplu konum çekme (N+1 engelleme)
+        kuyruk_ids = [q['id'] for q in queues]
+        ids_str = ",".join(str(int(i)) for i in kuyruk_ids)
+        all_konumlar = self.execute_query(f"""
+            SELECT id, ad, aciklama, kuyruk_id 
+            FROM siramatik.kuyruk_konumlar 
+            WHERE kuyruk_id IN ({ids_str})
+            ORDER BY id
+        """)
+        
+        # Eşleştirme
         for q in queues:
-            q['konumlar'] = self.execute_query(
-                "SELECT id, ad, aciklama FROM siramatik.kuyruk_konumlar WHERE kuyruk_id = :kid ORDER BY id",
-                {"kid": q['id']}
-            )
+            q['konumlar'] = [kn for kn in all_konumlar if kn['kuyruk_id'] == q['id']]
+            
         return queues
     
     def get_kuyruk(self, kuyruk_id: int) -> Optional[Dict]:
@@ -318,6 +400,74 @@ class Database:
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
+        return result[0] if result else None
+
+    def islem_baslat(self, sira_id: int) -> Dict:
+        """Sıra işlemini başlat (Müşteri geldi)"""
+        result = self.execute_query("""
+            UPDATE siramatik.siralar 
+            SET durum = 'serving', islem_baslangic = NOW()
+            WHERE id = :sira_id
+            RETURNING *
+        """, {"sira_id": sira_id})
+        return result[0] if result else None
+
+    def tekrar_cagir(self, sira_id: int) -> Dict:
+        """Sırayı tekrar çağır (TV'de flaşlat)"""
+        result = self.execute_query("""
+            UPDATE siramatik.siralar 
+            SET cagirilma = NOW(), cagirilma_sayisi = cagirilma_sayisi + 1
+            WHERE id = :sira_id
+            RETURNING *
+        """, {"sira_id": sira_id})
+        return result[0] if result else None
+
+    def gelmedi_sira(self, sira_id: int) -> Dict:
+        """Sırayı gelmedi olarak işaretle"""
+        result = self.execute_query("""
+            UPDATE siramatik.siralar 
+            SET durum = 'skipped', tamamlanma = NOW()
+            WHERE id = :sira_id
+            RETURNING *
+        """, {"sira_id": sira_id})
+        return result[0] if result else None
+
+    def transfer_sira(self, sira_id: int, yeni_kuyruk_id: int, yeni_servis_id: int = None) -> Dict:
+        """Sırayı başka kuyruğa transfer et"""
+        # Önce mevcut bilet bilgisini al (oncelik vb korumak için?)
+        # Ama şimdilik sadece update
+        query = "UPDATE siramatik.siralar SET kuyruk_id = :yid, durum = 'waiting', cagirilma = NULL, cagiran_kullanici_id = NULL"
+        params = {"sira_id": sira_id, "yid": yeni_kuyruk_id}
+        if yeni_servis_id:
+            query += ", servis_id = :sid"
+            params["sid"] = yeni_servis_id
+        query += " WHERE id = :sira_id RETURNING *"
+        
+        result = self.execute_query(query, params)
+        return result[0] if result else None
+
+    def update_user_status(self, user_id: int, durum: str, mola_nedeni: str = None) -> Dict:
+        """Kullanıcı durumunu güncelle (Mola sistemi)"""
+        mola_baslangic = "NOW()" if durum != 'available' else "NULL"
+        result = self.execute_query(f"""
+            UPDATE siramatik.kullanicilar 
+            SET durum = :durum, 
+                mola_nedeni = :mola_nedeni,
+                mola_baslangic = {mola_baslangic}
+            WHERE id = :user_id
+            RETURNING *
+        """, {"user_id": user_id, "durum": durum, "mola_nedeni": mola_nedeni})
+        return result[0] if result else None
+
+    def update_sira_notlar(self, sira_id: int, notlar: str) -> Dict:
+        """Sıra notunu güncelle"""
+        result = self.execute_query("""
+            UPDATE siramatik.siralar 
+            SET notlar = :notlar 
+            WHERE id = :sira_id 
+            RETURNING *
+        """, {"sira_id": sira_id, "notlar": notlar})
+        return result[0] if result else None
     
     def get_son_cagrilar(self, firma_id: Any, limit: int = 5, servis_id: int = None) -> List[Dict]:
         """Ekran için son çağrıları getir"""
@@ -332,7 +482,7 @@ class Database:
             WHERE s.firma_id = :firma_id 
             AND s.durum = 'calling'
             AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
-            AND s.cagirilma > (NOW() - INTERVAL '10 minutes')
+            AND s.cagirilma > (NOW() - INTERVAL '20 minutes')
         """
         params = {"firma_id": firma_id, "limit": limit}
 
@@ -381,15 +531,16 @@ class Database:
     def create_user(self, email: Optional[str], ad_soyad: str, sifre_hash: str, 
                     firma_id: Optional[int], rol: str = 'staff', servis_id: int = None, 
                     varsayilan_kuyruk_id: int = None, varsayilan_konum_id: int = None,
-                    aktif: bool = True, kullanici_adi: str = None, ekran_ismi: str = None) -> Dict:
+                    aktif: bool = True, kullanici_adi: str = None, ekran_ismi: str = None,
+                    servis_ids: List[int] = None, kuyruk_ids: List[int] = None) -> Dict:
         """Yeni kullanıcı oluştur"""
         # Ekran ismi yoksa ad_soyad kullan
         if not ekran_ismi:
             ekran_ismi = ad_soyad
             
         result = self.execute_query("""
-            INSERT INTO siramatik.kullanicilar (email, ad_soyad, sifre_hash, firma_id, rol, servis_id, varsayilan_kuyruk_id, varsayilan_konum_id, aktif, kullanici_adi, ekran_ismi)
-            VALUES (:email, :ad_soyad, :sifre_hash, :firma_id, :rol, :servis_id, :varsayilan_kuyruk_id, :varsayilan_konum_id, :aktif, :kullanici_adi, :ekran_ismi)
+            INSERT INTO siramatik.kullanicilar (email, ad_soyad, sifre_hash, firma_id, rol, servis_id, varsayilan_kuyruk_id, varsayilan_konum_id, aktif, kullanici_adi, ekran_ismi, servis_ids, kuyruk_ids)
+            VALUES (:email, :ad_soyad, :sifre_hash, :firma_id, :rol, :servis_id, :varsayilan_kuyruk_id, :varsayilan_konum_id, :aktif, :kullanici_adi, :ekran_ismi, :servis_ids, :kuyruk_ids)
             RETURNING *
         """, {
             "email": email,
@@ -402,7 +553,9 @@ class Database:
             "varsayilan_konum_id": varsayilan_konum_id,
             "aktif": aktif,
             "kullanici_adi": kullanici_adi,
-            "ekran_ismi": ekran_ismi
+            "ekran_ismi": ekran_ismi,
+            "servis_ids": servis_ids,
+            "kuyruk_ids": kuyruk_ids
         })
         return result[0] if result else None
 
@@ -473,32 +626,69 @@ class Database:
             AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
         """, {"firma_id": firma_id})
         
+        # Ortalama İşlem Süresi (Bugün, Tamamlananlar)
+        sql_avg = """
+            SELECT AVG(EXTRACT(EPOCH FROM (tamamlanma - COALESCE(islem_baslangic, cagirilma)))) / 60 as ort_dk
+            FROM siramatik.siralar s
+            JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
+            JOIN siramatik.servisler sv ON k.servis_id = sv.id
+            WHERE sv.firma_id = :firma_id 
+            AND s.durum = 'completed'
+            AND s.tamamlanma IS NOT NULL
+            AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+        """
+        if kullanici_id:
+            sql_avg += " AND s.cagiran_kullanici_id = :kullanici_id"
+
+        res_avg = self.execute_query(sql_avg, parametreler)
+        
         return {
             "toplam": res_toplam[0]['sayi'] if res_toplam else 0,
-            "bekleyen": res_bekleyen[0]['sayi'] if res_bekleyen else 0
+            "bekleyen": res_bekleyen[0]['sayi'] if res_bekleyen else 0,
+            "ort_islem_dk": res_avg[0]['ort_dk'] if res_avg and res_avg[0]['ort_dk'] else 0
         }
         
     def get_kuyruklar_by_firma(self, firma_id: int) -> List[Dict]:
-        """Firmaya ait tüm kuyrukları getir"""
+        """Firmaya ait tüm kuyrukları getir (Bekleyen sayıları ile birlikte)"""
         queues = self.execute_query("""
-            SELECT k.*, sv.ad as servis_ad
+            SELECT k.*, sv.ad as servis_ad,
+                   (SELECT COUNT(*) FROM siramatik.siralar s 
+                    WHERE s.kuyruk_id = k.id AND s.durum = 'waiting' 
+                    AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+                   ) as bekleyen_sayisi
             FROM siramatik.kuyruklar k
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id
+            ORDER BY k.oncelik DESC, k.kod
         """, {"firma_id": int(firma_id)})
         
-        # Konumları ekle
+        if not queues:
+            return []
+            
+        # Toplu konum çekme (N+1 engelleme)
+        kuyruk_ids = [q['id'] for q in queues]
+        ids_str = ",".join(str(int(i)) for i in kuyruk_ids)
+        all_konumlar = self.execute_query(f"""
+            SELECT id, ad, aciklama, kuyruk_id 
+            FROM siramatik.kuyruk_konumlar 
+            WHERE kuyruk_id IN ({ids_str})
+            ORDER BY id
+        """)
+        
+        # Eşleştirme
         for q in queues:
-            q['konumlar'] = self.execute_query(
-                "SELECT id, ad, aciklama FROM siramatik.kuyruk_konumlar WHERE kuyruk_id = :kid ORDER BY id",
-                {"kid": q['id']}
-            )
+            q['konumlar'] = [kn for kn in all_konumlar if kn['kuyruk_id'] == q['id']]
+            
         return queues
         
     def get_servisler_by_firma(self, firma_id: str) -> List[Dict]:
-        """Firmaya ait servisleri getir"""
+        """Firmaya ait servisleri getir (Kuyruk sayıları ile birlikte)"""
         return self.execute_query("""
-            SELECT * FROM siramatik.servisler WHERE firma_id = :firma_id ORDER BY ad
+            SELECT s.*, 
+                   (SELECT COUNT(*) FROM siramatik.kuyruklar k WHERE k.servis_id = s.id AND k.aktif = true) as kuyruk_sayisi
+            FROM siramatik.servisler s 
+            WHERE s.firma_id = :firma_id 
+            ORDER BY s.ad
         """, {"firma_id": firma_id})
         
     def create_servis(self, firma_id: int, ad: str, kod: str = None, aciklama: str = None) -> Dict:
@@ -571,6 +761,7 @@ class Database:
     # --- İSTATİSTİKLER ---
 
     def get_firma_istatistikleri(self, firma_id: int, servis_id: Optional[int] = None, 
+                                 kullanici_id: Optional[int] = None,
                                  period_type: str = "hour", time_range: str = "today",
                                  start_date: str = None, end_date: str = None) -> Dict:
         """Firma istatistiklerini getir (Gelişmiş Zaman ve Periyot Filtreli)"""
@@ -599,7 +790,13 @@ class Database:
             service_filter = " AND s.servis_id = :servis_id"
             params["servis_id"] = servis_id
 
-        # 3. TEMEL SAYILAR (Kartlar için)
+        # 3. KULLANICI FİLTRESİ
+        user_filter = ""
+        if kullanici_id:
+            user_filter = " AND s.cagiran_kullanici_id = :kullanici_id"
+            params["kullanici_id"] = kullanici_id
+
+        # 4. TEMEL SAYILAR (Kartlar için)
         base_stats = self.execute_query(f"""
             SELECT 
                 COUNT(*) as toplam_sira,
@@ -610,7 +807,7 @@ class Database:
                 AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 END) as ort_bekleme_dk,
                 AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (tamamlanma - cagirilma))/60 END) as ort_islem_dk
             FROM siramatik.siralar s
-            WHERE s.firma_id = :firma_id {time_filter} {service_filter}
+            WHERE s.firma_id = :firma_id {time_filter} {service_filter} {user_filter}
         """, params)[0]
 
         # 4. PERİYOT GRUPLAMA (Grafik için)
@@ -638,7 +835,7 @@ class Database:
         periodic_raw = self.execute_query(f"""
             SELECT {group_sql} as label, COUNT(*) as adet
             FROM siramatik.siralar s
-            WHERE s.firma_id = :firma_id {time_filter} {service_filter}
+            WHERE s.firma_id = :firma_id {time_filter} {service_filter} {user_filter}
             GROUP BY label ORDER BY label
         """, params)
 
@@ -667,7 +864,7 @@ class Database:
         service_stats = self.execute_query(f"""
             SELECT ser.ad, COUNT(s.id) as adet
             FROM siramatik.servisler ser
-            LEFT JOIN siramatik.siralar s ON ser.id = s.servis_id {time_filter}
+            LEFT JOIN siramatik.siralar s ON ser.id = s.servis_id {time_filter} {user_filter}
             WHERE ser.firma_id = :firma_id {" AND ser.id = :servis_id" if servis_id else ""}
             GROUP BY ser.ad
         """, params)
@@ -677,7 +874,7 @@ class Database:
             SELECT s.id, s.numara, s.durum, to_char(s.olusturulma, 'DD.MM HH24:MI') as saat, ser.ad as servis_ad
             FROM siramatik.siralar s
             JOIN siramatik.servisler ser ON s.servis_id = ser.id
-            WHERE s.firma_id = :firma_id {time_filter} {service_filter}
+            WHERE s.firma_id = :firma_id {time_filter} {service_filter} {user_filter}
             ORDER BY s.olusturulma DESC LIMIT 10
         """, params)
 
@@ -688,6 +885,191 @@ class Database:
             "service_labels": [s['ad'] for s in service_stats if s['adet'] > 0],
             "service_data": [s['adet'] for s in service_stats if s['adet'] > 0],
             "recent_tickets": recent_tickets
+        }
+
+    def get_detailed_reports(self, firma_id: int, 
+                             report_type: str = "transaction_log",
+                             servis_id: Optional[int] = None,
+                             kuyruk_id: Optional[int] = None,
+                             kullanici_id: Optional[int] = None,
+                             time_range: str = "today",
+                             start_date: str = None, 
+                             end_date: str = None) -> Dict:
+        """Sektör Standartlarında BI Raporlama Motoru"""
+        params = {"firma_id": firma_id}
+        
+        # 1. ZAMAN FİLTRESİ (Dinamik)
+        time_filter = ""
+        if time_range == "today":
+            time_filter = " AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date"
+        elif time_range == "this_week":
+            time_filter = " AND s.olusturulma >= date_trunc('week', CURRENT_DATE)"
+        elif time_range == "this_month":
+            time_filter = " AND s.olusturulma >= date_trunc('month', CURRENT_DATE)"
+        elif time_range == "custom" and start_date:
+            time_filter = " AND s.olusturulma::date BETWEEN :start AND :end"
+            params["start"] = start_date
+            params["end"] = end_date or start_date
+
+        # 2. ESAS FİLTRELER
+        extra_filters = ""
+        if servis_id:
+            extra_filters += " AND s.servis_id = :servis_id"
+            params["servis_id"] = servis_id
+        if kuyruk_id:
+            extra_filters += " AND s.kuyruk_id = :kuyruk_id"
+            params["kuyruk_id"] = kuyruk_id
+        if kullanici_id:
+            extra_filters += " AND s.cagiran_kullanici_id = :kullanici_id"
+            params["kullanici_id"] = kullanici_id
+
+        # 3. RAPOR TİPİNE GÖRE SORGULAMA
+        data = []
+        summary_query = f"""
+            SELECT 
+                COUNT(*) as toplam_bilet,
+                COUNT(*) FILTER (WHERE durum = 'completed') as tamamlanan,
+                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 END) as ort_bekleme,
+                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (tamamlanma - cagirilma))/60 END) as ort_islem
+            FROM siramatik.siralar s
+            WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+        """
+        summary = self.execute_query(summary_query, params)[0]
+
+        if report_type == "transaction_log":
+            data = self.execute_query(f"""
+                SELECT s.numara, ser.ad as servis, k.ad as kuyruk, u.ad_soyad as personel, 
+                       to_char(s.olusturulma, 'HH24:MI') as saat, s.durum,
+                       ROUND(CAST(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60 AS NUMERIC), 1) as bekleme,
+                       ROUND(CAST(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60 AS NUMERIC), 1) as islem
+                FROM siramatik.siralar s
+                LEFT JOIN siramatik.servisler ser ON s.servis_id = ser.id
+                LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
+                LEFT JOIN siramatik.kullanicilar u ON s.cagiran_kullanici_id = u.id
+                WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                ORDER BY s.olusturulma DESC
+            """, params)
+
+        elif report_type == "staff_performance":
+            data = self.execute_query(f"""
+                SELECT u.ad_soyad as personel, 
+                       COUNT(*) as toplam_islem,
+                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60) AS NUMERIC), 1) as ort_islem,
+                       MAX(ROUND(CAST(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60 AS NUMERIC), 1)) as max_islem,
+                       COUNT(*) FILTER (WHERE durum = 'cancelled') as iptal_sayisi
+                FROM siramatik.siralar s
+                JOIN siramatik.kullanicilar u ON s.cagiran_kullanici_id = u.id
+                WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                GROUP BY u.ad_soyad ORDER BY toplam_islem DESC
+            """, params)
+
+        elif report_type == "service_summary":
+            data = self.execute_query(f"""
+                SELECT ser.ad as servis, 
+                       COUNT(*) as toplam_bilet,
+                       COUNT(*) FILTER (WHERE durum = 'completed') as tamamlanan,
+                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60) AS NUMERIC), 1) as ort_bekleme,
+                       COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60 > 15) as geciken_bilet
+                FROM siramatik.siralar s
+                JOIN siramatik.servisler ser ON s.servis_id = ser.id
+                WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                GROUP BY ser.ad ORDER BY toplam_bilet DESC
+            """, params)
+
+        elif report_type == "hourly_density":
+            data = self.execute_query(f"""
+                SELECT to_char(s.olusturulma, 'HH24:00') as saat_araligi, 
+                       COUNT(*) as bilet_sayisi,
+                       COUNT(*) FILTER (WHERE durum = 'completed') as hizmet_verilen,
+                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60) AS NUMERIC), 1) as ort_bekleme
+                FROM siramatik.siralar s
+                WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                GROUP BY saat_araligi ORDER BY saat_araligi
+            """, params)
+
+        elif report_type == "waiting_seg":
+            data = self.execute_query(f"""
+                SELECT CASE 
+                         WHEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 < 5 THEN '0-5 dk (Hızlı)'
+                         WHEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 < 15 THEN '5-15 dk (Normal)'
+                         WHEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 < 30 THEN '15-30 dk (Yoğun)'
+                         ELSE '30+ dk (Kritik)'
+                       END as bekleme_grubu,
+                       COUNT(*) as bilet_sayisi,
+                       ROUND(CAST(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() AS NUMERIC), 1) as yuzde
+                FROM siramatik.siralar s
+                WHERE s.firma_id = :firma_id AND s.durum = 'completed' {time_filter} {extra_filters}
+                GROUP BY bekleme_grubu
+            """, params)
+
+        elif report_type == "abandonment":
+            data = self.execute_query(f"""
+                SELECT ser.ad as servis, 
+                       COUNT(*) as toplam_bilet,
+                       COUNT(*) FILTER (WHERE durum = 'cancelled') as iptal,
+                       COUNT(*) FILTER (WHERE durum = 'calling' AND cagirilma < NOW() - INTERVAL '5 minutes') as cevapsiz,
+                       ROUND(CAST(COUNT(*) FILTER (WHERE durum = 'cancelled' OR durum = 'calling') * 100.0 / COUNT(*) AS NUMERIC), 1) as kayip_orani
+                FROM siramatik.siralar s
+                JOIN siramatik.servisler ser ON s.servis_id = ser.id
+                WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                GROUP BY ser.ad
+            """, params)
+
+        elif report_type == "bonus_calc":
+            data = self.execute_query(f"""
+                SELECT u.ad_soyad as personel, 
+                       COUNT(*) FILTER (WHERE durum = 'completed') as islem_sayisi,
+                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60) AS NUMERIC), 1) as ort_islem_suresi,
+                       ROUND(CAST(
+                           (COUNT(*) FILTER (WHERE durum = 'completed') * 10) - 
+                           (AVG(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60) * 2)
+                       AS NUMERIC), 0) as performans_puani
+                FROM siramatik.siralar s
+                JOIN siramatik.kullanicilar u ON s.cagiran_kullanici_id = u.id
+                WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                GROUP BY u.ad_soyad ORDER BY performans_puani DESC
+            """, params)
+
+        return {
+            "summary": summary,
+            "data": data,
+            "type": report_type
+        }
+
+    def get_my_ticket_status(self, sira_id: int):
+        # 1. Bilet bilgilerini al
+        ticket = self.execute_query("SELECT * FROM siramatik.siralar WHERE id = :id", {"id": sira_id})
+        if not ticket:
+            return None
+        
+        ticket = ticket[0]
+        
+        # 2. Önündeki kişi sayısını hesapla
+        # Aynı kuyrukta, waiting durumunda, önceliği daha yüksek olanlar
+        # Veya önceliği aynı olup daha önce oluşturulanlar
+        count = 0
+        if ticket["durum"] == "waiting":
+            res = self.execute_query("""
+                SELECT COUNT(*) as count
+                FROM siramatik.siralar
+                WHERE kuyruk_id = :kuyruk_id
+                  AND durum = 'waiting'
+                  AND (
+                      oncelik > :oncelik
+                      OR (oncelik = :oncelik AND olusturulma < :olusturulma)
+                  )
+            """, {
+                "kuyruk_id": ticket["kuyruk_id"],
+                "oncelik": ticket["oncelik"],
+                "olusturulma": ticket["olusturulma"]
+            })
+            count = res[0]["count"]
+            
+        return {
+            "sira_id": ticket["id"],
+            "numara": ticket["numara"],
+            "durum": ticket["durum"],
+            "bekleyen_sayisi": count
         }
 
 # Global database instance
