@@ -2,52 +2,31 @@
 Sıramatik - Ana FastAPI Uygulaması
 Kuyruk Yönetim Sistemi - Sektör Agnostik
 """
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import uvicorn
-from fastapi import WebSocket, WebSocketDisconnect
 import json
 import logging
+from datetime import datetime, timedelta, date
 
 from config import settings
 from database import db
 from auth import (
-    create_access_token,
-    verify_password,
-    get_password_hash,
-    get_current_active_user,
-    require_superadmin
+    create_access_token, verify_password, get_password_hash,
+    get_current_active_user, require_superadmin
 )
+# Models toplu import
 from models import (
-    LoginRequest,
-    TokenResponse,
-    SiraAlRequest,
-    SiraAlResponse,
-    SiraCagirRequest,
-    SiraResponse,
-    KuyrukResponse,
-    KuyrukCreateRequest,
-    ServisCreateRequest,
-    UserServisUpdateRequest,
-    ServisResponse,
-    ServisCreateRequest,
-    EkranCagriResponse,
-    ManuelSiraRequest,
-    IstatistikResponse,
-    DeviceResponse,
-    DeviceUpdateRequest,
-    DeviceHeartbeatRequest,
-    UserResponse,
-    UserCreateRequest,
-    UserUpdateRequest,
-    UserStatusUpdateRequest,
-    SiraTransferRequest,
-    SiraNotlarRequest
+    LoginRequest, TokenResponse,
+    SiraAlRequest, SiraAlResponse, SiraCagirRequest, SiraResponse,
+    KuyrukResponse, KuyrukCreateRequest, ServisCreateRequest,
+    UserServisUpdateRequest, ServisResponse, EkranCagriResponse,
+    ManuelSiraRequest, IstatistikResponse,
+    DeviceResponse, DeviceUpdateRequest, DeviceHeartbeatRequest,
+    UserResponse, UserCreateRequest, UserUpdateRequest, UserStatusUpdateRequest,
+    SiraTransferRequest, SiraNotlarRequest
 )
-from datetime import datetime, timedelta, date
-import json
-import logging
 
 # --- WEBSOCKET MANAGER ---
 class ConnectionManager:
@@ -91,10 +70,10 @@ app = FastAPI(
     description="Queue Management System API - Sector Agnostic"
 )
 
-# CORS middleware
+# CORS middleware - Tüm originlere izin ver (mobil ve farklı portlar için)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origin_regex=r".*",  # Tüm originlere izin ver
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -494,6 +473,13 @@ async def delete_user(user_id: int, current_user: dict = Depends(get_current_act
     return {"message": "Kullanıcı silindi"}
 
 
+@app.get("/api/sira/active-ticket")
+async def get_my_active_ticket(current_user: dict = Depends(get_current_active_user)):
+    """Personelin şu anki aktif işlemini getir"""
+    sira = db.get_active_sira_by_user(current_user["id"])
+    if not sira: return {"active": False}
+    return {"active": True, "sira": sira}
+
 @app.post("/api/sira/cagir/{sira_id}")
 async def sira_cagir(
     sira_id: int,
@@ -533,6 +519,10 @@ async def sira_tamamla(sira_id: int, current_user: dict = Depends(get_current_ac
     try:
         sira = db.tamamla_sira(sira_id)
         if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        
+        # WS Bildirim: Tamamlandı
+        await manager.broadcast({"type": "complete_ticket", "sira": sira})
+        
         return {"success": True, "mesaj": "İşlem tamamlandı", "sira": sira}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -554,6 +544,10 @@ async def sira_islem_baslat(sira_id: int, current_user: dict = Depends(get_curre
     try:
         sira = db.islem_baslat(sira_id)
         if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        
+        # WS Bildirim: İşlem Başladı
+        await manager.broadcast({"type": "start_ticket", "sira": sira})
+        
         return {"success": True, "sira": sira}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -563,6 +557,10 @@ async def sira_gelmedi(sira_id: int, current_user: dict = Depends(get_current_ac
     try:
         sira = db.gelmedi_sira(sira_id)
         if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
+        
+        # WS Bildirim: Gelmedi / İptal
+        await manager.broadcast({"type": "cancel_ticket", "sira": sira})
+        
         return {"success": True, "sira": sira}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -785,6 +783,7 @@ async def admin_reports(
     servis_id: Optional[int] = None,
     kuyruk_id: Optional[int] = None,
     kullanici_id: Optional[int] = None,
+    group_by: Optional[str] = None,
     time_range: str = "today",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -797,10 +796,12 @@ async def admin_reports(
         servis_id=servis_id,
         kuyruk_id=kuyruk_id,
         kullanici_id=kullanici_id,
+        group_by=group_by,
         time_range=time_range,
         start_date=start_date,
         end_date=end_date
     )
+@app.post("/api/admin/cihaz/bildir")
 async def cihaz_bildir(request: DeviceHeartbeatRequest):
     """Cihazdan gelen nabız sinyali"""
     cihaz = db.cihaz_bildir(request.firma_id, request.ad, request.tip, request.mac, request.metadata)
@@ -908,6 +909,47 @@ async def delete_kuyruk(
     current_user: dict = Depends(get_current_active_user)
 ):
     return db.delete_kuyruk(kuyruk_id)
+
+
+
+# ============================================
+# KIOSK INIT (HIZLANDIRMA)
+# ============================================
+
+@app.get("/api/kiosk/init/{firma_id}")
+async def kiosk_init(firma_id: int):
+    """Kiosk için tek seferde tüm gerekli verileri döndürür"""
+    try:
+        firma = db.get_firma(firma_id)
+        if not firma:
+            return {
+                "firma": None, 
+                "error": "Firma bulunamadı",
+                "servisler": [],
+                "kuyruklar": [],
+                "config": {}
+            }
+        
+        servisler = db.get_servisler(firma_id)
+        kuyruklar = db.get_kuyruklar(firma_id)
+        
+        return {
+            "firma": firma,
+            "servisler": servisler,
+            "kuyruklar": kuyruklar,
+            "config": {
+                "host_ip": "localhost",
+                "port": 3000
+            }
+        }
+    except Exception as e:
+        logging.error(f"Kiosk Init Error: {e}")
+        return {
+            "error": str(e),
+            "firma": None,
+            "servisler": [],
+            "kuyruklar": []
+        }
 
 
 # ============================================

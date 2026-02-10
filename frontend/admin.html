@@ -421,12 +421,40 @@
                 <i class="fas fa-home"></i> Dashboard
             </a>
 
-            <div class="nav-header">RAPORLAR</div>
+            <div class="nav-header">STANDART ANALİZ</div>
             <a onclick="showView('istatistik')" class="nav-item" id="nav-istatistik">
-                <i class="fas fa-chart-line"></i> İstatistikler
+                <i class="fas fa-chart-line"></i> Temel İstatistikler
             </a>
             <a onclick="showView('raporlar')" class="nav-item" id="nav-raporlar">
-                <i class="fas fa-file-invoice"></i> Raporlar
+                <i class="fas fa-file-invoice"></i> Klasik Raporlar
+            </a>
+
+            <div class="nav-header">PROFESYONEL ANALİZ (PRO)</div>
+            <a href="pivot_pro.html" class="nav-item pro-feature" target="_blank">
+                <i class="fas fa-layer-group"></i> Gelişmiş Pivot (Pro)
+            </a>
+            <a href="bi_pro.html" class="nav-item pro-feature" target="_blank">
+                <i class="fas fa-object-group"></i> BI Studio (Pro)
+            </a>
+            <a href="smart_table.html" class="nav-item pro-feature" target="_blank">
+                <i class="fas fa-table"></i> Akıllı Veri Tablosu
+            </a>
+            <a href="olap_analysis.html" class="nav-item pro-feature" target="_blank">
+                <i class="fas fa-project-diagram"></i> Kurumsal Analiz (OLAP)
+            </a>
+            <a href="executive_bi.html" class="nav-item pro-feature" target="_blank">
+                <i class="fas fa-crown"></i> Yönetici Analiz Merkezi (Master Pro)
+            </a>
+            <a href="advanced_analysis.html" class="nav-item pro-feature" target="_blank">
+                <i class="fas fa-microchip"></i> Veri Madenciliği Merkezi
+            </a>
+            <a href="ag_grid_analysis.html" class="nav-item pro-feature" target="_blank"
+                style="background: rgba(16, 185, 129, 0.1);">
+                <i class="fas fa-grid-2"></i> AG-Grid Enterprise Analiz
+            </a>
+            <a href="perspective_analysis.html" class="nav-item pro-feature" target="_blank"
+                style="background: rgba(56, 189, 248, 0.1);">
+                <i class="fas fa-project-diagram"></i> Perspective BI Explorer
             </a>
 
             <div class="nav-header">TANIMLAR & AYARLAR</div>
@@ -463,9 +491,10 @@
                     <span
                         style="font-size: 11px; color: var(--accent-secondary); font-weight: 700; white-space: nowrap;">RAPOR
                         TÜRÜ:</span>
-                    <select id="header-report-type" class="action-btn" onchange="syncReportType(this.value)"
+                    <select id="header-report-type" class="action-btn"
+                        onchange="syncReportType(this.value); runDetailedReport(true);"
                         style="background: #1e293b; color: #f8fafc; border: 1px solid #334155; width: 440px; font-weight: 600; cursor: pointer;">
-                        <option value="transaction_log">Detaylı Hareket Listesi</option>
+                        <option value="transaction_log">HAREKETLER RAPORU</option>
                         <option value="staff_performance">Personel Performans Analizi</option>
                         <option value="service_summary">Bölüm & Kuyruk Özeti</option>
                         <option value="hourly_density">Saatlik Yoğunluk Analizi</option>
@@ -720,7 +749,7 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">KUYRUK:</span>
                         <select id="report-filter-kuyruk" class="action-btn"
-                            style="background: var(--admin-bg); width: 120px;">
+                            style="background: var(--admin-bg); width: 120px;" onchange="runDetailedReport(true)">
                             <option value="">Tümü</option>
                         </select>
                     </div>
@@ -729,7 +758,7 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">PERSONEL:</span>
                         <select id="report-filter-user" class="action-btn"
-                            style="background: var(--admin-bg); width: 140px;">
+                            style="background: var(--admin-bg); width: 140px;" onchange="runDetailedReport(true)">
                             <option value="">Tümü</option>
                         </select>
                     </div>
@@ -739,7 +768,7 @@
                         <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">ZAMAN:</span>
                         <select id="report-filter-range" class="action-btn"
                             style="background: var(--admin-bg); width: 110px;"
-                            onchange="handleReportRangeChange(this.value)">
+                            onchange="handleReportRangeChange(this.value); runDetailedReport(true)">
                             <option value="today">Bugün</option>
                             <option value="this_week">Bu Hafta</option>
                             <option value="this_month" selected>Bu Ay</option>
@@ -753,7 +782,7 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">DETAY:</span>
                         <select id="report-filter-period" class="action-btn"
-                            style="background: var(--admin-bg); width: 130px;">
+                            style="background: var(--admin-bg); width: 130px;" onchange="runDetailedReport(true)">
                             <option value="hour">Günün Saatleri</option>
                             <option value="weekday">Haftanın Günleri</option>
                             <option value="monthday" selected>Ayın Günleri</option>
@@ -762,13 +791,28 @@
                         </select>
                     </div>
 
+                    <!-- Gruplama Seçimi -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">GRUPLAMA:</span>
+                        <select id="report-filter-groupby" class="action-btn"
+                            style="background: var(--admin-bg); width: 130px;" onchange="runDetailedReport(true)">
+                            <option value="">Yok (Düz Liste)</option>
+                            <option value="personel">Personel Bazlı</option>
+                            <option value="servis">Bölüm Bazlı</option>
+                            <option value="kuyruk">Kuyruk Bazlı</option>
+                            <option value="tarih">Tarih Bazlı</option>
+                        </select>
+                    </div>
+
                     <!-- Özel Tarihler -->
                     <div id="report-custom-dates" style="display: none; align-items: center; gap: 5px;">
                         <input type="date" id="report-start-date" class="action-btn"
-                            style="background: var(--admin-bg); width: 130px; padding: 6px;">
+                            style="background: var(--admin-bg); width: 130px; padding: 6px;"
+                            onchange="runDetailedReport(true)">
                         <span style="color:var(--text-muted)">-</span>
                         <input type="date" id="report-end-date" class="action-btn"
-                            style="background: var(--admin-bg); width: 130px; padding: 6px;">
+                            style="background: var(--admin-bg); width: 130px; padding: 6px;"
+                            onchange="runDetailedReport(true)">
                     </div>
 
                     <!-- Sorgula Butonu -->
@@ -1251,6 +1295,7 @@
             }
 
             if (viewId === 'dashboard' || viewId === 'istatistik') loadStats();
+            if (viewId === 'raporlar') runDetailedReport(true);
             if (viewId === 'ayarlar') loadFirmaSettings();
         }
 
@@ -1598,16 +1643,18 @@
         async function updateReportQueues(servisId) {
             // 1. Kuyrukları Filtrele
             const qSelect = document.getElementById('report-filter-kuyruk');
-            qSelect.innerHTML = '<option value="">Tümü</option>';
+            if (qSelect) {
+                qSelect.innerHTML = '<option value="">Tümü</option>';
 
-            if (servisId && queues) {
-                const filteredQ = queues.filter(q => q.servis_id == servisId);
-                filteredQ.forEach(q => {
-                    const opt = document.createElement('option');
-                    opt.value = q.id;
-                    opt.textContent = q.ad;
-                    qSelect.appendChild(opt);
-                });
+                if (servisId && queues) {
+                    const filteredQ = queues.filter(q => q.servis_id == servisId);
+                    filteredQ.forEach(q => {
+                        const opt = document.createElement('option');
+                        opt.value = q.id;
+                        opt.textContent = q.ad;
+                        qSelect.appendChild(opt);
+                    });
+                }
             }
 
             // 2. Personelleri Filtrele
@@ -1622,22 +1669,28 @@
                     uSelect.appendChild(opt);
                 });
             }
+
+            // CANLI SÜZGEÇ: Otomatik Raporla
+            runDetailedReport(true);
         }
 
-        async function runDetailedReport() {
+        async function runDetailedReport(isLive = false) {
             const btn = document.querySelector('button[onclick="runDetailedReport()"]');
             const type = document.getElementById('header-report-type').value;
             const originalHtml = btn.innerHTML;
 
             try {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> HAZIRLANIYOR...';
+                if (!isLive) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> HAZIRLANIYOR...';
+                }
 
                 const servisId = document.getElementById('report-filter-servis').value;
                 const kuyrukId = document.getElementById('report-filter-kuyruk').value;
                 const userId = document.getElementById('report-filter-user').value;
                 const range = document.getElementById('report-filter-range').value;
-                const period = document.getElementById('report-filter-period').value; // YENİ
+                const period = document.getElementById('report-filter-period').value;
+                const groupBy = document.getElementById('report-filter-groupby').value; // YENİ
                 const start = document.getElementById('report-start-date').value;
                 const end = document.getElementById('report-end-date').value;
 
@@ -1645,6 +1698,7 @@
                 if (servisId) url += `&servis_id=${servisId}`;
                 if (kuyrukId) url += `&kuyruk_id=${kuyrukId}`;
                 if (userId) url += `&kullanici_id=${userId}`;
+                if (groupBy) url += `&group_by=${groupBy}`; // YENİ
                 if (range === 'custom') {
                     if (start) url += `&start_date=${start}`;
                     if (end) url += `&end_date=${end}`;
@@ -1668,7 +1722,7 @@
 
                 switch (type) {
                     case 'transaction_log':
-                        titleDisp.innerText = "Detaylı Hareket Listesi";
+                        titleDisp.innerText = "HAREKETLER RAPORU";
                         headers = ["Bilet No", "Bölüm", "Kuyruk", "Personel", "Sıra Saati", "Bekleme", "İşlem", "Durum"];
                         rowsHtml = data.map(r => `
                             <tr>
@@ -1760,6 +1814,20 @@
                                 <td>${r.islem_sayisi}</td>
                                 <td style="color:#3b82f6;">${r.ort_islem_suresi} dk</td>
                                 <td style="font-weight:700; color:#10b981;">${r.performans_puani} Puan</td>
+                            </tr>
+                        `).join('');
+                        break;
+
+                    case 'grouped':
+                        titleDisp.innerText = (result.group_label || "Grup") + " Bazlı Özet Rapor";
+                        headers = [result.group_label || "Grup", "Top. Bilet", "Tamamlanan", "Ort. Bekleme", "Ort. İşlem"];
+                        rowsHtml = data.map(r => `
+                            <tr>
+                                <td><b>${r.grup}</b></td>
+                                <td>${r.adet} bilet</td>
+                                <td style="color:#22c55e;">${r.tamamlanan}</td>
+                                <td style="color:#f59e0b;">${r.ort_bekleme} dk</td>
+                                <td style="color:#3b82f6;">${r.ort_islem} dk</td>
                             </tr>
                         `).join('');
                         break;

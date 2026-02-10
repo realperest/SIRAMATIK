@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yönetici Analiz Merkezi (Master Pro) - Sıramatik</title>
+
+    <!-- Premium UI Stack -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Libraries -->
+    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_modern.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg-deep: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .dashboard-container {
+            display: grid;
+            grid-template-areas:
+                "header header"
+                "sidebar content";
+            grid-template-columns: 280px 1fr;
+            height: 100vh;
+        }
+
+        /* Header */
+        header {
+            grid-area: header;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 30px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Sidebar */
+        aside {
+            grid-area: sidebar;
+            padding: 25px;
+            background: rgba(15, 23, 42, 0.4);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        select,
+        input {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        select:focus,
+        input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Main Content */
+        main {
+            grid-area: content;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        /* KPI Cards */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .kpi-card .val {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0;
+            display: block;
+        }
+
+        .kpi-card .label {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .kpi-card i {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 24px;
+            opacity: 0.3;
+        }
+
+        /* Visualizations */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        /* Table Area */
+        .table-section {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-action {
+            background: #334155;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-action:hover {
+            background: #475569;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Tabulator Customizing */
+        .tabulator {
+            background: transparent !important;
+            border: none !important;
+            color: var(--text-main) !important;
+        }
+
+        .tabulator-header {
+            background: transparent !important;
+            border-bottom: 2px solid var(--border) !important;
+        }
+
+        .tabulator-col {
+            background: transparent !important;
+            border-right: none !important;
+        }
+
+        .tabulator-row {
+            background: transparent !important;
+            border-bottom: 1px solid var(--border) !important;
+        }
+
+        .tabulator-row:hover {
+            background: rgba(255, 255, 255, 0.03) !important;
+        }
+
+        .tabulator-footer {
+            background: transparent !important;
+            border-top: 2px solid var(--border) !important;
+            color: var(--text-dim) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-crown"></i> Yönetici Analiz Merkezi
+            </div>
+            <div style="display: flex; gap: 15px; align-items:center;">
+                <span id="currentTime" style="color: var(--text-dim); font-size: 13px;"></span>
+                <button class="btn-action" onclick="window.close()"><i class="fas fa-times"></i> Kapat</button>
+            </div>
+        </header>
+
+        <aside>
+            <div class="filter-group">
+                <label>Veri Zaman Aralığı</label>
+                <select id="timeRange" onchange="loadMasterData()">
+                    <option value="today">Bugün (Canlı)</option>
+                    <option value="this_week">Bu Hafta</option>
+                    <option value="this_month" selected>Bu Ay</option>
+                    <option value="this_year">Bu Yıl</option>
+                    <option value="all_time">Tüm Kayıtlar</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Canlı Yenileme</label>
+                <select id="autoRefresh">
+                    <option value="0">Yenileme Kapalı</option>
+                    <option value="30">30 Saniyede Bir</option>
+                    <option value="60">1 Dakikada Bir</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Hızlı Süzme</label>
+                <input type="text" id="globalSearch" placeholder="Herhangi bir veri ara..."
+                    oninput="applyGlobalSearch()">
+            </div>
+
+            <div style="margin-top:auto; padding:15px; background: rgba(99, 102, 241, 0.1); border-radius: 12px;">
+                <p style="font-size: 11px; color: var(--text-dim); line-height: 1.5;">
+                    <i class="fas fa-info-circle"></i> Bu panel, kurumun tüm verilerini anlık olarak analiz eder ve
+                    yönetici seviyesinde raporlar sunar.
+                </p>
+            </div>
+        </aside>
+
+        <main>
+            <!-- KPI Cards -->
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <i class="fas fa-ticket-alt"></i>
+                    <span class="label">Toplam İşlem</span>
+                    <span class="val" id="kpi-total">0</span>
+                    <span style="color: #4ade80; font-size: 12px;"><i class="fas fa-arrow-up"></i> %12.4</span>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-clock"></i>
+                    <span class="label">Ort. Bekleme</span>
+                    <span class="val" id="kpi-wait">0 dk</span>
+                    <span style="color: #f87171; font-size: 12px;"><i class="fas fa-arrow-up"></i> 1.2 dk</span>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-user-check"></i>
+                    <span class="label">Tamamlanan</span>
+                    <span class="val" id="kpi-done">0</span>
+                    <span style="color: #4ade80; font-size: 12px;"><i class="fas fa-check"></i> %98.2 Başarı</span>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-hourglass-start"></i>
+                    <span class="label">Bekleyen Sıra</span>
+                    <span class="val" id="kpi-queue">0</span>
+                    <span style="color: var(--text-dim); font-size: 12px;">Anlık Durum</span>
+                </div>
+            </div>
+
+            <!-- Visualizations -->
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                        <h3 style="margin:0; font-size: 16px;">Performans Trendi</h3>
+                        <select id="chartType" onchange="updateMainChart()" style="padding:4px 8px; font-size:11px;">
+                            <option value="line">Çizgi Grafik</option>
+                            <option value="bar">Sütun Grafik</option>
+                        </select>
+                    </div>
+                    <div style="height: 300px; width: 100%;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3 style="margin:0 0 20px 0; font-size: 16px;">Durum Dağılımı</h3>
+                    <div style="height: 300px; width: 100%;">
+                        <canvas id="statsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h3 style="margin:0; font-size: 18px;">Ayrıntılı İşlem Günlüğü</h3>
+                    <div class="export-buttons">
+                        <button class="btn-action" onclick="exportData('xlsx')"><i class="fas fa-file-excel"
+                                style="color:#22c55e"></i> Excel (.xlsx)</button>
+                        <button class="btn-action" onclick="exportData('pdf')"><i class="fas fa-file-pdf"
+                                style="color:#ef4444"></i> PDF Rapor</button>
+                        <button class="btn-action" onclick="window.print()"><i class="fas fa-print"></i> Yazdır</button>
+                    </div>
+                </div>
+                <div id="master-table"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+        let masterTable = null;
+        let mainChart = null;
+        let statsChart = null;
+        let rawData = [];
+        let currentUser = JSON.parse(localStorage.getItem('user'));
+
+        function initDashboard() {
+            // Update Time
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('currentTime').textContent = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+            }, 1000);
+
+            // Init Table
+            masterTable = new Tabulator("#master-table", {
+                height: "400px",
+                layout: "fitColumns",
+                placeholder: "Veriler analiz ediliyor...",
+                columnDefaults: { tooltip: true },
+                columns: [
+                    { title: "Bilet No", field: "numara", width: 100, headerFilter: "input" },
+                    { title: "Personel", field: "personel", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Bölüm", field: "servis", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Durum", field: "durum", width: 130, formatter: "html", headerFilter: "list", headerFilterParams: { valuesLookup: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Bekleme", field: "bekleme", width: 110, hozAlign: "right", formatter: (cell) => cell.getValue() + " dk", bottomCalc: "avg", bottomCalcParams: { precision: 1 } },
+                    { title: "İşlem", field: "islem", width: 110, hozAlign: "right", formatter: (cell) => cell.getValue() + " dk", bottomCalc: "avg", bottomCalcParams: { precision: 1 } },
+                    { title: "Başlama Saati", field: "saat", width: 120 }
+                ],
+                footerElement: "<div style='padding:5px; font-weight:bold; color:#6366f1;'>Toplam İşlem Analizi Tamamlandı</div>"
+            });
+
+            loadMasterData();
+
+            // Auto Refresh Setup
+            setInterval(() => {
+                const refreshSec = parseInt(document.getElementById('autoRefresh').value);
+                if (refreshSec > 0) loadMasterData();
+            }, 30000); // Check every 30s
+        }
+
+        async function loadMasterData() {
+            try {
+                const range = document.getElementById('timeRange').value;
+                const token = localStorage.getItem('token');
+
+                const response = await fetch(`${API_URL}/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${range}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                const data = result.data || [];
+                rawData = data;
+
+                const mappedData = data.map(r => ({
+                    numara: r.numara,
+                    personel: r.personel || "---",
+                    servis: r.servis || "Genel",
+                    durum: formatStatus(r.durum),
+                    bekleme: parseFloat(r.bekleme) || 0,
+                    islem: parseFloat(r.islem) || 0,
+                    saat: r.saat || "--:--"
+                }));
+
+                masterTable.setData(mappedData);
+                updateKPIs(mappedData);
+                updateVisuals(mappedData);
+
+            } catch (err) {
+                console.error("Master BI Error:", err);
+            }
+        }
+
+        function formatStatus(status) {
+            if (status === 'completed') return '<span style="color:#4ade80; border:1px solid #4ade80; padding:2px 6px; border-radius:4px; font-size:11px;">Tamamlandı</span>';
+            if (status === 'calling') return '<span style="color:#fbbf24; border:1px solid #fbbf24; padding:2px 6px; border-radius:4px; font-size:11px;">Çağrıda</span>';
+            return '<span style="color:#94a3b8; border:1px solid #94a3b8; padding:2px 6px; border-radius:4px; font-size:11px;">Bekliyor</span>';
+        }
+
+        function updateKPIs(data) {
+            document.getElementById('kpi-total').textContent = data.length;
+            const avgWait = (data.reduce((sum, r) => sum + r.bekleme, 0) / (data.length || 1)).toFixed(1);
+            document.getElementById('kpi-wait').textContent = avgWait + " dk";
+            document.getElementById('kpi-done').textContent = data.filter(r => r.durum.includes('Tamamlandı')).length;
+            document.getElementById('kpi-queue').textContent = data.filter(r => r.durum.includes('Bekliyor')).length;
+        }
+
+        function updateVisuals(data) {
+            updateMainChart(data);
+            updateStatsChart(data);
+        }
+
+        function updateMainChart(optData) {
+            const data = optData || masterTable.getData();
+            const type = document.getElementById('chartType').value;
+            const ctx = document.getElementById('mainChart').getContext('2d');
+
+            // Personel bazlı işlem yükü
+            const stats = {};
+            data.forEach(r => {
+                const name = r.personel.length > 20 ? r.personel.substring(0, 17) + ".." : r.personel;
+                stats[name] = (stats[name] || 0) + 1;
+            });
+
+            if (mainChart) mainChart.destroy();
+            mainChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: Object.keys(stats),
+                    datasets: [{
+                        label: 'İşlem Sayısı',
+                        data: Object.values(stats),
+                        backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                        borderColor: '#6366f1',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStatsChart(data) {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            const statusCounts = { 'Tamamlandı': 0, 'Çağrıda': 0, 'Bekliyor': 0 };
+
+            data.forEach(r => {
+                if (r.durum.includes('Tamamlandı')) statusCounts['Tamamlandı']++;
+                else if (r.durum.includes('Çağrıda')) statusCounts['Çağrıda']++;
+                else statusCounts['Bekliyor']++;
+            });
+
+            if (statsChart) statsChart.destroy();
+            statsChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#4ade80', '#fbbf24', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10 } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function applyGlobalSearch() {
+            const val = document.getElementById('globalSearch').value;
+            masterTable.setFilter(function (data) {
+                return JSON.stringify(data).toLowerCase().includes(val.toLowerCase());
+            });
+        }
+
+        function exportData(format) {
+            if (format === 'xlsx') {
+                const data = masterTable.getData();
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Rapor");
+                XLSX.writeFile(workbook, "Siramatik_Yonetici_Raporu.xlsx");
+            } else if (format === 'pdf') {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.text("SIRAMATİK YÖNETİCİ ANALİZ RAPORU", 14, 15);
+                doc.setFontSize(10);
+                doc.text("Tarih: " + new Date().toLocaleString(), 14, 22);
+
+                const tableData = masterTable.getData().map(r => [r.numara, r.personel, r.servis, r.bekleme, r.islem, r.saat]);
+                doc.autoTable({
+                    head: [['Bilet', 'Personel', 'Bölüm', 'Bekleme', 'İşlem', 'Saat']],
+                    body: tableData,
+                    startY: 30
+                });
+
+                // Kaydetmek yerine yeni sekmede aç
+                window.open(doc.output('bloburl'), '_blank');
+            }
+        }
+
+        window.onload = initDashboard;
+    </script>
+</body>
+
+</html>

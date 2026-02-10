@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Veri Tablosu (Pro) - Sıramatik</title>
+
+    <!-- Modern UI & Fonts -->
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tabulator Library (Stable & Modern) -->
+    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_midnight.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+
+    <style>
+        :root {
+            --admin-bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #6366f1;
+            --border: rgba(255, 255, 255, 0.06);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--admin-bg);
+            color: var(--text-main);
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-bar {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 30px;
+            height: 65px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 19px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+            background-clip: text;
+        }
+
+        /* Multi-select checkmark color fix */
+        .tabulator-edit-list-item.tabulator-edit-list-group-label-select-all,
+        .tabulator-edit-list-item {
+            color: white !important;
+        }
+
+        .tabulator-edit-list-item:hover {
+            background: rgba(99, 102, 241, 0.2) !important;
+        }
+
+        .logo i {
+            color: var(--accent);
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.4));
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.03), transparent);
+        }
+
+        .controls {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 12px 20px;
+            border-radius: 12px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-group label {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        select,
+        input {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            color: #e2e8f0;
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        select:focus,
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-group-ctrl {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            display: none;
+        }
+
+        .btn-export {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+        }
+
+        /* Tabulator Professional Clean Theme */
+        #data-table {
+            flex: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--card-bg) !important;
+        }
+
+        .tabulator {
+            border: none !important;
+        }
+
+        .tabulator-header {
+            background-color: #0f172a !important;
+            color: var(--text-muted) !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        .tabulator-col {
+            border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
+        }
+
+        .tabulator-row {
+            background-color: transparent !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+            color: #e2e8f0 !important;
+        }
+
+        .tabulator-row-odd {
+            background-color: rgba(255, 255, 255, 0.01) !important;
+        }
+
+        .tabulator-row:hover {
+            background-color: rgba(99, 102, 241, 0.05) !important;
+        }
+
+        .tabulator-header-filter input,
+        .tabulator-header-filter select {
+            background: #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            color: white !important;
+            padding: 4px !important;
+            margin-top: 5px !important;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .status-completed {
+            background: rgba(34, 197, 94, 0.1);
+            color: #4ade80;
+        }
+
+        .status-calling {
+            background: rgba(234, 179, 8, 0.1);
+            color: #facc15;
+        }
+
+        .status-waiting {
+            background: rgba(148, 163, 184, 0.1);
+            color: #cbd5e1;
+        }
+
+        .time-box {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header-bar">
+        <div class="logo">
+            <i class="fas fa-microchip-ai"></i>
+            <span>Akıllı Veri Tablosu (Tabulator)</span>
+        </div>
+        <a href="admin.html" class="btn btn-export" style="text-decoration: none;">
+            <i class="fas fa-arrow-left"></i> Panel
+        </a>
+    </header>
+
+    <main class="main-content">
+        <div class="controls">
+            <div class="control-group">
+                <label>Zaman Aralığı</label>
+                <select id="timeRange" onchange="loadData()">
+                    <option value="today">Bugün</option>
+                    <option value="this_week">Bu Hafta</option>
+                    <option value="this_month" selected>Bu Ay</option>
+                    <option value="this_year">Bu Yıl</option>
+                    <option value="all_time">Tüm Zamanlar</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Gruplama Yap</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <select id="groupField" onchange="toggleGrouping()">
+                        <option value="">Gruplama Yok</option>
+                        <option value="personel">Personel</option>
+                        <option value="servis">Servis / Bölüm</option>
+                        <option value="durum">İşlem Durumu</option>
+                        <option value="saat">Saat Dilimi</option>
+                    </select>
+                    <button id="btnExpand" class="btn btn-group-ctrl" onclick="expandGroups()" title="Hepsini Aç">
+                        <i class="fas fa-expand-alt"></i> Hepsini Aç
+                    </button>
+                    <button id="btnCollapse" class="btn btn-group-ctrl" onclick="collapseGroups()"
+                        title="Hepsini Kapat">
+                        <i class="fas fa-compress-alt"></i> Hepsini Kapat
+                    </button>
+                </div>
+            </div>
+            <div style="flex: 1;"></div>
+            <button class="btn btn-export" onclick="exportCSV()">
+                <i class="fas fa-file-csv"></i> CSV indir
+            </button>
+            <button class="btn" onclick="loadData()">
+                <i class="fas fa-sync-alt"></i> Listeyi Yenile
+            </button>
+        </div>
+
+        <div id="data-table"></div>
+    </main>
+
+    <script>
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+        let table = null;
+        let currentUser = JSON.parse(localStorage.getItem('user'));
+
+        function initTable() {
+            table = new Tabulator("#data-table", {
+                height: "100%",
+                layout: "fitColumns",
+                placeholder: "Veri yükleniyor...",
+                groupHeader: function (value, count, data, group) {
+                    // Auto calculate group totals for headers
+                    let waitAvg = 0;
+                    let processAvg = 0;
+                    if (data.length > 0) {
+                        waitAvg = (data.reduce((sum, row) => sum + row.bekleme, 0) / data.length).toFixed(1);
+                        processAvg = (data.reduce((sum, row) => sum + row.islem, 0) / data.length).toFixed(1);
+                    }
+                    return `<span style='color:#3b82f6; font-weight:bold;'>${value}</span> 
+                            <span style='margin-left:15px; font-size:12px; color:#94a3b8;'> 
+                                (${count} Kayıt) | 
+                                <i class="fas fa-clock"></i> Ort. Bekleme: ${waitAvg} dk | 
+                                <i class="fas fa-hourglass-half"></i> Ort. İşlem: ${processAvg} dk 
+                            </span>`;
+                },
+                columnDefaults: {
+                    tooltip: true,
+                },
+                columns: [
+                    { title: "Sıra No", field: "numara", width: 100, headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in", bottomCalc: "count" },
+                    { title: "Personel", field: "personel", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Servis / Bölüm", field: "servis", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Kuyruk", field: "kuyruk", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Saat", field: "saat", width: 100, headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    {
+                        title: "Durum",
+                        field: "durum",
+                        width: 140,
+                        headerFilter: "list",
+                        headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true },
+                        headerFilterFunc: "in",
+                        formatter: function (cell) {
+                            const val = cell.getValue();
+                            let cls = "status-waiting";
+                            if (val === "Tamamlandı") cls = "status-completed";
+                            if (val === "Çağrıda") cls = "status-calling";
+                            return `<span class="status-badge ${cls}">${val}</span>`;
+                        }
+                    },
+                    {
+                        title: "Bekleme (dk)",
+                        field: "bekleme",
+                        width: 130,
+                        hozAlign: "right",
+                        headerFilter: "list",
+                        headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true },
+                        headerFilterFunc: "in",
+                        bottomCalc: "avg",
+                        bottomCalcParams: { precision: 1 },
+                        formatter: function (cell) {
+                            const val = cell.getValue();
+                            const color = val > 15 ? "#ef4444" : val > 5 ? "#fbbf24" : "#4ade80";
+                            return `<div class="time-box"><i class="fas fa-clock" style="color: ${color}"></i> ${val}</div>`;
+                        }
+                    },
+                    {
+                        title: "İşlem (dk)",
+                        field: "islem",
+                        width: 130,
+                        hozAlign: "right",
+                        headerFilter: "list",
+                        headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true },
+                        headerFilterFunc: "in",
+                        bottomCalc: "avg",
+                        bottomCalcParams: { precision: 1 },
+                        formatter: function (cell) {
+                            const val = cell.getValue();
+                            return `<div class="time-box"><i class="fas fa-hourglass-half" style="color: #6366f1"></i> ${val}</div>`;
+                        }
+                    },
+                ],
+            });
+
+            loadData();
+        }
+
+        async function loadData() {
+            try {
+                const range = document.getElementById('timeRange').value;
+                const token = localStorage.getItem('token');
+                if (!token) throw new Error("Oturum bulunamadı");
+
+                const response = await fetch(`${API_URL}/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${range}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                const data = result.data || [];
+
+                const mappedData = data.map(r => ({
+                    numara: r.numara,
+                    personel: r.personel || "---",
+                    servis: r.servis || "Genel",
+                    kuyruk: r.kuyruk || "Ana",
+                    saat: r.saat || "--:--",
+                    durum: r.durum === 'completed' ? 'Tamamlandı' : r.durum === 'calling' ? 'Çağrıda' : 'Bekliyor',
+                    bekleme: parseFloat(r.bekleme) || 0,
+                    islem: parseFloat(r.islem) || 0
+                }));
+
+                table.setData(mappedData);
+            } catch (err) {
+                console.error("Data load error", err);
+                alert("Veriler yüklenemedi: " + err.message);
+            }
+        }
+
+        function toggleGrouping() {
+            const field = document.getElementById('groupField').value;
+            const btnExpand = document.getElementById('btnExpand');
+            const btnCollapse = document.getElementById('btnCollapse');
+
+            if (field) {
+                table.setGroupBy(field);
+                btnExpand.style.display = 'flex';
+                btnCollapse.style.display = 'flex';
+            } else {
+                table.setGroupBy(false);
+                btnExpand.style.display = 'none';
+                btnCollapse.style.display = 'none';
+            }
+        }
+
+        function expandGroups() {
+            if (table) {
+                let groups = table.getGroups();
+                function processGroups(gs) {
+                    gs.forEach(g => {
+                        g.show();
+                        let subs = g.getSubGroups();
+                        if (subs && subs.length > 0) processGroups(subs);
+                    });
+                }
+                processGroups(groups);
+            }
+        }
+
+        function collapseGroups() {
+            if (table) {
+                let groups = table.getGroups();
+                function processGroups(gs) {
+                    gs.forEach(g => {
+                        g.hide();
+                        let subs = g.getSubGroups();
+                        if (subs && subs.length > 0) processGroups(subs);
+                    });
+                }
+                processGroups(groups);
+            }
+        }
+
+        function exportCSV() {
+            table.download("csv", "siramatik-rapor.csv");
+        }
+
+        window.onload = initTable;
+    </script>
+</body>
+
+</html>

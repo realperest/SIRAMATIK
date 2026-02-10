@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gelişmiş Pivot Analiz (Pro) - Sıramatik</title>
+
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.webdatarocks.com/latest/webdatarocks.min.css" rel="stylesheet" />
+    <script src="https://cdn.webdatarocks.com/latest/webdatarocks.js"></script>
+    <script src="https://cdn.webdatarocks.com/latest/webdatarocks.toolbar.min.js"></script>
+
+    <style>
+        :root {
+            --admin-bg: #0f172a;
+            --sidebar-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(30, 41, 59, 0.5);
+            --accent-primary: #6366f1;
+            --accent-secondary: #a855f7;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background: var(--admin-bg);
+            color: #f8fafc;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-nav {
+            padding: 0 25px;
+            height: 60px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .control-panel {
+            padding: 15px 25px;
+            background: rgba(30, 41, 59, 0.5);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .action-btn {
+            background: var(--admin-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .action-btn:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            font-size: 13px;
+        }
+
+        .secondary-btn {
+            background: #334155;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        #wdr-pivot-wrapper {
+            flex: 1;
+            position: relative;
+            background: var(--admin-bg);
+        }
+
+        /* WebDataRocks Midnight Theme - Fix Interaction & Contrast */
+        .wdr-ui-window,
+        .wdr-popup,
+        .wdr-context-menu {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border: 1px solid var(--glass-border) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+            border-radius: 12px !important;
+            z-index: 100000 !important;
+            pointer-events: auto !important;
+        }
+
+        /* Modal Overlay - Make sure it doesn't block interaction or look too dark */
+        .wdr-ui-element.wdr-modal-overlay {
+            background-color: rgba(0, 0, 0, 0.4) !important;
+            backdrop-filter: blur(2px);
+            z-index: 99999 !important;
+            pointer-events: auto !important;
+            /* Allow clicks to pass through if needed or handle internal logic */
+        }
+
+        .wdr-toolbar {
+            background-color: #1e293b !important;
+            border-bottom: 1px solid var(--glass-border) !important;
+            z-index: 100 !important;
+            position: relative !important;
+            pointer-events: auto !important;
+        }
+
+        .wdr-toolbar .wdr-button {
+            background: transparent !important;
+            color: #94a3b8 !important;
+            border: 1px solid transparent !important;
+        }
+
+        .wdr-toolbar .wdr-button:hover {
+            color: white !important;
+            background: rgba(99, 102, 241, 0.1) !important;
+        }
+
+        /* Alanlar (Fields) Penceresi Özelleştirme */
+        .wdr-ui-window .wdr-header {
+            background-color: #0f172a !important;
+            color: var(--accent-primary) !important;
+            border-bottom: 1px solid var(--glass-border) !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+        }
+
+        .wdr-ui-window .wdr-content {
+            background-color: #1e293b !important;
+            color: white !important;
+        }
+
+        .wdr-ui-window .wdr-list div {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+            color: #cbd5e1 !important;
+        }
+
+        .wdr-ui-window .wdr-list div:hover {
+            background-color: rgba(99, 102, 241, 0.1) !important;
+        }
+
+        .wdr-ui-window .wdr-button-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 6px !important;
+        }
+
+        /* Grid Veri Alanı Teması */
+        #wdr-pivot .wdr-grid-layout {
+            background-color: var(--admin-bg) !important;
+        }
+
+        #wdr-pivot .wdr-cell {
+            background-color: #1e293b !important;
+            color: #e2e8f0 !important;
+            border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        #wdr-pivot .wdr-header {
+            background-color: #0f172a !important;
+            color: var(--accent-primary) !important;
+            font-weight: bold !important;
+        }
+
+        #wdr-pivot .wdr-total {
+            background-color: rgba(99, 102, 241, 0.1) !important;
+            font-weight: bold !important;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="top-nav">
+        <div
+            style="display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 20px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+            <i class="fas fa-layer-group"></i> GELİŞMİŞ PİVOT ANALİZ (PRO)
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="secondary-btn" onclick="saveDefaultLayout()"><i class="fas fa-save"></i> Düzeni
+                Sakla</button>
+            <button class="primary-btn" onclick="refreshPivot()"><i class="fas fa-sync"></i> Güncelle</button>
+            <a href="admin.html" class="action-btn"
+                style="text-decoration: none; border-color: #ef4444; color: #f87171;">
+                <i class="fas fa-arrow-left"></i> Panel
+            </a>
+        </div>
+    </header>
+
+    <div class="control-panel">
+        <!-- Bölüm Seçimi -->
+        <div class="filter-item">
+            <span class="filter-label">BÖLÜM:</span>
+            <select id="report-filter-servis" class="action-btn" style="width: 180px;"
+                onchange="updateDependentFilters(this.value)">
+                <option value="">Tüm Bölümler</option>
+            </select>
+        </div>
+
+        <!-- Kuyruk Seçimi -->
+        <div class="filter-item">
+            <span class="filter-label">KUYRUK:</span>
+            <select id="report-filter-kuyruk" class="action-btn" style="width: 150px;" onchange="refreshPivot()">
+                <option value="">Tümü</option>
+            </select>
+        </div>
+
+        <!-- Personel Seçimi -->
+        <div class="filter-item">
+            <span class="filter-label">PERSONEL:</span>
+            <select id="report-filter-user" class="action-btn" style="width: 180px;" onchange="refreshPivot()">
+                <option value="">Tümü</option>
+            </select>
+        </div>
+
+        <!-- Zaman Seçimi -->
+        <div class="filter-item">
+            <span class="filter-label">ZAMAN:</span>
+            <select id="report-filter-range" class="action-btn" style="width: 130px;"
+                onchange="handleRangeChange(this.value)">
+                <option value="today">Bugün</option>
+                <option value="this_week">Bu Hafta</option>
+                <option value="this_month" selected>Bu Ay</option>
+                <option value="this_year">Bu Yıl</option>
+                <option value="all_time">Tüm Zamanlar</option>
+                <option value="custom">Özel...</option>
+            </select>
+        </div>
+
+        <!-- Özel Tarihler -->
+        <div id="report-custom-dates" style="display: none; align-items: center; gap: 5px;">
+            <input type="date" id="report-start-date" class="action-btn" style="width: 130px; padding: 6px;"
+                onchange="refreshPivot()">
+            <span style="color:var(--text-muted)">-</span>
+            <input type="date" id="report-end-date" class="action-btn" style="width: 130px; padding: 6px;"
+                onchange="refreshPivot()">
+        </div>
+    </div>
+
+    <div id="wdr-pivot-wrapper">
+        <div id="wdr-pivot"></div>
+    </div>
+
+    <script>
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+        let pivotObj = null;
+        let users = [];
+        let queues = [];
+        let services = [];
+        let currentUser = JSON.parse(localStorage.getItem('user'));
+
+        const pivotLocale = {
+            "grid": { "showFieldList": "Alan Listesini Göster", "all": "Hepsi", "none": "Hiçbiri", "blank": "Boş", "actualSize": "Gerçek Boyut", "autoSize": "Otomatik Boyut", "column": "Sütun", "row": "Satır", "measure": "Ölçüm", "grandTotal": "Genel Toplam", "total": "Toplam" },
+            "toolbar": { "connect": "Bağlan", "open": "Aç", "save": "Kaydet", "export": "Dışa Aktar", "format": "Biçim", "options": "Seçenekler", "fields": "Alanlar", "fullscreen": "Tam Ekran" },
+            "format": { "decimalSeparator": ",", "thousandsSeparator": ".", "currencySymbol": "₺", "currencySymbolAlign": "right" },
+            "messages": { "loading": "Veriler Analiz Ediliyor...", "noData": "Görüntülenecek veri bulunamadı" },
+            "export": { "pdf": "PDF Olarak Kaydet", "excel": "Excel Olarak Kaydet", "html": "HTML Olarak Kaydet", "csv": "CSV Olarak Kaydet" },
+            "buttons": { "ok": "Tamam", "apply": "Uygula", "cancel": "İptal", "save": "Kaydet", "clear": "Temizle", "select": "Seç" },
+            "fields": { "params": "Parametreler / Alanlar", "rows": "Satırlar", "columns": "Sütunlar", "measures": "Değerler / Ölçümler", "filters": "Filtreler", "dropRows": "Satır alanlarını buraya bırakın", "dropColumns": "Sütun alanlarını buraya bırakın", "dropMeasures": "Ölçüm alanlarını buraya bırakın", "dropFilters": "Filtre alanlarını buraya bırakın" },
+            "options": { "title": "Düzen Seçenekleri", "layout": "Tablo Düzeni", "grandTotals": "Genel Toplamlar", "subtotals": "Ara Toplamlar", "showGrandTotals": "Genel toplamları göster", "doNotShowGrandTotals": "Genel toplamları gösterme", "showForRowsOnly": "Sadece satırlar için göster", "showForColumnsOnly": "Sadece sütunlar için göster", "showSubtotals": "Ara toplamları göster", "doNotShowSubtotals": "Ara toplamları gösterme", "showSubtotalRowsOnly": "Sadece satırlar için göster", "showSubtotalColumnsOnly": "Sadece sütunlar için göster", "layoutCompact": "Sıkışık Düzen", "layoutClassic": "Klasik Düzen", "layoutFlat": "Düz Düzen" }
+        };
+
+        async function init() {
+            try {
+                // 1. Verileri Admin Paneli Mantığıyla Yükle
+                await loadAllMetadata();
+
+                let savedReport = localStorage.getItem('pivot_default_report');
+                let initialReport = {
+                    dataSource: { data: [] },
+                    slice: {
+                        rows: [{ uniqueName: "Bölüm" }],
+                        columns: [{ uniqueName: "Durum" }],
+                        measures: [{ uniqueName: "Bilet Adet", aggregation: "sum" }]
+                    },
+                    options: { grid: { type: "classic", showTotals: "yes" } }
+                };
+
+                if (savedReport) {
+                    try {
+                        const parsed = JSON.parse(savedReport);
+                        initialReport.slice = parsed.slice;
+                        initialReport.options = parsed.options;
+                    } catch (e) { }
+                }
+
+                pivotObj = new WebDataRocks({
+                    container: "#wdr-pivot",
+                    toolbar: true,
+                    height: "100%",
+                    report: initialReport,
+                    global: { localization: pivotLocale }
+                });
+
+                // Canlı Veriyi Çek
+                setTimeout(refreshPivot, 500);
+
+            } catch (e) {
+                console.error("Init error:", e);
+            }
+        }
+
+        async function loadAllMetadata() {
+            const token = localStorage.getItem('token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // Paralel yükleme
+            const [sRes, qRes, uRes] = await Promise.all([
+                fetch(`${API_URL}/servisler/${currentUser.firma_id}`, { headers }),
+                fetch(`${API_URL}/kuyruklar/firma/${currentUser.firma_id}`, { headers }),
+                fetch(`${API_URL}/admin/users/${currentUser.firma_id}`, { headers })
+            ]);
+
+            services = await sRes.json();
+            queues = await qRes.json();
+            users = await uRes.json();
+
+            // Selectleri doldur
+            populateSelect('report-filter-servis', services, 'ad');
+            populateSelect('report-filter-user', users, 'ad_soyad');
+        }
+
+        function populateSelect(id, data, labelField) {
+            const s = document.getElementById(id);
+            const firstOpt = s.options[0];
+            s.innerHTML = '';
+            s.appendChild(firstOpt);
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item[labelField] || item.ad || item.ad_soyad;
+                s.appendChild(opt);
+            });
+        }
+
+        async function updateDependentFilters(servisId) {
+            // 1. Kuyrukları Filtrele
+            const qSelect = document.getElementById('report-filter-kuyruk');
+            qSelect.innerHTML = '<option value="">Tümü</option>';
+            if (servisId) {
+                const filteredQ = queues.filter(q => q.servis_id == servisId);
+                filteredQ.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = q.ad;
+                    qSelect.appendChild(opt);
+                });
+            }
+
+            // 2. Personelleri Filtrele
+            const uSelect = document.getElementById('report-filter-user');
+            uSelect.innerHTML = '<option value="">Tümü</option>';
+            const filteredU = servisId ? users.filter(u => u.servis_id == servisId) : users;
+            filteredU.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = u.ad_soyad;
+                uSelect.appendChild(opt);
+            });
+
+            // Canlı Geri Bildirim
+            refreshPivot();
+        }
+
+        function handleRangeChange(val) {
+            document.getElementById('report-custom-dates').style.display = (val === 'custom') ? 'flex' : 'none';
+            refreshPivot();
+        }
+
+        async function refreshPivot() {
+            if (!pivotObj) return;
+            try {
+                const servisId = document.getElementById('report-filter-servis').value;
+                const kuyrukId = document.getElementById('report-filter-kuyruk').value;
+                const userId = document.getElementById('report-filter-user').value;
+                const range = document.getElementById('report-filter-range').value;
+                const start = document.getElementById('report-start-date').value;
+                const end = document.getElementById('report-end-date').value;
+
+                const token = localStorage.getItem('token');
+                let url = `${API_URL}/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${range}`;
+                if (servisId) url += `&servis_id=${servisId}`;
+                if (kuyrukId) url += `&kuyruk_id=${kuyrukId}`;
+                if (userId) url += `&kullanici_id=${userId}`;
+                if (range === 'custom') {
+                    if (start) url += `&start_date=${start}`;
+                    if (end) url += `&end_date=${end}`;
+                }
+
+                const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const result = await response.json();
+                const data = result.data || [];
+
+                const mappedData = data.map(r => ({
+                    "Tarih": r.tarih || "---",
+                    "Bölüm": r.servis || "Diğer",
+                    "Kuyruk": r.kuyruk || "Ana",
+                    "Personel": r.personel || "---",
+                    "Durum": r.durum === 'completed' ? 'Bitti' : r.durum === 'calling' ? 'Çağrıda' : 'Beklemede',
+                    "Saat": r.saat ? r.saat.split(':')[0] + ":00" : "??",
+                    "Bekleme Dakika": parseFloat(r.bekleme) || 0,
+                    "İşlem Dakika": parseFloat(r.islem) || 0,
+                    "Bilet Adet": 1
+                }));
+
+                pivotObj.updateData({ data: mappedData });
+            } catch (e) { console.error("Refresh error:", e); }
+        }
+
+        function saveDefaultLayout() {
+            const report = pivotObj.getReport();
+            delete report.dataSource;
+            localStorage.setItem('pivot_default_report', JSON.stringify(report));
+            alert("Mevcut tablo düzeni varsayılan olarak kaydedildi!");
+        }
+
+        window.onload = () => {
+            if (typeof WebDataRocks !== 'undefined') init();
+            else {
+                let check = setInterval(() => {
+                    if (typeof WebDataRocks !== 'undefined') { clearInterval(check); init(); }
+                }, 100);
+            }
+        };
+    </script>
+</body>
+
+</html>

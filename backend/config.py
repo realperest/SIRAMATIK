@@ -8,13 +8,13 @@ from typing import List
 class Settings(BaseSettings):
     """Uygulama ayarları"""
     
-    # Supabase
-    SUPABASE_URL: str
-    SUPABASE_KEY: str
-    SUPABASE_SERVICE_KEY: str
+    # Supabase (Opsiyonel - SQLite kullanıyoruz)
+    SUPABASE_URL: str | None = None
+    SUPABASE_KEY: str | None = None
+    SUPABASE_SERVICE_KEY: str | None = None
     
     # JWT
-    SECRET_KEY: str
+    SECRET_KEY: str = "siramatik-secret-key-2024-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     
@@ -23,12 +23,14 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     
-    # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080"
+    # CORS - Tüm IP'lerden erişime izin ver (mobil cihazlar için)
+    ALLOWED_ORIGINS: str = "*"
     
     @property
     def cors_origins(self) -> List[str]:
         """CORS origins listesi"""
+        if self.ALLOWED_ORIGINS == "*":
+            return ["*"]
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
     
     model_config = {

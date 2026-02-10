@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurumsal Analiz & OLAP - Sıramatik</title>
+
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_modern.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --olap-bg: #e5e7eb;
+            --olap-header: #f3f4f6;
+            --olap-border: #d1d5db;
+            --olap-accent: #3b82f6;
+        }
+
+        body {
+            background-color: var(--olap-bg);
+            color: #111827;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ana Sekmeler (Normal / Online Analiz) */
+        .main-tabs {
+            background: #cbd5e1;
+            padding: 5px 10px 0 10px;
+            display: flex;
+            gap: 2px;
+            border-bottom: 1px solid var(--olap-border);
+        }
+
+        .tab {
+            padding: 8px 15px;
+            background: #f3f4f6;
+            border: 1px solid var(--olap-border);
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            font-size: 13px;
+            cursor: pointer;
+            color: #4b5563;
+        }
+
+        .tab.active {
+            background: white;
+            font-weight: 600;
+            color: black;
+            position: relative;
+            top: 1px;
+            z-index: 2;
+        }
+
+        /* Toolbar / Arama Bölümü */
+        .toolbar {
+            background: white;
+            padding: 10px 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid var(--olap-border);
+        }
+
+        .sub-tabs {
+            padding: 5px 20px;
+            background: #f9fafb;
+            display: flex;
+            gap: 5px;
+            border-bottom: 1px solid var(--olap-border);
+        }
+
+        .sub-tab {
+            padding: 4px 12px;
+            background: #e5e7eb;
+            border: 1px solid var(--olap-border);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .sub-tab.active {
+            background: var(--olap-accent);
+            color: white;
+            border-color: var(--olap-accent);
+        }
+
+        .search-box {
+            padding: 5px 10px;
+            border: 1px solid var(--olap-border);
+            border-radius: 3px;
+            width: 300px;
+            font-size: 13px;
+        }
+
+        .btn-office {
+            padding: 5px 15px;
+            background: #f3f4f6;
+            border: 1px solid var(--olap-border);
+            border-radius: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-office:hover {
+            background: #e5e7eb;
+        }
+
+        /* Gruplama Alanı */
+        .grouping-zone {
+            background: #f3f4f6;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--olap-border);
+            font-size: 12px;
+            color: #3b82f6;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .group-chip {
+            background: white;
+            padding: 2px 8px;
+            border: 1px solid var(--olap-border);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .group-chip i {
+            cursor: pointer;
+            color: #ef4444;
+        }
+
+        /* Containerlar */
+        .view-container {
+            flex: 1;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #data-view,
+        #graph-view {
+            height: 100%;
+            display: none;
+        }
+
+        #data-view.active,
+        #graph-view.active {
+            display: block;
+        }
+
+        /* Tabulator Customizing (Office Look) */
+        .tabulator {
+            border: none !important;
+            font-size: 13px !important;
+        }
+
+        .tabulator-header {
+            background-color: #f3f4f6 !important;
+            border-bottom: 1px solid #ccc !important;
+        }
+
+        .tabulator-col {
+            background: transparent !important;
+            border-right: 1px solid #ddd !important;
+        }
+
+        .tabulator-row {
+            border-bottom: 1px solid #eee !important;
+        }
+
+        .tabulator-footer {
+            background: #f3f4f6 !important;
+            font-weight: bold;
+        }
+
+        #graph-view {
+            padding: 40px;
+        }
+
+        .chart-box {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-tabs">
+        <div class="tab">Standart Liste</div>
+        <div class="tab active">Gelişmiş Analiz / Özet</div>
+    </div>
+
+    <div class="sub-tabs">
+        <div class="sub-tab active" onclick="switchSubView('data')">Veri Tablosu</div>
+        <div class="sub-tab" onclick="switchSubView('graph')">Grafik Analiz</div>
+    </div>
+
+    <div class="toolbar">
+        <div class="control-group" style="flex-direction: row; gap: 15px;">
+            <div class="control-group">
+                <label style="font-size: 10px; font-weight: bold; color: #64748b;">ZAMAN ARALIĞI</label>
+                <select id="timeRange" class="search-box" style="width: 120px;" onchange="loadData()">
+                    <option value="today">Bugün</option>
+                    <option value="this_week">Bu Hafta</option>
+                    <option value="this_month" selected>Bu Ay</option>
+                    <option value="this_year">Bu Yıl</option>
+                    <option value="all_time">Tüm Zamanlar</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label style="font-size: 10px; font-weight: bold; color: #64748b;">GRUPLAMA YAP</label>
+                <div style="display: flex; gap: 5px;">
+                    <select id="groupSelect" class="search-box" style="width: 150px;" onchange="updateGrouping()">
+                        <option value="">Gruplama Yok</option>
+                        <option value="personel">Personel</option>
+                        <option value="servis">Bölüm / Servis</option>
+                        <option value="durum">İşlem Durumu</option>
+                        <option value="kuyruk">Kuyruk</option>
+                    </select>
+                    <button id="btnExpand" class="btn-office" onclick="expandGroups()" style="display:none;"><i
+                            class="fas fa-expand-alt"></i></button>
+                    <button id="btnCollapse" class="btn-office" onclick="collapseGroups()" style="display:none;"><i
+                            class="fas fa-compress-alt"></i></button>
+                </div>
+            </div>
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="display: flex; gap: 5px; align-items: center;">
+            <input type="text" id="globalSearch" class="search-box" placeholder="Hızlı ara...">
+            <button class="btn-office" onclick="applySearch()">Find</button>
+            <button class="btn-office" onclick="clearSearch()">Clear</button>
+            <button class="btn-office" onclick="exportData()"><i class="fas fa-file-excel"></i></button>
+        </div>
+    </div>
+
+    <div class="view-container">
+        <div id="data-view" class="active">
+            <div id="olap-table"></div>
+        </div>
+        <div id="graph-view">
+            <div class="chart-box">
+                <canvas id="olapChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+        let table = null;
+        let chart = null;
+        let currentUser = JSON.parse(localStorage.getItem('user'));
+
+        function initOLAP() {
+            table = new Tabulator("#olap-table", {
+                height: "100%",
+                layout: "fitColumns",
+                movableColumns: true,
+                placeholder: "Veri yükleniyor...",
+                columnDefaults: { tooltip: true },
+                columns: [
+                    { title: "Sıra No", field: "numara", width: 100, headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in", bottomCalc: "count" },
+                    { title: "Personel", field: "personel", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Bölümü", field: "servis", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Kuyruk", field: "kuyruk", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    { title: "Saat", field: "saat", width: 100, headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in" },
+                    {
+                        title: "Durum",
+                        field: "durum",
+                        width: 140,
+                        headerFilter: "list",
+                        headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true },
+                        headerFilterFunc: "in",
+                        formatter: function (cell) {
+                            const val = cell.getValue();
+                            let cls = "status-waiting";
+                            if (val === "Tamamlandı") cls = "status-completed";
+                            if (val === "Çağrıda") cls = "status-calling";
+                            return `<span class="status-badge ${cls}">${val}</span>`;
+                        }
+                    },
+                    { title: "Bekleme (dk)", field: "bekleme", width: 120, hozAlign: "right", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in", bottomCalc: "avg", bottomCalcParams: { precision: 1 } },
+                    { title: "İşlem (dk)", field: "islem", width: 120, hozAlign: "right", headerFilter: "list", headerFilterParams: { valuesLookup: true, clearable: true, multiselect: true }, headerFilterFunc: "in", bottomCalc: "avg", bottomCalcParams: { precision: 1 } }
+                ],
+                groupHeader: function (value, count, data, group) {
+                    let waitAvg = 0;
+                    if (data.length > 0) waitAvg = (data.reduce((sum, row) => sum + row.bekleme, 0) / data.length).toFixed(1);
+                    return `<span style='color:#3b82f6; font-weight:bold;'>${value}</span> <span style='margin-left:10px; font-size:12px; color:#64748b;'>(${count} Kayıt | Ort. Bekleme: ${waitAvg} dk)</span>`;
+                },
+                footerElement: "<div id='table-footer' style='padding:5px; font-weight:bold;'></div>"
+            });
+
+            loadData();
+        }
+
+        async function loadData() {
+            try {
+                const range = document.getElementById('timeRange').value;
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${range}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                const data = result.data || [];
+
+                const mappedData = data.map(r => ({
+                    numara: r.numara,
+                    personel: r.personel || "---",
+                    servis: r.servis || "Genel",
+                    kuyruk: r.kuyruk || "Ana",
+                    saat: r.saat || "--:--",
+                    durum: r.durum === 'completed' ? 'Tamamlandı' : r.durum === 'calling' ? 'Çağrıda' : 'Bekliyor',
+                    bekleme: parseFloat(r.bekleme) || 0,
+                    islem: parseFloat(r.islem) || 0
+                }));
+
+                table.setData(mappedData).then(() => {
+                    updateChart(mappedData);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function switchSubView(view) {
+            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#data-view, #graph-view').forEach(v => v.classList.remove('active'));
+
+            if (view === 'data') {
+                document.querySelector('.sub-tab:nth-child(1)').classList.add('active');
+                document.getElementById('data-view').classList.add('active');
+            } else {
+                document.querySelector('.sub-tab:nth-child(2)').classList.add('active');
+                document.getElementById('graph-view').classList.add('active');
+            }
+        }
+
+        function updateGrouping() {
+            const field = document.getElementById('groupSelect').value;
+            const bE = document.getElementById('btnExpand');
+            const bC = document.getElementById('btnCollapse');
+
+            if (field) {
+                table.setGroupBy(field);
+                bE.style.display = 'inline-block';
+                bC.style.display = 'inline-block';
+            } else {
+                table.setGroupBy(false);
+                bE.style.display = 'none';
+                bC.style.display = 'none';
+            }
+        }
+
+        function expandGroups() {
+            if (table) {
+                let groups = table.getGroups();
+                function process(gs) { gs.forEach(g => { g.show(); let s = g.getSubGroups(); if (s) process(s); }); }
+                process(groups);
+            }
+        }
+
+        function collapseGroups() {
+            if (table) {
+                let groups = table.getGroups();
+                function process(gs) { gs.forEach(g => { g.hide(); let s = g.getSubGroups(); if (s) process(s); }); }
+                process(groups);
+            }
+        }
+
+        function applySearch() {
+            const val = document.getElementById('globalSearch').value;
+            table.setFilter([{ field: "personel", type: "like", value: val }]);
+        }
+
+        function clearSearch() {
+            document.getElementById('globalSearch').value = "";
+            table.clearFilter();
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('olapChart').getContext('2d');
+
+            // Personel bazlı bekleme ortalaması grafiği
+            const stats = {};
+            data.forEach(r => {
+                if (!stats[r.personel]) stats[r.personel] = { sum: 0, count: 0 };
+                stats[r.personel].sum += r.bekleme;
+                stats[r.personel].count++;
+            });
+
+            const labels = Object.keys(stats);
+            const values = labels.map(l => (stats[l].sum / stats[l].count).toFixed(1));
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ortalama Bekleme Süresi (dk)',
+                        data: values,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1
+                    }]
+                }
+            });
+        }
+
+        function exportData() { table.download("csv", "olap-export.csv"); }
+
+        window.onload = initOLAP;
+    </script>
+</body>
+
+</html>```

@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AG-Grid Kurumsal Analiz (Pivot Pro) - Sıramatik</title>
+
+    <!-- AG Grid Enterprise v31.0.3 -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-enterprise@31.0.3/dist/ag-grid-enterprise.min.js"></script>
+    <!-- PDF Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-theme-quartz.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --admin-bg: #0f172a;
+            --sidebar-bg: #1e293b;
+            --accent: #6366f1;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--admin-bg);
+            color: #f1f5f9;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-nav {
+            padding: 0 25px;
+            height: 60px;
+            background: #1e293b;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #818cf8;
+        }
+
+        #grid-wrapper {
+            flex: 1;
+            padding: 15px;
+            background: #0f172a;
+            position: relative;
+        }
+
+        #myGrid {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* AG Grid Quartz Dark Themes & Header Visibility */
+        .ag-theme-quartz-dark {
+            --ag-background-color: #0f172a;
+            --ag-header-background-color: #111827;
+            --ag-header-foreground-color: #ffffff;
+            --ag-header-column-separator-display: block;
+            --ag-header-column-separator-color: rgba(255, 255, 255, 0.1);
+            /* Zebra Striping */
+            --ag-odd-row-background-color: #1e293b;
+            --ag-row-hover-color: rgba(99, 102, 241, 0.1);
+            --ag-selected-row-background-color: rgba(99, 102, 241, 0.2);
+        }
+
+        /* BRUTE FORCE: Ensure header text is visible in normal mode */
+        .ag-header-cell-label,
+        .ag-header-cell-text,
+        .ag-cell-label-container {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .ag-header {
+            background-color: #0f172a !important;
+        }
+
+        .btn-refresh {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body class="ag-theme-quartz-dark">
+    <header class="top-nav">
+        <div class="logo">
+            <i class="fas fa-th-large"></i> AG-GRID ANALİZ (PRO)
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex: 1; margin-left: 20px;">
+            <!-- Grup Kontrolleri -->
+            <div style="display: flex; gap: 4px;">
+                <button class="btn-refresh" style="background: #334155; padding: 6px 10px;" onclick="expandAllGroups()"
+                    title="Tüm Grupları Aç">
+                    <i class="fas fa-plus-square"></i>
+                </button>
+                <button class="btn-refresh" style="background: #334155; padding: 6px 10px;"
+                    onclick="collapseAllGroups()" title="Tüm Grupları Kapat">
+                    <i class="fas fa-minus-square"></i>
+                </button>
+            </div>
+
+            <div style="flex: 1;"></div> <!-- Spacer -->
+
+            <label style="font-size: 11px; color: #94a3b8;">ARALIK:</label>
+            <select id="timeRange" onchange="loadData(); saveTimeRange(this.value)">
+                <option value="today">Bugün</option>
+                <option value="this_week">Bu Hafta</option>
+                <option value="this_month" selected>Bu Ay</option>
+                <option value="all_time">Tüm Zamanlar</option>
+            </select>
+            <!-- Rapor Şablonları -->
+            <div
+                style="display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 8px; gap: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <label style="font-size: 10px; color: #94a3b8; font-weight: 700;">ŞABLONLAR:</label>
+                <select id="presetSelect" onchange="loadPreset(this.value)" style="width: 140px; background: #0f172a;">
+                    <option value="">-- Şablon Seç --</option>
+                </select>
+                <input type="text" id="newPresetName" placeholder="Rapor Adı..."
+                    style="width: 100px; padding: 5px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px; font-size: 11px;">
+                <button class="btn-refresh" style="background: #a855f7; padding: 6px 10px;" onclick="saveNewPreset()"
+                    title="Bu Düzeni Kaydet">
+                    <i class="fas fa-save"></i>
+                </button>
+                <button class="btn-refresh" style="background: #ef4444; padding: 6px 10px;" onclick="deletePreset()"
+                    title="Seçili Şablonu Sil">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <!-- Hücre Ayarları -->
+            <div
+                style="display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 8px; gap: 5px; border: 1px solid rgba(255,255,255,0.05);">
+                <label style="font-size: 10px; color: #94a3b8; font-weight: 700;"> BASAMAK:</label>
+                <button class="btn-refresh" style="background: #475569; padding: 4px 8px; font-size: 10px;"
+                    onclick="setDecimalPlaces(0)">0</button>
+                <button class="btn-refresh" style="background: #475569; padding: 4px 8px; font-size: 10px;"
+                    onclick="setDecimalPlaces(1)">1</button>
+                <button class="btn-refresh" style="background: #475569; padding: 4px 8px; font-size: 10px;"
+                    onclick="setDecimalPlaces(2)">2</button>
+            </div>
+
+            <button class="btn-refresh" style="background: #f59e0b;" onclick="createDefaultChart()">
+                <i class="fas fa-chart-bar"></i> Grafik
+            </button>
+            <button class="btn-refresh" onclick="loadData()">
+                <i class="fas fa-sync"></i> Güncelle
+            </button>
+            <button class="btn-refresh" onclick="onBtExport()" style="background: #10b981;">
+                <i class="fas fa-file-excel"></i> Excel
+            </button>
+            <button class="btn-refresh" onclick="exportToPDF()" style="background: #e11d48;">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
+            <a href="admin.html" style="text-decoration: none; color: #f87171; margin-left:10px; font-size: 13px;">
+                <i class="fas fa-arrow-left"></i> Panel
+            </a>
+        </div>
+    </header>
+
+    <div id="grid-wrapper">
+        <div id="myGrid" class="ag-theme-quartz-dark"></div>
+    </div>
+
+    <script>
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+        let gridApi;
+        let currentUser = JSON.parse(localStorage.getItem('user'));
+        let isExpandedGlobal = false; // Grupların açık/kapalı durumunu takip eder
+        let decimalPlacesGlobal = 2; // Varsayılan ondalık basamak
+
+        // Hücre Biçimlendirici (Türkçe Standartlarında 1.234,56)
+        const numberFormatter = (params) => {
+            if (params.value == null || isNaN(params.value)) return params.value;
+            return new Intl.NumberFormat('tr-TR', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: decimalPlacesGlobal
+            }).format(params.value);
+        };
+
+        const columnDefs = [
+            { headerName: "TARİH", field: "Tarih", filter: 'agDateColumnFilter', sort: 'desc', pinned: 'left' },
+            {
+                headerName: "YIL", field: "Yıl", enableRowGroup: true, enablePivot: true, hide: true,
+                filter: 'agSetColumnFilter',
+                filterParams: { comparator: (a, b) => parseInt(a) - parseInt(b) }
+            },
+            {
+                headerName: "AY", field: "Ay", enableRowGroup: true, enablePivot: true, hide: true,
+                filter: 'agSetColumnFilter',
+                filterParams: {
+                    comparator: (a, b) => {
+                        const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+                        return months.indexOf(a) - months.indexOf(b);
+                    }
+                }
+            },
+            {
+                headerName: "GÜN", field: "Gün", enableRowGroup: true, enablePivot: true, hide: true,
+                filter: 'agSetColumnFilter',
+                filterParams: { comparator: (a, b) => parseInt(a) - parseInt(b) }
+            },
+            {
+                headerName: "HAFTANIN GÜNÜ", field: "Haftanın Günü", enableRowGroup: true, enablePivot: true, hide: true,
+                filter: 'agSetColumnFilter',
+                filterParams: {
+                    comparator: (a, b) => {
+                        const days = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+                        return days.indexOf(a) - days.indexOf(b);
+                    }
+                }
+            },
+            {
+                headerName: "YILIN HAFTASI", field: "Yılın Haftası", enableRowGroup: true, enablePivot: true, hide: true,
+                filter: 'agSetColumnFilter',
+                filterParams: {
+                    comparator: (a, b) => {
+                        const getNum = (s) => parseInt(s.replace('Hafta ', '')) || 0;
+                        return getNum(a) - getNum(b);
+                    }
+                }
+            },
+            { headerName: "SAAT", field: "Saat", filter: 'agTextColumnFilter' },
+            { headerName: "BÖLÜM", field: "Bölüm", enableRowGroup: true, enablePivot: true, filter: 'agSetColumnFilter' },
+            { headerName: "KUYRUK", field: "Kuyruk", enableRowGroup: true, enablePivot: true, filter: 'agSetColumnFilter' },
+            { headerName: "PERSONEL", field: "Personel", enableRowGroup: true, enablePivot: true, filter: 'agSetColumnFilter' },
+            { headerName: "DURUM", field: "Durum", enableRowGroup: true, enablePivot: true, filter: 'agSetColumnFilter' },
+            {
+                headerName: "BEKLEME (DK)",
+                field: "Bekleme (dk)",
+                aggFunc: 'avg',
+                enableValue: true,
+                filter: 'agNumberColumnFilter',
+                valueFormatter: numberFormatter,
+                type: 'rightAligned'
+            },
+            {
+                headerName: "İŞLEM (DK)",
+                field: "İşlem (dk)",
+                aggFunc: 'avg',
+                enableValue: true,
+                filter: 'agNumberColumnFilter',
+                valueFormatter: numberFormatter,
+                type: 'rightAligned'
+            },
+            {
+                headerName: "BİLET ADET",
+                field: "Bilet Adet",
+                aggFunc: 'sum',
+                enableValue: true,
+                valueFormatter: numberFormatter,
+                type: 'rightAligned'
+            }
+        ];
+
+        const AG_GRID_LOCALE_TR = {
+            // Sütun Menüsü ve Filtreler
+            contains: 'İçerir',
+            notContains: 'İçermez',
+            equals: 'Eşittir',
+            notEqual: 'Eşit Değil',
+            startsWith: 'İle Başlar',
+            endsWith: 'İle Biter',
+            blank: 'Boş',
+            notBlank: 'Boş Değil',
+            empty: 'Seçiniz',
+            lessThan: 'Daha Az',
+            greaterThan: 'Daha Fazla',
+            lessThanOrEqual: 'Daha Az veya Eşit',
+            greaterThanOrEqual: 'Daha Fazla veya Eşit',
+            inRange: 'Arasında',
+            inRangeStart: 'Başlangıç',
+            inRangeEnd: 'Bitiş',
+            filterOoo: 'Filtrele...',
+            applyFilter: 'Filtreyi Uygula',
+            resetFilter: 'Temizle',
+            clearFilter: 'Temizle',
+            andCondition: 'VE',
+            orCondition: 'VEYA',
+
+            // Tarih Filtresi
+            dateFormatOoo: 'gg.aa.yyyy',
+            before: 'Önce',
+            after: 'Sonra',
+
+            // Sağ Panel (Side Bar)
+            columns: 'Sütunlar',
+            filters: 'Filtreler',
+            pivotMode: 'Pivot Modu',
+            groups: 'Satır Grupları',
+            rowGroupColumnsEmptyMessage: 'Gruplamak için sütunları buraya sürükleyin',
+            values: 'Değerler',
+            valueColumnsEmptyMessage: 'Hesaplama için buraya sürükleyin',
+            pivots: 'Sütun Etiketleri',
+            pivotColumnsEmptyMessage: 'Pivot için buraya sürükleyin',
+            searchOoo: 'Ara...',
+            selectAll: '(Hepsini Seç)',
+            selectAllSearchResults: '(Tüm Arama Sonuçlarını Seç)',
+
+            // Durum Çubuğu
+            totalRows: 'Toplam Satır',
+            totalAndFilteredRows: 'Satırlar',
+            page: 'Sayfa',
+            more: 'Daha Fazla',
+            to: '-',
+            of: '/',
+            next: 'Sonraki',
+            last: 'Son',
+            first: 'İlk',
+            previous: 'Önceki',
+
+            // Gruplama ve Toplama
+            sum: 'Toplam',
+            min: 'Min',
+            max: 'Max',
+            none: 'Yok',
+            count: 'Adet',
+            avg: 'Ortalama',
+            filteredRows: 'Filtrelenen',
+            selectedRows: 'Seçilen',
+            totalRows: 'Toplam',
+            group: 'Grup',
+
+            // Menü ve Genel
+            noRowsToShow: 'Görüntülenecek veri yok',
+            loadingOoo: 'Yükleniyor...',
+            export: 'Aktar',
+            csvExport: 'CSV Olarak Aktar',
+            excelExport: 'Excel Olarak Aktar (.xlsx)',
+            pinColumn: 'Sütunu Sabitle',
+            pinLeft: 'Sola Sabitle',
+            pinRight: 'Sağa Sabitle',
+            noPin: 'Sabitlemeyi Kaldır',
+            autosizeThiscolumn: 'Bu Sütunu Otomatik Boyutlandır',
+            autosizeAllColumns: 'Tüm Sütunları Otomatik Boyutlandır',
+            groupBy: 'Şuna Göre Grupla',
+            ungroupBy: 'Gruplamayı Kaldır',
+            resetColumns: 'Sütunları Sıfırla',
+            expandAll: 'Hepsini Genişlet',
+            collapseAll: 'Hepsini Daralt',
+            copy: 'Kopyala',
+            copyWithHeaders: 'Başlıklarla Kopyala',
+            ctrlC: 'Ctrl+C',
+            paste: 'Yapıştır',
+            ctrlV: 'Ctrl+V',
+
+            // Hizalama
+            alignment: 'Hizalama',
+            left: 'Sola Yasla',
+            center: 'Ortala',
+            right: 'Sağa Yasla',
+
+            // Grafik Terimleri
+            chartMenu: 'Grafik',
+            pivotChart: 'Pivot Grafik',
+            rangeChart: 'Aralık Grafiği',
+            columnChart: 'Sütun',
+            groupedColumn: 'Gruplanmış',
+            stackedColumn: 'Yığılmış',
+            normalizedColumn: ' %100 Yığılmış',
+            barChart: 'Çubuk',
+            groupedBar: 'Gruplanmış',
+            stackedBar: 'Yığılmış',
+            normalizedBar: '%100 Yığılmış',
+            pieChart: 'Pasta',
+            pie: 'Pasta',
+            doughnut: 'Simit',
+            lineChart: 'Çizgi',
+            areaChart: 'Alan',
+            area: 'Alan',
+            stackedArea: 'Yığılmış',
+            normalizedArea: '%100 Yığılmış',
+            scatterChart: 'Nokta',
+            bubbleChart: 'Baloncuk',
+            histogramChart: 'Histogram',
+            combinationChart: 'Kombinasyon',
+            columnLineCombo: 'Sütun & Çizgi',
+            AreaColumnCombo: 'Alan & Sütun',
+            chartSettings: 'Grafik Ayarları',
+            chartFilters: 'Grafik Filtreleri',
+            chartTitle: 'Grafik Başlığı',
+            chartFormat: 'Format',
+            top: 'Üst',
+            right: 'Sağ',
+            bottom: 'Alt',
+            left: 'Sol',
+            labels: 'Etiketler',
+            data: 'Veri',
+            type: 'Tür',
+            category: 'Kategori',
+            series: 'Seriler',
+            noDataToChart: 'Grafik oluşturulacak veri yok.',
+            pivotChartTitle: 'Pivot Grafiği',
+            rangeChartTitle: 'Aralık Grafiği'
+        };
+
+        const gridOptions = {
+            columnDefs: columnDefs,
+            localeText: AG_GRID_LOCALE_TR,
+            headerHeight: 50,
+            pivotMode: false,
+            pagination: true,
+            paginationPageSize: 100,
+            enableCharts: true,
+            enableRangeSelection: true,
+            popupParent: document.body,
+            getContextMenuItems: function (params) {
+                const result = [
+                    'copy',
+                    'copyWithHeaders',
+                    'paste',
+                    'separator',
+                    {
+                        name: 'Sütun Hizalaması',
+                        icon: '<i class="fas fa-align-left"></i>',
+                        subMenu: [
+                            {
+                                name: 'Sola Yasla',
+                                action: () => params.api.applyColumnState({
+                                    state: [{ colId: params.column.getColId(), cellClass: 'ag-left-aligned-cell' }],
+                                    applyOrder: true
+                                })
+                            },
+                            {
+                                name: 'Ortala',
+                                action: () => params.api.applyColumnState({
+                                    state: [{ colId: params.column.getColId(), cellClass: 'ag-center-aligned-cell' }],
+                                    applyOrder: true
+                                })
+                            },
+                            {
+                                name: 'Sağa Yasla',
+                                action: () => params.api.applyColumnState({
+                                    state: [{ colId: params.column.getColId(), cellClass: 'ag-right-aligned-cell' }],
+                                    applyOrder: true
+                                })
+                            }
+                        ]
+                    },
+                    'separator',
+                    'chartRange',
+                    'export'
+                ];
+                return result;
+            },
+            defaultColDef: {
+                flex: 1,
+                minWidth: 100,
+                filter: true,
+                sortable: true,
+                resizable: true,
+                floatingFilter: true
+            },
+            statusBar: {
+                statusPanels: [
+                    { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
+                    { statusPanel: 'agAggregationComponent' }
+                ]
+            },
+            sideBar: ['columns', 'filters']
+        };
+
+        // Zaman Arağılını Sakla
+        function saveTimeRange(val) {
+            localStorage.setItem('ag_grid_time_range', val);
+        }
+
+        // Şablon Listesini Güncelle
+        function updatePresetList() {
+            const select = document.getElementById('presetSelect');
+            const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
+
+            // Temizle (İlk option hariç)
+            select.innerHTML = '<option value="">-- Şablon Seç --</option>';
+
+            Object.keys(savedPresets).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+        }
+
+        // Yeni Şablon Kaydet
+        function saveNewPreset() {
+            if (!gridApi) return;
+            const name = document.getElementById('newPresetName').value.trim();
+            if (!name) {
+                alert("Lütfen bir rapor adı girin!");
+                return;
+            }
+
+            const state = {
+                columnState: gridApi.getColumnState(),
+                filterModel: gridApi.getFilterModel(),
+                pivotMode: gridApi.isPivotMode(),
+                isExpanded: isExpandedGlobal,
+                decimalPlaces: decimalPlacesGlobal
+            };
+
+            const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
+            savedPresets[name] = state;
+            localStorage.setItem(`ag_grid_presets_${currentUser.firma_id}`, JSON.stringify(savedPresets));
+
+            document.getElementById('newPresetName').value = '';
+            updatePresetList();
+            document.getElementById('presetSelect').value = name;
+            alert(`"${name}" şablonu başarıyla kaydedildi!`);
+        }
+
+        // Şablon Yükle
+        function loadPreset(name) {
+            if (!gridApi || !name) return;
+            const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
+            const state = savedPresets[name];
+
+            if (state) {
+                // Önce ayarları sıfırla (temiz bir geçiş için)
+                gridApi.applyColumnState({ defaultState: { sort: null }, resetColumnState: true });
+
+                if (state.columnState) gridApi.applyColumnState({ state: state.columnState, applyOrder: true });
+                if (state.filterModel) gridApi.setFilterModel(state.filterModel);
+                if (state.pivotMode !== undefined) gridApi.setGridOption('pivotMode', state.pivotMode);
+
+                // Ondalık basamak ayarını uygula
+                if (state.decimalPlaces !== undefined) {
+                    decimalPlacesGlobal = state.decimalPlaces;
+                }
+
+                // Grupların durumunu uygula
+                if (state.isExpanded) {
+                    setTimeout(() => gridApi.expandAll(), 200);
+                    isExpandedGlobal = true;
+                } else {
+                    setTimeout(() => gridApi.collapseAll(), 200);
+                    isExpandedGlobal = false;
+                }
+
+                // Seçilen şablonu son kullanılan olarak işaretle
+                localStorage.setItem(`ag_grid_last_preset_${currentUser.firma_id}`, name);
+            }
+        }
+
+        // Grup İşlemleri
+        function expandAllGroups() {
+            if (!gridApi) return;
+            gridApi.expandAll();
+            isExpandedGlobal = true;
+        }
+
+        function collapseAllGroups() {
+            if (!gridApi) return;
+            gridApi.collapseAll();
+            isExpandedGlobal = false;
+        }
+
+        // Hücre Ayarları
+        function setDecimalPlaces(n) {
+            decimalPlacesGlobal = n;
+            if (gridApi) {
+                gridApi.refreshCells({ force: true });
+            }
+        }
+
+        // Şablon Sil
+        function deletePreset() {
+            const name = document.getElementById('presetSelect').value;
+            if (!name) return;
+
+            if (confirm(`"${name}" şablonunu silmek istediğinize emin misiniz?`)) {
+                const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
+                delete savedPresets[name];
+                localStorage.setItem(`ag_grid_presets_${currentUser.firma_id}`, JSON.stringify(savedPresets));
+                updatePresetList();
+                alert("Şablon silindi.");
+            }
+        }
+
+        // Grafik Oluştur (Otomatik Görünüm Bazlı)
+        function createDefaultChart() {
+            if (!gridApi) return;
+
+            // Ekranda o an görünür olan tüm sütun kimliklerini (ID) al
+            const visibleCols = gridApi.getAllDisplayedColumns().map(col => col.getColId());
+
+            if (gridApi.isPivotMode()) {
+                // Pivot modundaysa mevcut özet tabloyu grafiğe dök
+                gridApi.createPivotChart({
+                    chartType: 'groupedColumn'
+                });
+            } else {
+                // Normal moddaysa, herhangi bir seçim yapılmasına gerek kalmadan 
+                // ekrandaki tüm satır ve sütunları kapsayan aralık grafiği oluştur
+                gridApi.createRangeChart({
+                    chartType: 'groupedColumn',
+                    cellRange: {
+                        columns: visibleCols
+                    },
+                    suppressChartRanges: false // Grafik aralıklarını tabloda renklendir (görsel takip için)
+                });
+            }
+        }
+
+        async function loadData() {
+            if (!gridApi) return;
+            try {
+                const range = document.getElementById('timeRange').value;
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${range}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                const data = result.data || [];
+
+                const mappedData = data.map(r => {
+                    const rawDate = r.tarih || "";
+                    let year = "---", month = "---", dayOfMonth = "---", dayOfWeek = "---", weekOfYear = "---";
+
+                    if (rawDate && rawDate.includes('.')) {
+                        const parts = rawDate.split('.');
+                        if (parts.length === 3) {
+                            const d = parseInt(parts[0]);
+                            const m = parseInt(parts[1]) - 1;
+                            const y = parseInt(parts[2]);
+                            const dateObj = new Date(y, m, d);
+
+                            if (!isNaN(dateObj.getTime())) {
+                                year = String(y);
+                                month = dateObj.toLocaleString('tr-TR', { month: 'long' });
+                                dayOfMonth = String(d);
+                                dayOfWeek = dateObj.toLocaleString('tr-TR', { weekday: 'long' });
+
+                                // Hafta Numarası Hesaplama
+                                const startOfYear = new Date(y, 0, 1);
+                                const diff = dateObj - startOfYear;
+                                const oneDay = 1000 * 60 * 60 * 24;
+                                weekOfYear = "Hafta " + Math.ceil((diff / oneDay + startOfYear.getDay() + 1) / 7);
+                            }
+                        }
+                    }
+
+                    return {
+                        "Tarih": rawDate,
+                        "Yıl": year,
+                        "Ay": month,
+                        "Gün": dayOfMonth,
+                        "Haftanın Günü": dayOfWeek,
+                        "Yılın Haftası": weekOfYear,
+                        "Saat": r.saat || "??",
+                        "Bölüm": r.servis || "---",
+                        "Kuyruk": r.kuyruk || "---",
+                        "Personel": r.personel || "---",
+                        "Durum": r.durum === 'completed' ? 'Bitti' : r.durum === 'calling' ? 'Çağrıda' : 'Beklemede',
+                        "Bekleme (dk)": parseFloat(r.bekleme) || 0,
+                        "İşlem (dk)": parseFloat(r.islem) || 0,
+                        "Bilet Adet": 1
+                    };
+                });
+
+                gridApi.setGridOption('rowData', mappedData);
+
+                // Şablon listesini güncelle ve gerekirse son şablonu yükle
+                if (!window.layoutLoaded) {
+                    updatePresetList();
+                    const lastPreset = localStorage.getItem(`ag_grid_last_preset_${currentUser.firma_id}`);
+                    if (lastPreset) {
+                        document.getElementById('presetSelect').value = lastPreset;
+                        loadPreset(lastPreset);
+                    }
+
+                    const savedRange = localStorage.getItem('ag_grid_time_range');
+                    if (savedRange) document.getElementById('timeRange').value = savedRange;
+
+                    window.layoutLoaded = true;
+                }
+
+                // Eğer aktif şablon yoksa sütunları sığdır
+                if (!document.getElementById('presetSelect').value) {
+                    setTimeout(() => gridApi.sizeColumnsToFit(), 200);
+                }
+            } catch (e) {
+                console.error("Data Load Error", e);
+            }
+        }
+
+        function onBtExport() {
+            if (gridApi) gridApi.exportDataAsExcel();
+        }
+        // PDF Olarak Yeni Sekmede Aç (Önizleme)
+        function exportToPDF() {
+            if (!gridApi) return;
+
+            try {
+                const jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
+                if (!jsPDFLib) {
+                    alert("PDF kütüphanesi yüklenemedi.");
+                    return;
+                }
+
+                const doc = new jsPDFLib('l', 'pt', 'a4');
+
+                // --- GERÇEK TÜRKÇE ROBOTO FONT (Metrik Verisi İçeren Versiyon) ---
+                // Bu base64 verisi karakter genişliklerini doğru hesaplaması için gerekli yapıları içerir.
+                const robotoBase64 = "AAEAAAARAQAABAAQR0RFRgBEAAsAAAEcAAAAFkdQT1N6pX90AAACPAAAAFpPUy8yYHBkcgAAAXgAAABg" +
+                    "Y21hcOfU3WwAAANoAAABemN2dCAAKAAAAAAFeAAAAARnYXNwAAAAEAAABHAAAAAIZ2x5ZlmiX0UAAAZA" +
+                    "AAAIDmhlYWQTre3FAAAA7AAAADZoaGVhC0YF0wAAASwAAAAkaG10eBAfAAAAAAHAAAAAIGxvY2EAKACY" +
+                    "AAAGIAAAABJtYXhwAGEAVAAAAWAAAAAgbmFtZeS66H8AAAWAAAAB9nBvc3T/bQBkAAAHAAAAACBwcmVw" +
+                    "u8IAvQAAA3QAAAB9AAEAAAAKADA8AABkREZMVAAbeWenAAABABAAAAACAAUAAQAHAAUAAQAAAAEAAAAA" +
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg" +
+                    "AAABAAAAAA4AAAABAAIAAgAEAAEAAQABAAAAAgAAAAEAAAAAAAEAAAAA/+EFVwABAAAAAAAAAAAAAAAC" +
+                    "AAAAAQAAAAAAAP+hAGQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAsMAAQAOAA4ADgAOAA4ADgAOAA4AAAAB" +
+                    "AAAAAQAAAsMAAAAABAAAAAQAAAQAOAA4ADgAAAAEAAAABAAIAAgAAAAEAAAABAAEAAQAAAAEAAAABAAAA" +
+                    "AAAAAAAAAA==";
+
+                try {
+                    doc.addFileToVFS('Roboto-Regular.ttf', robotoBase64);
+                    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+                    doc.setFont('Roboto');
+                } catch (e) { console.warn("Font metrik yüklemesi başarısız, helvetica'ya dönülüyor."); }
+
+                // --- STERİL SÜTUN VE VERİ HAZIRLIĞI ---
+                const displayedCols = gridApi.getAllDisplayedColumns() || [];
+                const exportColumns = [];
+                const columnIdsRaw = [];
+
+                displayedCols.forEach((col, index) => {
+                    const id = col.getColId();
+                    const def = col.getColDef();
+                    let hName = def.headerName || id || "Sütun " + (index + 1);
+
+                    if (id === 'ag-Grid-AutoColumn') hName = "GRUP / DETAY";
+
+                    if (hName && !id.includes('selection')) {
+                        exportColumns.push(String(hName).trim());
+                        columnIdsRaw.push(id);
+                    }
+                });
+
+                const dataBody = [];
+                const decPlaces = (typeof decimalPlacesGlobal !== 'undefined') ? decimalPlacesGlobal : 2;
+
+                gridApi.forEachNodeAfterFilterAndSort(node => {
+                    const row = [];
+                    columnIdsRaw.forEach(id => {
+                        let value = "";
+                        // Hiyerarşik Veri Okuma (Grup/Pivot/Normal)
+                        if (id === 'ag-Grid-AutoColumn') {
+                            value = node.key || "";
+                        } else {
+                            if (node.groupData && node.groupData[id] !== undefined) value = node.groupData[id];
+                            else if (node.aggData && node.aggData[id] !== undefined) value = node.aggData[id];
+                            else if (node.data && node.data[id] !== undefined) value = node.data[id];
+                        }
+
+                        if (typeof value === 'number') {
+                            value = new Intl.NumberFormat('tr-TR', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: decPlaces
+                            }).format(value);
+                        }
+
+                        // Width hatasını engellemek için her zaman string ve temiz veri
+                        let str = String(value != null ? value : "").trim();
+                        // Gizli karakterleri ve sembolleri temizle
+                        str = str.replace(/[^\x20-\x7E\u00C0-\u017F\s]/g, "");
+                        row.push(str);
+                    });
+                    dataBody.push(row);
+                });
+
+                if (dataBody.length === 0) {
+                    alert("Tabloda dışa aktarılacak veri bulunamadı.");
+                    return;
+                }
+
+                // --- PDF OLUŞTURMA (jsPDF-AutoTable Strict Mode) ---
+                doc.setFontSize(14);
+                doc.text("RAPOR ONIZLEME - SIRAMATIK", 40, 40);
+                doc.setFontSize(9);
+                doc.text(`Tarih: ${new Date().toLocaleString('tr-TR')}`, 40, 55);
+
+                doc.autoTable({
+                    head: [exportColumns],
+                    body: dataBody,
+                    startY: 70,
+                    theme: 'grid',
+                    styles: {
+                        font: 'Roboto',
+                        fontSize: exportColumns.length > 12 ? 6 : 7,
+                        cellPadding: 2,
+                        valign: 'middle',
+                        overflow: 'linebreak'
+                    },
+                    headStyles: {
+                        fillColor: [15, 23, 42],
+                        textColor: [255, 255, 255],
+                        font: 'Roboto',
+                        fontStyle: 'normal'
+                    },
+                    margin: { left: 30, right: 30 },
+                    // Widths hatasını kökten engellemek için zorunlu (forced) ayar
+                    tableWidth: 'auto',
+                    columnStyles: {
+                        all: { minCellWidth: 10 }
+                    },
+                    didParseCell: function (data) {
+                        // Font ölçümlerini her hücrede garanti et
+                        data.cell.styles.font = 'Roboto';
+                        if (data.section === 'body') {
+                            const txt = String(data.cell.text[0] || "");
+                            if (txt && !isNaN(txt.replace('.', '').replace(',', '.'))) {
+                                data.cell.styles.halign = 'right';
+                            }
+                        }
+                    }
+                });
+
+                // PDF Açılış
+                const blobUrl = doc.output('bloburl');
+                window.open(blobUrl, '_blank');
+
+            } catch (err) {
+                console.error("PDF Fatal Error (Widths Resolution):", err);
+                alert("PDF oluşturulamadı. Lütfen tabloyu sadeleştirip (bazı sütunları kapatıp) tekrar deneyin.");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridDiv = document.querySelector('#myGrid');
+            gridApi = agGrid.createGrid(gridDiv, gridOptions);
+            loadData();
+        });
+    </script>
+</body>
+
+</html>

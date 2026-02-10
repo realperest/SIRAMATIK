@@ -18,7 +18,6 @@
         .header {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             padding: 30px 400px 30px 40px;
-            /* Saate yer ayırıyoruz */
             text-align: center;
             position: relative;
             min-height: 160px;
@@ -54,7 +53,6 @@
             align-items: center;
         }
 
-        /* Yeni Çağrı (Spotlight) Alanı */
         .spotlight-area {
             min-height: 320px;
             display: flex;
@@ -65,7 +63,7 @@
 
         .spotlight-item {
             background: linear-gradient(135deg, #ff0055 0%, #ff00a2 100%);
-            width: 90%;
+            width: 98%;
             padding: 40px;
             border-radius: 40px;
             display: flex;
@@ -86,16 +84,6 @@
             font-weight: bold;
             letter-spacing: 5px;
             color: rgba(255, 255, 255, 0.8);
-            color: rgba(255, 255, 255, 0.8);
-            animation: none;
-            /* Varsayılan: Yanıp sönmez */
-        }
-
-        .spotlight-item.animasyonlu {
-            animation: heartbeat 1.5s ease-in-out infinite;
-        }
-
-        .spotlight-item.animasyonlu::after {
             animation: blink 1s infinite;
         }
 
@@ -124,7 +112,6 @@
             text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
         }
 
-        /* Normal/Geçmiş Çağrı Öğesi (Daraltılmış & Ölçeklenmiş) */
         .cagri-item {
             background: rgba(255, 0, 85, 0.1);
             backdrop-filter: blur(10px);
@@ -230,19 +217,6 @@
             }
         }
 
-        @keyframes slideIn {
-            0% {
-                transform: translateY(-20px) scale(0.9);
-                opacity: 0;
-            }
-
-            100% {
-                transform: translateY(0) scale(1);
-                opacity: 1;
-            }
-        }
-
-        /* Sol Alt Ayarlar Butonu */
         .settings-button {
             position: fixed;
             bottom: 20px;
@@ -269,7 +243,6 @@
             transform: rotate(90deg) scale(1.1);
         }
 
-        /* Ayarlar Modal */
         .settings-modal {
             display: none;
             position: fixed;
@@ -365,40 +338,16 @@
         <div class="zaman" id="saat"></div>
     </div>
 
-    <!-- Yeni Çağrı (Spotlight) -->
     <div id="spotlight-container" class="spotlight-area"></div>
-
-    <!-- Geçmiş Çağrılar -->
     <div class="cagri-listesi" id="history-container"></div>
 
-    <!-- Sol Alt Ayarlar Butonu -->
-    <button class="settings-button" onclick="openTVSettings()" title="Ekran Ayarları">
-        ⚙️
-    </button>
+    <button class="settings-button" onclick="openTVSettings()" title="Ekran Ayarları">⚙️</button>
 
-    <!-- SES KONTROLÜ (Corner Toggle) -->
     <div id="mute-toggle" onclick="toggleMute()"
         style="position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.5); backdrop-filter: blur(5px); color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease; z-index:9999;">
         🔊
     </div>
 
-    <!-- Şifre Sorgulama Modalı -->
-    <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 10002;">
-        <div class="settings-panel" style="max-width: 400px; text-align: center;">
-            <div style="font-size: 40px; margin-bottom: 20px;">🔒</div>
-            <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
-            <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Ayarlara erişmek için şifreyi giriniz.</p>
-            <input type="password" id="ask-password-input"
-                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px; font-size: 24px; text-align: center; margin-bottom: 25px; outline: none; box-sizing: border-box;"
-                placeholder="****">
-            <div style="display: flex; gap: 10px;">
-                <button id="ask-password-confirm" class="btn-save" style="flex: 2; margin: 0;">GİRİŞ</button>
-                <button id="ask-password-cancel" class="btn-cancel" style="flex: 1; margin: 0;">İPTAL</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Ayarlar Modal -->
     <div class="settings-modal" id="tv-settings-modal">
         <div class="settings-panel">
             <h2>📺 Ekran Ayarları</h2>
@@ -406,25 +355,64 @@
                 çağrıların gösterileceğini seçin.</p>
 
             <label for="servis-filter">Bölümler (Servisler):</label>
-            <select id="servis-filter" multiple size="5" style="height: 120px;">
-                <!-- Dinamik dolar -->
-            </select>
+            <select id="servis-filter" multiple size="5" style="height: 120px;"></select>
             <small style="color: #999; display: block; text-align: left;">Ctrl/Cmd ile çoklu seçim
                 yapabilirsiniz</small>
 
             <label for="kuyruk-filter">Kuyruklar (Opsiyonel):</label>
-            <select id="kuyruk-filter" multiple size="5" style="height: 120px;">
-                <!-- Dinamik dolar -->
-            </select>
+            <select id="kuyruk-filter" multiple size="5" style="height: 120px;"></select>
             <small style="color: #999; display: block; text-align: left;">Boş bırakılırsa seçili bölümlerin tüm
                 kuyrukları listelenir</small>
 
             <div style="margin-top: 25px; text-align: center;">
                 <button class="btn-save" onclick="saveTVSettings()">💾 Kaydet</button>
-                <button class="btn-reset" onclick="resetTVSettings()">🔄 Sıfırla</button>
+                <button class="btn-reset" onclick="clearTVSelections()" style="background: #95a5a6;">🗑️
+                    Temizle</button>
+                <button class="btn-reset" onclick="resetTVSettings()">🔄 Sıfırla (Reload)</button>
                 <button class="btn-cancel" onclick="closeTVSettings()">❌ İptal</button>
             </div>
         </div>
+    </div>
+
+    <!-- ŞİFRE MODAL -->
+    <div id="password-modal" class="settings-modal" style="display: none; z-index: 10002;">
+        <div class="settings-panel" style="max-width: 400px; text-align: center;">
+            <h2>🔒 Yetkili Girişi</h2>
+            <p>Ekran ayarlarına erişmek için lütfen müdahale şifresini girin.</p>
+            <input type="password" id="modal-password-input" placeholder="Şifre"
+                onkeypress="if(event.key === 'Enter') verifyPassword()"
+                style="width: 100%; padding: 15px; font-size: 18px; margin: 20px 0; border: 2px solid #ddd; border-radius: 10px; text-align: center;">
+
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn-cancel" onclick="closePasswordModal()">İptal</button>
+                <button class="btn-save" onclick="verifyPassword()">Giriş Yap</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialization Overlay -->
+    <div id="start-overlay" style="
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(10, 14, 23, 0.98); z-index: 999999;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        color: white; text-align: center; font-family: 'Segoe UI', system-ui, sans-serif;
+        backdrop-filter: blur(10px);
+    ">
+        <div style="font-size: 80px; margin-bottom: 30px; animation: bounce 2s infinite;">📺</div>
+        <h1 style="font-size: 48px; margin: 0 0 20px 0; font-weight:800; letter-spacing:-1px;">TV Ekranı Hazır</h1>
+        <p style="font-size: 20px; color: #8892b0; margin-bottom: 50px; max-width: 600px; line-height: 1.6;">
+            Tarayıcı politikaları gereği sesin çalabilmesi için kullanıcı etkileşimi gerekmektedir.
+        </p>
+        <button onclick="baslatTV()" style="
+            padding: 25px 80px; font-size: 24px; font-weight: 800;
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+            color: white; border: none; border-radius: 20px;
+            cursor: pointer; box-shadow: 0 20px 40px rgba(0, 176, 155, 0.3);
+            transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 2px;
+            display: flex; align-items: center; gap: 15px;
+        ">
+            <span>BAŞLAT</span> 🚀
+        </button>
     </div>
 
     <script src="static/app.js"></script>
@@ -432,6 +420,29 @@
         let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
         let audioContext = null;
         let isMuted = false;
+        let lastCagriId = null;
+        let seenIds = {};
+        let tvSettings = { servisIds: [], kuyrukIds: [] };
+        let isFirstLoad = true;
+        let displayedCalls = [];
+        let updateTimeout = null;
+
+        function baslatTV() {
+            unlockAudio();
+            playDingDong();
+
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log("Tam ekran reddedildi:", e));
+            }
+
+            const ov = document.getElementById('start-overlay');
+            if (ov) {
+                ov.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+                ov.style.opacity = '0';
+                ov.style.transform = 'scale(1.1)';
+                setTimeout(() => ov.style.display = 'none', 600);
+            }
+        }
 
         function unlockAudio() {
             if (!audioContext) {
@@ -451,9 +462,14 @@
             btn.style.background = isMuted ? 'rgba(231, 76, 60, 0.5)' : 'rgba(0,0,0,0.5)';
         }
 
-        function playDingDong() {
+        async function playDingDong() {
             if (isMuted || !audioContext) return;
-            if (audioContext.state === 'suspended') audioContext.resume();
+
+            try {
+                if (audioContext.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+            } catch (e) { console.error("Audio resume error", e); }
 
             const osc1 = audioContext.createOscillator();
             const gain1 = audioContext.createGain();
@@ -489,13 +505,6 @@
         setInterval(saatGuncelle, 1000);
         saatGuncelle();
 
-        let lastDataJson = '';
-        let lastCagriId = null;
-        let lastCagirilmaSayisi = 0; // RECALL takibi için (Sayı)
-        let seenIds = {};
-        let isFirstLoad = true;
-        let tvSettings = { servisIds: [], kuyrukIds: [] };
-
         function loadTVSettings() {
             const saved = localStorage.getItem('tv_settings');
             if (saved) {
@@ -507,8 +516,19 @@
             }
         }
 
-        async function openTVSettings() {
-            const password = await askPasswordModal();
+        function openTVSettings() {
+            document.getElementById('password-modal').style.display = 'flex';
+            const input = document.getElementById('modal-password-input');
+            input.value = '';
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').style.display = 'none';
+        }
+
+        async function verifyPassword() {
+            const password = document.getElementById('modal-password-input').value;
             if (!password) return;
 
             try {
@@ -518,54 +538,24 @@
                 });
 
                 if (res.status === 'authorized') {
+                    closePasswordModal();
+
                     if (res.firma_id != FIRMA_ID) {
                         localStorage.setItem('global_firma_id', res.firma_id);
                         alert(`Ekran ${res.firma_ad} firmasına bağlandı. Sayfa yenileniyor...`);
                         location.reload();
                         return;
                     }
+
                     document.getElementById('tv-settings-modal').style.display = 'flex';
                     loadSettingsData();
                 }
             } catch (err) {
                 alert('❌ Geçersiz müdahale şifresi!');
-            }
-        }
-
-        function askPasswordModal() {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('password-ask-modal');
-                const input = document.getElementById('ask-password-input');
-                const confirmBtn = document.getElementById('ask-password-confirm');
-                const cancelBtn = document.getElementById('ask-password-cancel');
-
+                const input = document.getElementById('modal-password-input');
                 input.value = '';
-                modal.style.display = 'flex';
                 input.focus();
-
-                const cleanup = () => {
-                    modal.style.display = 'none';
-                    confirmBtn.onclick = null;
-                    cancelBtn.onclick = null;
-                    input.onkeydown = null;
-                };
-
-                confirmBtn.onclick = () => {
-                    const val = input.value;
-                    cleanup();
-                    resolve(val);
-                };
-
-                cancelBtn.onclick = () => {
-                    cleanup();
-                    resolve(null);
-                };
-
-                input.onkeydown = (e) => {
-                    if (e.key === 'Enter') confirmBtn.click();
-                    if (e.key === 'Escape') cancelBtn.click();
-                };
-            });
+            }
         }
 
         function closeTVSettings() {
@@ -626,8 +616,16 @@
             cagrilariGuncelle();
         }
 
+        function clearTVSelections() {
+            const sSelect = document.getElementById('servis-filter');
+            const kSelect = document.getElementById('kuyruk-filter');
+            Array.from(sSelect.options).forEach(o => o.selected = false);
+            sSelect.dispatchEvent(new Event('change'));
+            Array.from(kSelect.options).forEach(o => o.selected = false);
+        }
+
         function resetTVSettings() {
-            if (confirm('⚠️ Ayarları sıfırlamak istiyor musunuz?')) {
+            if (confirm('⚠️ Ayarları sıfırlamak istiyor musunuz? Sayfa yenilenecek.')) {
                 localStorage.removeItem('tv_settings');
                 location.reload();
             }
@@ -638,18 +636,34 @@
                 let data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=20`);
 
                 if (tvSettings.servisIds.length > 0 || tvSettings.kuyrukIds.length > 0) {
-                    data = data.filter(c => {
+                    data = data.filter(cagri => {
                         if (tvSettings.kuyrukIds.length > 0) {
-                            return tvSettings.kuyrukIds.includes(c.kuyruk_id);
+                            return tvSettings.kuyrukIds.includes(cagri.kuyruk_id);
                         }
-                        return tvSettings.servisIds.includes(c.servis_id);
+                        return tvSettings.servisIds.includes(cagri.servis_id);
                     });
                 }
+
+                const simdi = Date.now();
+
+                // Backend'den gelen yeni çağrıları displayedCalls'a ekle
+                data.forEach(cagri => {
+                    if (!seenIds[cagri.id]) {
+                        seenIds[cagri.id] = simdi;
+                        const exists = displayedCalls.find(c => c.id === cagri.id);
+                        if (!exists) displayedCalls.unshift(cagri);
+                    }
+                });
+
+                displayedCalls = displayedCalls.filter(c => (simdi - seenIds[c.id]) < 600000);
+                Object.keys(seenIds).forEach(id => {
+                    if (simdi - seenIds[id] >= 600000) delete seenIds[id];
+                });
 
                 const spotlightContainer = document.getElementById('spotlight-container');
                 const historyContainer = document.getElementById('history-container');
 
-                if (!data || data.length === 0) {
+                if (displayedCalls.length === 0) {
                     spotlightContainer.innerHTML = '';
                     historyContainer.innerHTML = `
                         <div class="empty-state">
@@ -661,24 +675,22 @@
                     return;
                 }
 
-                const latest = data[0];
+                const latest = displayedCalls[0];
+                const gecenSure = simdi - seenIds[latest.id];
 
-                let isNew = false;
-                // cagirilma_sayisi değişmişse TEKRAR ÇAĞIR yapılmıştır
-                if (lastCagriId !== latest.id || lastCagirilmaSayisi !== latest.cagirilma_sayisi) {
-                    isNew = true;
-                    if (!isFirstLoad) {
-                        if (typeof playDingDong === 'function') playDingDong();
+                const isNewCall = (lastCagriId !== latest.id);
+                if (isNewCall) {
+                    if (!isFirstLoad && !isMuted && audioContext) {
+                        if (audioContext.state === 'suspended') audioContext.resume();
+                        playDingDong();
                     }
                     lastCagriId = latest.id;
-                    lastCagirilmaSayisi = latest.cagirilma_sayisi;
                 }
                 isFirstLoad = false;
 
-                const animClass = isNew ? 'animasyonlu' : '';
-
+                const needsAnimation = gecenSure < 5000;
                 spotlightContainer.innerHTML = `
-                    <div class="spotlight-item ${animClass}" id="main-spotlight">
+                    <div class="spotlight-item" style="${needsAnimation ? 'animation: heartbeat 1.5s ease-in-out infinite;' : 'animation: none; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);'}">
                         <div class="spotlight-numara">${latest.numara}</div>
                         <div class="spotlight-detay">
                             <div class="spotlight-servis">${latest.servis}</div>
@@ -687,38 +699,31 @@
                     </div>
                 `;
 
-                if (isNew) {
-                    setTimeout(() => {
-                        const el = document.getElementById('main-spotlight');
-                        if (el) el.classList.remove('animasyonlu');
-                    }, 5000);
-                }
-
-                const historyData = data.slice(1, 6);
-
+                const historyData = displayedCalls.slice(1, 6);
                 historyContainer.innerHTML = historyData.map((cagri, i) => {
-                    const scale = (1 - (i * 0.05)).toFixed(2);
-                    const width = (100 - (i * 4)) + "%";
-                    const opacity = [0.8, 0.6, 0.4, 0.2, 0.1][i] || 0.05;
-                    const blur = (i * 1.5) + "px";
+                    const width = (95 - (i * 5)) + "%";
+                    const scale = (0.99 - (i * 0.02)).toFixed(2);
+                    const opacity = [0.95, 0.85, 0.75, 0.65, 0.55][i] || 0.45;
+                    const blur = (i * 0.5) + "px";
+                    const marginTop = 15 + "px";
 
                     return `
                         <div class="cagri-item" style="
                             width: ${width}; 
                             background: rgba(255, 0, 85, ${opacity}); 
-                            border-color: rgba(255, 0, 85, ${opacity});
+                            border-color: rgba(255, 0, 85, ${opacity * 1.5});
                             filter: blur(${blur});
                             transform: scale(${scale});
                             opacity: ${opacity};
-                            margin-top: 15px;
+                            margin-top: ${marginTop};
                             margin-left: auto;
                             margin-right: auto;
-                            animation: slideIn 0.5s ease-out;
+                            transition: all 0.5s ease-out;
                         ">
-                            <div class="cagri-numara">${cagri.numara}</div>
+                            <div class="cagri-numara" style="font-size: ${40 - (i * 4)}px;">${cagri.numara}</div>
                             <div class="cagri-detay">
-                                <div class="cagri-departman">${cagri.servis}</div>
-                                ${cagri.konum ? `<div class="cagri-oda">📍 ${cagri.konum}</div>` : ''}
+                                <div class="cagri-departman" style="font-size: ${20 - (i * 2)}px;">${cagri.servis}</div>
+                                ${cagri.konum ? `<div class="cagri-oda" style="font-size: ${28 - (i * 3)}px;">📍 ${cagri.konum}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -754,57 +759,10 @@
                     document.title = firma.ad + " - Sıra Ekranı";
                 }
                 bildirCihaz();
-                setInterval(bildirCihaz, 30000);
             } catch (err) {
                 console.error("Firma bilgisi alınamadı", err);
             }
         }
-
-        const overlay = document.createElement('div');
-        overlay.id = 'start-overlay';
-        overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(10, 14, 23, 0.98); z-index: 9999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: white; text-align: center; font-family: 'Segoe UI', system-ui, sans-serif;
-            backdrop-filter: blur(10px);
-        `;
-        overlay.innerHTML = `
-            <div style="font-size: 80px; margin-bottom: 30px; animation: bounce 2s infinite;">📺</div>
-            <h1 style="font-size: 48px; margin: 0 0 20px 0; font-weight:800; letter-spacing:-1px;">TV Ekranı Hazır</h1>
-            <p style="font-size: 20px; color: #8892b0; margin-bottom: 50px; max-width: 600px; line-height: 1.6;">
-                Tarayıcı politikaları gereği sesin çalabilmesi için kullanıcı etkileşimi gerekmektedir.
-            </p>
-            <button id="btn-baslat" style="
-                padding: 25px 80px; font-size: 24px; font-weight: 800;
-                background: linear-gradient(135deg, #00b09b, #96c93d);
-                color: white; border: none; border-radius: 20px;
-                cursor: pointer; box-shadow: 0 20px 40px rgba(0, 176, 155, 0.3);
-                transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 2px;
-                display: flex; align-items: center; gap: 15px;
-            ">
-                <span>BAŞLAT</span> 🚀
-            </button>
-        `;
-        document.body.appendChild(overlay);
-
-        document.getElementById('btn-baslat').onclick = () => {
-            unlockAudio();
-            playDingDong();
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(e => console.log("Tam ekran reddedildi:", e));
-            }
-            overlay.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
-            overlay.style.opacity = '0';
-            overlay.style.transform = 'scale(1.1)';
-            setTimeout(() => overlay.remove(), 600);
-        };
-
-        initFirma();
-        loadTVSettings();
-        cagrilariGuncelle();
-
-        let updateTimeout = null;
 
         function debouncedUpdate() {
             if (updateTimeout) clearTimeout(updateTimeout);
@@ -813,13 +771,94 @@
             }, 300);
         }
 
+        initFirma();
+        loadTVSettings();
+        cagrilariGuncelle();
+
+        async function handleFastCall(sira) {
+            // Filtreleme kontrolü
+            if (tvSettings.servisIds.length > 0 || tvSettings.kuyrukIds.length > 0) {
+                const kId = parseInt(sira.kuyruk_id);
+                const sId = parseInt(sira.servis_id);
+
+                if (tvSettings.kuyrukIds.length > 0 && !tvSettings.kuyrukIds.includes(kId)) return;
+                else if (tvSettings.servisIds.length > 0 && !tvSettings.servisIds.includes(sId)) return;
+            }
+
+            const simdi = Date.now();
+
+            // Sırayı listeye ekle
+            if (!seenIds[sira.id]) {
+                seenIds[sira.id] = simdi;
+                displayedCalls.unshift(sira);
+            } else {
+                // Zaten varsa en başa taşı (tekrar çağrılma durumu)
+                const idx = displayedCalls.findIndex(c => c.id == sira.id);
+                if (idx > -1) displayedCalls.splice(idx, 1);
+                displayedCalls.unshift(sira);
+            }
+
+            // Ekranı güncelle (API çağırmadan)
+            const spotlightContainer = document.getElementById('spotlight-container');
+            const historyContainer = document.getElementById('history-container');
+
+            // Spotlight
+            const latest = sira;
+            const needsAnimation = true;
+
+            spotlightContainer.innerHTML = `
+                <div class="spotlight-item" style="animation: heartbeat 1.5s ease-in-out infinite;">
+                    <div class="spotlight-numara">${latest.numara}</div>
+                    <div class="spotlight-detay">
+                        <div class="spotlight-servis">${latest.servis_ad || latest.servis}</div>
+                        ${latest.konum ? `<div class="spotlight-oda">📍 ${latest.konum}</div>` : ''}
+                    </div>
+                </div>
+            `;
+
+            // Liste
+            const historyData = displayedCalls.slice(1, 6);
+            historyContainer.innerHTML = historyData.map((cagri, i) => {
+                const width = (95 - (i * 5)) + "%";
+                const scale = (0.99 - (i * 0.02)).toFixed(2);
+                const opacity = [0.95, 0.85, 0.75, 0.65, 0.55][i] || 0.45;
+                const blur = (i * 0.5) + "px";
+                const marginTop = 15 + "px";
+
+                return `
+                    <div class="cagri-item" style="
+                        width: ${width}; 
+                        background: rgba(255, 0, 85, ${opacity}); 
+                        border-color: rgba(255, 0, 85, ${opacity * 1.5});
+                        filter: blur(${blur});
+                        transform: scale(${scale});
+                        opacity: ${opacity};
+                        margin-top: ${marginTop};
+                        margin-left: auto;
+                        margin-right: auto;
+                        transition: all 0.5s ease-out;
+                    ">
+                        <div class="cagri-numara" style="font-size: ${40 - (i * 4)}px;">${cagri.numara}</div>
+                        <div class="cagri-detay">
+                            <div class="cagri-departman" style="font-size: ${20 - (i * 2)}px;">${cagri.servis_ad || cagri.servis}</div>
+                            ${cagri.konum ? `<div class="cagri-oda" style="font-size: ${28 - (i * 3)}px;">📍 ${cagri.konum}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Ses çal
+            playDingDong();
+            lastCagriId = sira.id;
+        }
+
         initWebSocket((data) => {
             if (data.type === 'call_ticket') {
+                handleFastCall(data.sira);
+            } else if (data.type === 'new_ticket' || data.type === 'complete_ticket' || data.type === 'start_ticket') {
                 debouncedUpdate();
             }
         });
-
-
     </script>
 </body>
 

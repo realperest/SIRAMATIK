@@ -1,0 +1,77 @@
+{
+    "grid": {
+        "showFieldList": "Alan Listesini Göster",
+        "all": "Hepsi",
+        "none": "Hiçbiri",
+        "blank": "Boş",
+        "actualSize": "Gerçek Boyut",
+        "autoSize": "Otomatik Boyut",
+        "column": "Sütun",
+        "row": "Satır",
+        "measure": "Ölçüm",
+        "grandTotal": "Genel Toplam",
+        "total": "Toplam"
+    },
+    "toolbar": {
+        "connect": "Bağlan",
+        "open": "Aç",
+        "save": "Kaydet",
+        "export": "Dışa Aktar",
+        "format": "Biçim",
+        "options": "Seçenekler",
+        "fields": "Alanlar",
+        "fullscreen": "Tam Ekran"
+    },
+    "format": {
+        "decimalSeparator": ",",
+        "thousandsSeparator": ".",
+        "currencySymbol": "₺",
+        "currencySymbolAlign": "right"
+    },
+    "messages": {
+        "loading": "Veriler Analiz Ediliyor...",
+        "noData": "Görüntülenecek veri bulunamadı"
+    },
+    "export": {
+        "pdf": "PDF Olarak Kaydet",
+        "excel": "Excel Olarak Kaydet",
+        "html": "HTML Olarak Kaydet",
+        "csv": "CSV Olarak Kaydet"
+    },
+    "buttons": {
+        "ok": "Tamam",
+        "apply": "Uygula",
+        "cancel": "İptal",
+        "save": "Kaydet",
+        "clear": "Temizle",
+        "select": "Seç"
+    },
+    "fields": {
+        "params": "Parametreler",
+        "rows": "Satırlar",
+        "columns": "Sütunlar",
+        "measures": "Değerler / Ölçümler",
+        "filters": "Filtreler",
+        "dropRows": "Satır alanlarını buraya bırakın",
+        "dropColumns": "Sütun alanlarını buraya bırakın",
+        "dropMeasures": "Ölçüm alanlarını buraya bırakın",
+        "dropFilters": "Filtre alanlarını buraya bırakın"
+    },
+    "options": {
+        "title": "Düzen Seçenekleri",
+        "layout": "Tablo Düzeni",
+        "grandTotals": "Genel Toplamlar",
+        "subtotals": "Ara Toplamlar",
+        "showGrandTotals": "Genel toplamları göster",
+        "doNotShowGrandTotals": "Genel toplamları gösterme",
+        "showForRowsOnly": "Sadece satırlar için göster",
+        "showForColumnsOnly": "Sadece sütunlar için göster",
+        "showSubtotals": "Ara toplamları göster",
+        "doNotShowSubtotals": "Ara toplamları gösterme",
+        "showSubtotalRowsOnly": "Sadece satırlar için göster",
+        "showSubtotalColumnsOnly": "Sadece sütunlar için göster",
+        "layoutCompact": "Sıkışık Düzen",
+        "layoutClassic": "Klasik Düzen",
+        "layoutFlat": "Düz Düzen"
+    }
+}

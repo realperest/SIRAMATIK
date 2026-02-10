@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Studio - Sıramatik</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --admin-bg: #0f172a;
+            --sidebar-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(30, 41, 59, 0.5);
+            --accent-primary: #6366f1;
+            --accent-secondary: #a855f7;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--admin-bg);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .bi-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 70px 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* Header */
+        .bi-header {
+            grid-column: 1 / -1;
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(20px);
+        }
+
+        .bi-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .header-btn {
+            background: rgba(99, 102, 241, 0.15);
+            color: white;
+            border: 1px solid var(--accent-primary);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .header-btn:hover {
+            background: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Left Panel */
+        .config-panel {
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--glass-border);
+            padding: 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+        }
+
+        .panel-section {
+            margin-bottom: 30px;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .config-group {
+            margin-bottom: 15px;
+        }
+
+        .config-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .config-group select {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .config-group select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        /* Main Canvas */
+        .bi-canvas {
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .filter-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-item label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .filter-item select {
+            background: #0f172a;
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .run-btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: auto;
+            font-size: 13px;
+        }
+
+        .run-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Visualization Area */
+        .viz-container {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            min-height: 500px;
+            backdrop-filter: blur(10px);
+        }
+
+        .viz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .viz-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .viz-type-selector {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .viz-type-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .viz-type-btn.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .viz-type-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        #result-table th {
+            background: rgba(99, 102, 241, 0.2);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--accent-primary);
+            font-size: 13px;
+        }
+
+        #result-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+
+        #result-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .chart-canvas {
+            max-height: 450px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bi-container">
+        <!-- Header -->
+        <div class="bi-header">
+            <h1><i class="fas fa-chart-network"></i> BI Studio</h1>
+            <div class="header-actions">
+                <button class="header-btn" onclick="exportData()">
+                    <i class="fas fa-download"></i> Dışa Aktar
+                </button>
+                <a href="admin.html" class="header-btn">
+                    <i class="fas fa-arrow-left"></i> Geri
+                </a>
+            </div>
+        </div>
+
+        <!-- Left Panel - Configuration -->
+        <div class="config-panel">
+            <div class="panel-section">
+                <div class="panel-title">📊 GÖRSELLEŞTIRME</div>
+                <div class="config-group">
+                    <label>Grafik Tipi:</label>
+                    <select id="chart-type">
+                        <option value="bar">Çubuk Grafik</option>
+                        <option value="line">Çizgi Grafik</option>
+                        <option value="pie">Pasta Grafik</option>
+                        <option value="doughnut">Halka Grafik</option>
+                        <option value="table">Tablo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">🔢 BOYUTLAR</div>
+                <div class="config-group">
+                    <label>Grupla:</label>
+                    <select id="group-by">
+                        <option value="personel">Personel</option>
+                        <option value="servis">Bölüm</option>
+                        <option value="kuyruk">Kuyruk</option>
+                        <option value="durum">Durum</option>
+                        <option value="tarih">Tarih</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">📈 METRİKLER</div>
+                <div class="config-group">
+                    <label>Ölçüm:</label>
+                    <select id="measure">
+                        <option value="count">Toplam Bilet</option>
+                        <option value="avg_bekleme">Ort. Bekleme</option>
+                        <option value="avg_islem">Ort. İşlem</option>
+                        <option value="max_bekleme">Max Bekleme</option>
+                        <option value="min_bekleme">Min Bekleme</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas -->
+        <div class="bi-canvas">
+            <!-- Filters -->
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <label>ZAMAN:</label>
+                    <select id="time-range">
+                        <option value="today">Bugün</option>
+                        <option value="this_week">Bu Hafta</option>
+                        <option value="this_month" selected>Bu Ay</option>
+                        <option value="this_year">Bu Yıl</option>
+                        <option value="all_time">Tüm Zamanlar</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>BÖLÜM:</label>
+                    <select id="servis-filter">
+                        <option value="">Tümü</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>KUYRUK:</label>
+                    <select id="kuyruk-filter">
+                        <option value="">Tümü</option>
+                    </select>
+                </div>
+                <button class="run-btn" onclick="runAnalysis()">
+                    <i class="fas fa-play"></i> ANALİZİ ÇALIŞTIR
+                </button>
+            </div>
+
+            <!-- Visualization -->
+            <div class="viz-container">
+                <div class="viz-header">
+                    <div class="viz-title">Sonuçlar</div>
+                </div>
+
+                <div id="viz-content">
+                    <div class="empty-state">
+                        <i class="fas fa-magic"></i>
+                        <h3>Analiz Hazır</h3>
+                        <p>Sol taraftan ayarları yapın ve "ANALİZİ ÇALIŞTIR" butonuna tıklayın</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+
+        // API call helper function
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            const token = localStorage.getItem('token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    headers: headers,
+                    ...options
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Bir hata oluştu');
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API Hatası:', error);
+                throw error;
+            }
+        }
+
+        let currentUser = null;
+        let rawData = [];
+        let currentChart = null;
+
+        async function init() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || user.rol !== 'admin') {
+                window.location.href = 'personel.html';
+                return;
+            }
+            currentUser = user;
+
+            await loadFilters();
+        }
+
+        async function loadFilters() {
+            try {
+                const services = await apiCall(`/servisler/${currentUser.firma_id}`);
+                const queues = await apiCall(`/kuyruklar/firma/${currentUser.firma_id}`);
+
+                const sSelect = document.getElementById('servis-filter');
+                services.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.ad;
+                    sSelect.appendChild(opt);
+                });
+
+                const qSelect = document.getElementById('kuyruk-filter');
+                queues.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = q.ad;
+                    qSelect.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Filter load error", err);
+            }
+        }
+
+        async function runAnalysis() {
+            const btn = document.querySelector('.run-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ÇALIŞTIRILIYOR...';
+            btn.disabled = true;
+
+            try {
+                const timeRange = document.getElementById('time-range').value;
+                const servisId = document.getElementById('servis-filter').value;
+                const kuyrukId = document.getElementById('kuyruk-filter').value;
+
+                let url = `/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${timeRange}`;
+                if (servisId) url += `&servis_id=${servisId}`;
+                if (kuyrukId) url += `&kuyruk_id=${kuyrukId}`;
+
+                const result = await apiCall(url);
+                rawData = result.data || [];
+
+                processAndVisualize();
+            } catch (err) {
+                console.error("Analysis error", err);
+                alert("Analiz çalıştırılırken hata oluştu: " + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function processAndVisualize() {
+            if (rawData.length === 0) {
+                document.getElementById('viz-content').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>Veri Bulunamadı</h3>
+                        <p>Seçili filtrelere uygun veri yok</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const groupBy = document.getElementById('group-by').value;
+            const measure = document.getElementById('measure').value;
+            const chartType = document.getElementById('chart-type').value;
+
+            const processed = processData(rawData, groupBy, measure);
+
+            if (chartType === 'table') {
+                renderTable(processed, groupBy, measure);
+            } else {
+                renderChart(processed, chartType, groupBy, measure);
+            }
+        }
+
+        function processData(data, groupBy, measure) {
+            const grouped = {};
+
+            data.forEach(row => {
+                let key = row[groupBy] || 'Bilinmiyor';
+
+                // Tarih için özel format
+                if (groupBy === 'tarih' && row.saat) {
+                    key = row.saat.split(' ')[0] || 'Bilinmiyor';
+                }
+
+                if (!grouped[key]) {
+                    grouped[key] = { count: 0, bekleme: [], islem: [] };
+                }
+                grouped[key].count++;
+                if (row.bekleme) grouped[key].bekleme.push(parseFloat(row.bekleme));
+                if (row.islem) grouped[key].islem.push(parseFloat(row.islem));
+            });
+
+            // Calculate measures
+            const result = Object.keys(grouped).map(key => {
+                const item = grouped[key];
+                return {
+                    label: key,
+                    count: item.count,
+                    avg_bekleme: item.bekleme.length ? (item.bekleme.reduce((a, b) => a + b, 0) / item.bekleme.length).toFixed(1) : 0,
+                    avg_islem: item.islem.length ? (item.islem.reduce((a, b) => a + b, 0) / item.islem.length).toFixed(1) : 0,
+                    max_bekleme: item.bekleme.length ? Math.max(...item.bekleme).toFixed(1) : 0,
+                    min_bekleme: item.bekleme.length ? Math.min(...item.bekleme).toFixed(1) : 0
+                };
+            });
+
+            return result.sort((a, b) => b.count - a.count);
+        }
+
+        function renderTable(data, groupBy, measure) {
+            const groupLabel = {
+                'personel': 'PERSONEL',
+                'servis': 'BÖLÜM',
+                'kuyruk': 'KUYRUK',
+                'durum': 'DURUM',
+                'tarih': 'TARİH'
+            }[groupBy];
+
+            const measureLabel = {
+                'count': 'TOPLAM BİLET',
+                'avg_bekleme': 'ORT. BEKLEME (dk)',
+                'avg_islem': 'ORT. İŞLEM (dk)',
+                'max_bekleme': 'MAX BEKLEME (dk)',
+                'min_bekleme': 'MIN BEKLEME (dk)'
+            }[measure];
+
+            let html = `
+                <table id="result-table">
+                    <thead>
+                        <tr>
+                            <th>${groupLabel}</th>
+                            <th>TOPLAM BİLET</th>
+                            <th>ORT. BEKLEME (dk)</th>
+                            <th>ORT. İŞLEM (dk)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.forEach(row => {
+                html += `
+                    <tr>
+                        <td><strong>${row.label}</strong></td>
+                        <td>${row.count}</td>
+                        <td>${row.avg_bekleme}</td>
+                        <td>${row.avg_islem}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('viz-content').innerHTML = html;
+        }
+
+        function renderChart(data, chartType, groupBy, measure) {
+            const labels = data.map(d => d.label);
+            const values = data.map(d => parseFloat(d[measure]) || 0);
+
+            const measureLabel = {
+                'count': 'Toplam Bilet',
+                'avg_bekleme': 'Ort. Bekleme (dk)',
+                'avg_islem': 'Ort. İşlem (dk)',
+                'max_bekleme': 'Max Bekleme (dk)',
+                'min_bekleme': 'Min Bekleme (dk)'
+            }[measure];
+
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'chart-canvas';
+            document.getElementById('viz-content').innerHTML = '';
+            document.getElementById('viz-content').appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+
+            const config = {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: measureLabel,
+                        data: values,
+                        backgroundColor: chartType === 'pie' || chartType === 'doughnut'
+                            ? generateColors(labels.length)
+                            : 'rgba(99, 102, 241, 0.5)',
+                        borderColor: chartType === 'pie' || chartType === 'doughnut'
+                            ? generateColors(labels.length, true)
+                            : 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'white' },
+                            display: chartType === 'pie' || chartType === 'doughnut'
+                        }
+                    },
+                    scales: chartType !== 'pie' && chartType !== 'doughnut' ? {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    } : {}
+                }
+            };
+
+            currentChart = new Chart(ctx, config);
+        }
+
+        function generateColors(count, border = false) {
+            const colors = [
+                'rgba(99, 102, 241, 0.7)',
+                'rgba(168, 85, 247, 0.7)',
+                'rgba(236, 72, 153, 0.7)',
+                'rgba(251, 146, 60, 0.7)',
+                'rgba(34, 197, 94, 0.7)',
+                'rgba(59, 130, 246, 0.7)'
+            ];
+
+            if (border) {
+                return colors.map(c => c.replace('0.7', '1')).slice(0, count);
+            }
+            return colors.slice(0, count);
+        }
+
+        function exportData() {
+            if (rawData.length === 0) {
+                alert('Önce analiz çalıştırın');
+                return;
+            }
+
+            const csv = convertToCSV(rawData);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bi_analiz_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+
+            const headers = Object.keys(data[0]);
+            const rows = data.map(row =>
+                headers.map(h => `"${row[h] || ''}"`).join(',')
+            );
+
+            return [headers.join(','), ...rows].join('\n');
+        }
+
+        // Auto-update visualization when config changes
+        document.getElementById('chart-type').addEventListener('change', () => {
+            if (rawData.length > 0) processAndVisualize();
+        });
+        document.getElementById('group-by').addEventListener('change', () => {
+            if (rawData.length > 0) processAndVisualize();
+        });
+        document.getElementById('measure').addEventListener('change', () => {
+            if (rawData.length > 0) processAndVisualize();
+        });
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

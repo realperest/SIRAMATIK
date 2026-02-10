@@ -564,8 +564,13 @@
                 <div class="form-group">
                     <label>Ekran Müdahale Şifresi (TV/Kiosk)</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="password" id="edit-firma-ekran-sifre" required placeholder="Örn: 153624"
-                            style="flex:1;">
+                        <div style="position:relative; flex:1;">
+                            <input type="password" id="edit-firma-ekran-sifre" required placeholder="Örn: 153624"
+                                style="width:100%; padding-right:35px;">
+                            <i class="fas fa-eye"
+                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text-muted);"
+                                onclick="toggleModalPassword('edit-firma-ekran-sifre', this)"></i>
+                        </div>
                         <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;"
                             title="Bu kilitli ise firma admini şifreyi değiştiremez">
                             <input type="checkbox" id="edit-firma-sifre-kilitli" style="width:18px; height:18px;">
@@ -788,7 +793,11 @@
                 <tr class="tr-row">
                     <td style="font-weight:600; color:var(--accent-primary);">${f.ad}</td>
                     <td style="font-size:13px;">${f.sektor || 'Genel'}</td>
-                    <td style="font-family:monospace; font-weight:700; color:#fbbf24;">****</td>
+                    <td style="font-family:monospace; font-weight:700; color:#fbbf24; white-space:nowrap;">
+                        <span id="pwd-${f.id}" class="blur-pwd" data-pwd="${f.ekran_sifre || '---'}">****</span>
+                        <i class="fas fa-eye" style="cursor:pointer; margin-left:8px; opacity:0.7; font-size:12px;" 
+                           onclick="togglePassword('pwd-${f.id}', this)" title="Göster/Gizle"></i>
+                    </td>
                     <td style="font-size:12px; ${sozlesmeStil}">${sozlesmeDate}</td>
                     <td><span class="status-badge" style="background:${f.aktif ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color:${f.aktif ? '#10b981' : '#ef4444'};">${f.aktif ? 'AKTİF' : 'PASİF'}</span></td>
                     <td>
@@ -796,6 +805,36 @@
                     </td>
                 </tr>
             `}).join('');
+        }
+
+        function togglePassword(spanId, icon) {
+            const span = document.getElementById(spanId);
+            const realPwd = span.getAttribute('data-pwd');
+
+            if (span.textContent === '****') {
+                span.textContent = realPwd;
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                span.style.color = '#fff';
+            } else {
+                span.textContent = '****';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                span.style.color = '#fbbf24';
+            }
+        }
+
+        function toggleModalPassword(inputId, icon) {
+            const el = document.getElementById(inputId);
+            if (el.type === 'password') {
+                el.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                el.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
         }
 
         // Firma Modal Fonksiyonları

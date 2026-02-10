@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Pivot Analiz v2.0 - Sıramatik</title>
+    <link rel="stylesheet" href="static/style.css?v=20260210-1551">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- WebDataRocks Pivot Table -->
+    <link href="https://cdn.webdatarocks.com/latest/webdatarocks.min.css" rel="stylesheet" />
+    <script src="https://cdn.webdatarocks.com/latest/webdatarocks.toolbar.min.js"></script>
+    <script src="https://cdn.webdatarocks.com/latest/webdatarocks.min.js"></script>
+
+    <style>
+        :root {
+            --admin-bg: #0f172a;
+            --sidebar-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(30, 41, 59, 0.5);
+            --accent-primary: #6366f1;
+            --accent-secondary: #a855f7;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background: var(--admin-bg);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .container {
+            padding: 40px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-btn {
+            background: rgba(99, 102, 241, 0.15);
+            color: white;
+            border: 1px solid var(--accent-primary);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        .filter-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            background: #0f172a;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: white;
+            padding: 10px 14px;
+            min-width: 150px;
+            transition: border-color 0.2s;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .load-btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: auto;
+            transition: opacity 0.2s;
+        }
+
+        .load-btn:hover {
+            opacity: 0.9;
+        }
+
+        .pivot-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            min-height: 600px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        #wdr-component {
+            height: 650px;
+        }
+
+        .info-banner {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            color: #a5b4fc;
+            font-size: 14px;
+        }
+
+        .info-banner i {
+            margin-right: 10px;
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        // Cache-busting: redirect to versioned URL if not already there
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!urlParams.has('v')) {
+            window.location.href = window.location.pathname + '?v=20260210-1557';
+        }
+    </script>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-table-pivot"></i> Pivot Analiz</h1>
+            <a href="admin.html" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Admin Paneline Dön
+            </a>
+        </div>
+
+        <div class="info-banner">
+            <i class="fas fa-info-circle"></i>
+            <strong>Nasıl Kullanılır:</strong> Alanları sürükleyip bırakarak özel raporlarınızı oluşturun. Sağ
+            tıklayarak sıralama, filtreleme ve gruplama yapabilirsiniz.
+        </div>
+
+        <div class="filter-panel">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>ZAMAN:</label>
+                    <select id="time-range">
+                        <option value="today">Bugün</option>
+                        <option value="this_week">Bu Hafta</option>
+                        <option value="this_month" selected>Bu Ay</option>
+                        <option value="this_year">Bu Yıl</option>
+                        <option value="all_time">Tüm Zamanlar</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>BÖLÜM:</label>
+                    <select id="servis-filter">
+                        <option value="">Tümü</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>KUYRUK:</label>
+                    <select id="kuyruk-filter">
+                        <option value="">Tümü</option>
+                    </select>
+                </div>
+
+                <button class="load-btn" onclick="loadPivotData()">
+                    <i class="fas fa-sync-alt"></i> VERİLERİ YÜKLE
+                </button>
+            </div>
+        </div>
+
+        <div class="pivot-container">
+            <div id="wdr-component"></div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const currentHost = window.location.hostname || 'localhost';
+        const API_URL = `http://${currentHost}:8000/api`;
+
+        // API call helper function
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            const token = localStorage.getItem('token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    headers: headers,
+                    ...options
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Bir hata oluştu');
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API Hatası:', error);
+                throw error;
+            }
+        }
+
+        let currentUser = null;
+        let pivot = null;
+
+        async function init() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || user.rol !== 'admin') {
+                window.location.href = 'personel.html';
+                return;
+            }
+            currentUser = user;
+
+            await loadFilters();
+            initPivot();
+            // Don't auto-load data, wait for user to click button or pivot ready
+        }
+
+        async function loadFilters() {
+            try {
+                const services = await apiCall(`/servisler/${currentUser.firma_id}`);
+                const queues = await apiCall(`/kuyruklar/firma/${currentUser.firma_id}`);
+
+                const sSelect = document.getElementById('servis-filter');
+                services.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.ad;
+                    sSelect.appendChild(opt);
+                });
+
+                const qSelect = document.getElementById('kuyruk-filter');
+                queues.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = q.ad;
+                    qSelect.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Filter load error", err);
+            }
+        }
+
+        function initPivot() {
+            pivot = new WebDataRocks({
+                container: "#wdr-component",
+                toolbar: true,
+                height: 650,
+                report: {
+                    dataSource: {
+                        data: []
+                    },
+                    slice: {
+                        rows: [
+                            { uniqueName: "personel" },
+                            { uniqueName: "servis" }
+                        ],
+                        columns: [
+                            { uniqueName: "durum" }
+                        ],
+                        measures: [
+                            {
+                                uniqueName: "adet",
+                                aggregation: "count"
+                            },
+                            {
+                                uniqueName: "bekleme_dk",
+                                aggregation: "average"
+                            },
+                            {
+                                uniqueName: "islem_dk",
+                                aggregation: "average"
+                            }
+                        ]
+                    },
+                    formats: [{
+                        name: "decimal",
+                        decimalPlaces: 1
+                    }]
+                },
+                localization: {
+                    grid: {
+                        total: "Toplam",
+                        grandTotal: "Genel Toplam"
+                    },
+                    toolbar: {
+                        exportTo: "Dışa Aktar",
+                        fullscreen: "Tam Ekran",
+                        minimize: "Küçült"
+                    }
+                },
+                reportcomplete: function () {
+                    console.log('[PIVOT] WebDataRocks initialized and ready');
+                }
+            });
+        }
+
+        async function loadPivotData() {
+            if (!pivot) {
+                alert('Pivot tablosu henüz yüklenmedi. Lütfen birkaç saniye bekleyip tekrar deneyin.');
+                return;
+            }
+
+            const btn = document.querySelector('.load-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> YÜKLENIYOR...';
+            btn.disabled = true;
+
+            try {
+                const timeRange = document.getElementById('time-range').value;
+                const servisId = document.getElementById('servis-filter').value;
+                const kuyrukId = document.getElementById('kuyruk-filter').value;
+
+                let url = `/admin/reports/${currentUser.firma_id}?report_type=transaction_log&time_range=${timeRange}`;
+                if (servisId) url += `&servis_id=${servisId}`;
+                if (kuyrukId) url += `&kuyruk_id=${kuyrukId}`;
+
+                console.log('[PIVOT] API URL:', `${API_URL}${url}`);
+                const result = await apiCall(url);
+                const data = result.data || [];
+
+                // Transform data for pivot
+                const pivotData = data.map(row => ({
+                    numara: row.numara,
+                    servis: row.servis || 'Bilinmiyor',
+                    kuyruk: row.kuyruk || 'Bilinmiyor',
+                    personel: row.personel || 'Atanmamış',
+                    saat: row.saat,
+                    durum: row.durum === 'completed' ? 'Tamamlandı' :
+                        row.durum === 'calling' ? 'Çağrılıyor' :
+                            row.durum === 'waiting' ? 'Bekliyor' : row.durum,
+                    bekleme_dk: parseFloat(row.bekleme) || 0,
+                    islem_dk: parseFloat(row.islem) || 0,
+                    adet: 1
+                }));
+
+                pivot.setReport({
+                    dataSource: {
+                        data: pivotData
+                    },
+                    slice: {
+                        rows: [
+                            { uniqueName: "personel" },
+                            { uniqueName: "servis" }
+                        ],
+                        columns: [
+                            { uniqueName: "durum" }
+                        ],
+                        measures: [
+                            {
+                                uniqueName: "adet",
+                                aggregation: "sum",
+                                caption: "Toplam Bilet"
+                            },
+                            {
+                                uniqueName: "bekleme_dk",
+                                aggregation: "average",
+                                caption: "Ort. Bekleme (dk)",
+                                format: "decimal"
+                            },
+                            {
+                                uniqueName: "islem_dk",
+                                aggregation: "average",
+                                caption: "Ort. İşlem (dk)",
+                                format: "decimal"
+                            }
+                        ]
+                    }
+                });
+
+            } catch (err) {
+                console.error("Pivot data load error", err);
+                alert("Veriler yüklenirken hata oluştu: " + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

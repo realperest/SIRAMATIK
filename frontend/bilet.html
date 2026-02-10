@@ -270,16 +270,43 @@
             tickBuffer = buf;
         });
 
-        function playBuffer(buffer) {
-            if (!buffer || !isAudioUnlocked) return;
+        async function playBuffer(buffer) {
+            if (!isAudioUnlocked) return;
 
-            // Tarayıcı kısıtlamasını aşmak için context'i dirilt
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            try {
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
 
-            const source = audioCtx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioCtx.destination);
-            source.start(0);
+                if (buffer) {
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioCtx.destination);
+                    source.start(0);
+                } else {
+                    // FALLBACK: Eğer ses dosyası yüklenemezse bip sesi çıkar
+                    playFallbackBeep();
+                }
+            } catch (e) {
+                console.error("Ses çalma hatası:", e);
+                playFallbackBeep(); // Hata durumunda da bip çal
+            }
+        }
+
+        function playFallbackBeep() {
+            if (!isAudioUnlocked) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            } catch (e) { }
         }
 
         async function startNotifications() {
@@ -315,7 +342,7 @@
         // --- WebSocket Entegrasyonu ---
         initWebSocket((data) => {
             if (data.type === 'call_ticket' && data.sira && data.sira.id == sira_id) {
-                handleCallStatus();
+                handleCallStatus(true); // Push geldiyse her zaman çal
             } else {
                 updateStatus();
             }
@@ -366,7 +393,7 @@
             }
         }
 
-        function handleCallStatus() {
+        function handleCallStatus(isPush = false) {
             const statusEl = document.getElementById('wait-info');
             const numEl = document.getElementById('ticket-number');
 
@@ -375,7 +402,8 @@
             document.body.classList.add('calling-active-body');
             numEl.style.color = "#22c55e";
 
-            if (!notificationPlayed) {
+            // Push bildirimi geldiyse veya daha önce çalınmadıysa çal
+            if (isPush || !notificationPlayed) {
                 notificationPlayed = true;
                 playAlertSequence();
             }

@@ -13,17 +13,29 @@ from dotenv import load_dotenv
 # .env dosyasını yükle
 load_dotenv()
 
-# Supabase bağlantı bilgileri
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
-
-# SQLAlchemy için PostgreSQL bağlantı URL'i
-# YAPLUS yöntemi: aws-1 pooler + search_path
+# PostgreSQL Bağlantı URL'i (Supabase)
+# Not: production ortamında connection pooling kullanılmalı
 DB_URL = "postgresql://postgres.wyursjdrnnjabpfeucyi:qk4SEnyhu3NUk2@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
 
 # Engine oluştur - search_path ile siramatik schema'yı belirt
-connect_args = {"options": "-c search_path=siramatik,public"}
-engine = create_engine(DB_URL, echo=False, connect_args=connect_args)
+# Engine oluştur - search_path ile siramatik schema'yı belirt
+connect_args = {
+    "options": "-c search_path=siramatik,public",
+    "keepalives": 1,
+    "keepalives_idle": 30,
+    "keepalives_interval": 10,
+    "keepalives_count": 5
+}
+
+engine = create_engine(
+    DB_URL, 
+    echo=False, 
+    pool_size=5, 
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    connect_args=connect_args
+)
 
 
 class Database:
@@ -34,82 +46,66 @@ class Database:
         self.init_tables()
     
     def init_tables(self):
-        """Eksik tabloları oluştur ve kolonları güncelle"""
-        self.execute_query("""
-            CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
-                id SERIAL PRIMARY KEY,
-                kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE CASCADE,
-                ad VARCHAR(50) NOT NULL,
-                aciklama TEXT,
-                aktif BOOLEAN DEFAULT TRUE,
-                olusturulma TIMESTAMP DEFAULT NOW()
-            );
-        """)
-        
-        # Firmalar tablosuna yeni kiralama ve kilit kolonlarını ekle
-        try:
-            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN sifre_kilitli BOOLEAN DEFAULT FALSE")
-        except: pass
-        
-        try:
-            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN sozlesme_bitis TIMESTAMP DEFAULT (NOW() + INTERVAL '1 year')")
-        except: pass
+        """Eksik tabloları oluştur ve kolonları güncelle (Optimize Edildi)"""
+        with Session(self.engine) as session:
+            # 1. Ana Tabloları Oluştur
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
+                    id SERIAL PRIMARY KEY,
+                    kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE CASCADE,
+                    ad VARCHAR(50) NOT NULL,
+                    aciklama TEXT,
+                    aktif BOOLEAN DEFAULT TRUE,
+                    olusturulma TIMESTAMP DEFAULT NOW()
+                );
 
-        try:
-            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN lisans_tipi VARCHAR(20) DEFAULT 'Kiralama'")
-        except: pass
-        
-        try:
-            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN max_cihaz INTEGER DEFAULT 10")
-        except: pass
-        
-        try:
-            self.execute_query("ALTER TABLE siramatik.firmalar ADD COLUMN notlar TEXT")
-        except: pass
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN varsayilan_kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL")
-        except: pass
-        
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN varsayilan_konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL")
-        except: pass
+                CREATE TABLE IF NOT EXISTS siramatik.cihazlar (
+                    id SERIAL PRIMARY KEY,
+                    firma_id INTEGER REFERENCES siramatik.firmalar(id) ON DELETE CASCADE,
+                    konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL,
+                    ad VARCHAR(100),
+                    tip VARCHAR(20),
+                    mac VARCHAR(20),
+                    ip VARCHAR(20),
+                    metadata JSONB DEFAULT '{}',
+                    aktif BOOLEAN DEFAULT TRUE,
+                    son_gorulme TIMESTAMP DEFAULT NOW(),
+                    olusturulma TIMESTAMP DEFAULT NOW()
+                );
+            """))
+            session.commit()
 
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN servis_ids INTEGER[]")
-        except: pass
+            # 2. Kolon Güncellemeleri (Toplu Try-Except bloğu yerine tek tek ama aynı bağlantıda)
+            alter_queries = [
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS sifre_kilitli BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS sozlesme_bitis TIMESTAMP DEFAULT (NOW() + INTERVAL '1 year')",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS lisans_tipi VARCHAR(20) DEFAULT 'Kiralama'",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS max_cihaz INTEGER DEFAULT 10",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS notlar TEXT",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS varsayilan_kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS varsayilan_konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS servis_ids INTEGER[]",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS kuyruk_ids INTEGER[]",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS durum VARCHAR(20) DEFAULT 'available'",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS mola_baslangic TIMESTAMP",
+                "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS mola_nedeni VARCHAR(50)",
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS islem_baslangic TIMESTAMP",
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS tamamlanma TIMESTAMP",
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS cagirilma_sayisi INTEGER DEFAULT 1",
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS notlar TEXT"
+            ]
 
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN kuyruk_ids INTEGER[]")
-        except: pass
-
-        # --- YENİ EKLENEN OPERASYONEL KOLONLAR ---
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN durum VARCHAR(20) DEFAULT 'available'")
-        except: pass
-
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN mola_baslangic TIMESTAMP")
-        except: pass
-
-        try:
-            self.execute_query("ALTER TABLE siramatik.kullanicilar ADD COLUMN mola_nedeni VARCHAR(50)")
-        except: pass
-
-        try:
-            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN islem_baslangic TIMESTAMP")
-        except: pass
-
-        try:
-            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN tamamlanma TIMESTAMP")
-        except: pass
-
-        try:
-            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN cagirilma_sayisi INTEGER DEFAULT 1")
-        except: pass
-
-        try:
-            self.execute_query("ALTER TABLE siramatik.siralar ADD COLUMN notlar TEXT")
-        except: pass
+            for q in alter_queries:
+                try:
+                    # PostgreSQL 9.6+ supports IF NOT EXISTS for columns, but we use generic approach or catch error
+                    # Supabase is Postgres 15+, so IF NOT EXISTS works!
+                    session.execute(text(q))
+                    session.commit()
+                except Exception as e:
+                    session.rollback()
+                    # IF NOT EXISTS desteklenmiyorsa veya başka hata varsa yut (Eski yöntem gibi)
+                    # print(f"Migration Log: {e}") 
+                    pass
     
     def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """SQL sorgusu çalıştır"""
@@ -400,6 +396,20 @@ class Database:
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
+        return result[0] if result else None
+
+    def get_active_sira_by_user(self, user_id: int) -> Optional[Dict]:
+        """Kullanıcının üzerindeki aktif sırayı getir (calling veya serving)"""
+        result = self.execute_query("""
+            SELECT s.*, k.ad as kuyruk_ad, ser.ad as servis_ad
+            FROM siramatik.siralar s
+            LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
+            LEFT JOIN siramatik.servisler ser ON s.servis_id = ser.id
+            WHERE s.cagiran_kullanici_id = :user_id 
+            AND s.durum IN ('calling', 'serving')
+            ORDER BY s.cagirilma DESC 
+            LIMIT 1
+        """, {"user_id": user_id})
         return result[0] if result else None
 
     def islem_baslat(self, sira_id: int) -> Dict:
@@ -892,6 +902,7 @@ class Database:
                              servis_id: Optional[int] = None,
                              kuyruk_id: Optional[int] = None,
                              kullanici_id: Optional[int] = None,
+                             group_by: Optional[str] = None,
                              time_range: str = "today",
                              start_date: str = None, 
                              end_date: str = None) -> Dict:
@@ -923,8 +934,6 @@ class Database:
             extra_filters += " AND s.cagiran_kullanici_id = :kullanici_id"
             params["kullanici_id"] = kullanici_id
 
-        # 3. RAPOR TİPİNE GÖRE SORGULAMA
-        data = []
         summary_query = f"""
             SELECT 
                 COUNT(*) as toplam_bilet,
@@ -936,9 +945,52 @@ class Database:
         """
         summary = self.execute_query(summary_query, params)[0]
 
+        # 3. GRUPLAMA MANTIĞI (Eğer seçilmişse ana raporu ezer)
+        if group_by:
+            group_col = ""
+            group_label = ""
+            join_clause = ""
+            
+            if group_by == "personel":
+                group_col = "COALESCE(u.ad_soyad, 'Atanmamış')"
+                group_label = "Personel"
+                join_clause = "LEFT JOIN siramatik.kullanicilar u ON s.cagiran_kullanici_id = u.id"
+            elif group_by == "servis":
+                group_col = "ser.ad"
+                group_label = "Bölüm"
+                join_clause = "LEFT JOIN siramatik.servisler ser ON s.servis_id = ser.id"
+            elif group_by == "kuyruk":
+                group_col = "k.ad"
+                group_label = "Kuyruk"
+                join_clause = "LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id"
+            elif group_by == "tarih":
+                group_col = "(s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date"
+                group_label = "Tarih"
+
+            if group_col:
+                data = self.execute_query(f"""
+                    SELECT {group_col}::text as grup, 
+                           COUNT(*) as adet,
+                           COUNT(*) FILTER (WHERE s.durum = 'completed') as tamamlanan,
+                           ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60) AS NUMERIC), 1) as ort_bekleme,
+                           ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60) AS NUMERIC), 1) as ort_islem
+                    FROM siramatik.siralar s
+                    {join_clause}
+                    WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
+                    GROUP BY grup ORDER BY adet DESC
+                """, params)
+                return {
+                    "summary": summary,
+                    "data": data,
+                    "type": "grouped",
+                    "group_label": group_label
+                }
+
+        # 4. RAPOR TİPİNE GÖRE SORGULAMA
         if report_type == "transaction_log":
             data = self.execute_query(f"""
                 SELECT s.numara, ser.ad as servis, k.ad as kuyruk, u.ad_soyad as personel, 
+                       to_char(s.olusturulma, 'DD.MM.YYYY') as tarih,
                        to_char(s.olusturulma, 'HH24:MI') as saat, s.durum,
                        ROUND(CAST(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60 AS NUMERIC), 1) as bekleme,
                        ROUND(CAST(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60 AS NUMERIC), 1) as islem
@@ -1036,8 +1088,85 @@ class Database:
             "type": report_type
         }
 
-    def get_my_ticket_status(self, sira_id: int):
-        # 1. Bilet bilgilerini al
+
+    # --- CIHAZ YONETIMI ---
+
+    def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: Optional[str], metadata: dict) -> Dict:
+        """Cihaz kalp atışı - Kayıt yoksa oluştur, varsa güncelle"""
+        
+        # MAC adresi ile veya AD ile kontrol et (Varsa güncelle)
+        existing = None
+        
+        if mac:
+            existing_list = self.execute_query(
+                "SELECT * FROM siramatik.cihazlar WHERE mac = :mac AND firma_id = :firma_id",
+                {"mac": mac, "firma_id": firma_id}
+            )
+            if existing_list: existing = existing_list[0]
+        elif ad:
+             existing_list = self.execute_query(
+                "SELECT * FROM siramatik.cihazlar WHERE ad = :ad AND firma_id = :firma_id",
+                {"ad": ad, "firma_id": firma_id}
+            )
+             if existing_list: existing = existing_list[0]
+
+        if existing:
+            updated = self.execute_query("""
+                UPDATE siramatik.cihazlar 
+                SET son_gorulme = NOW(), metadata = :metadata, ad = :ad, tip = :tip
+                WHERE id = :id
+                RETURNING *
+            """, {
+                "id": existing["id"],
+                "metadata": json.dumps(metadata),
+                "ad": ad,
+                "tip": tip
+            })
+            return updated[0]
+
+        # Yeni kayıt oluştur
+        result = self.execute_query("""
+            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac, metadata, son_gorulme)
+            VALUES (:firma_id, :ad, :tip, :mac, :metadata, NOW())
+            RETURNING *
+        """, {
+            "firma_id": firma_id,
+            "ad": ad,
+            "tip": tip,
+            "mac": mac,
+            "metadata": json.dumps(metadata)
+        })
+        return result[0]
+
+    def get_cihazlar(self, firma_id: int) -> List[Dict]:
+        """Firma cihazlarını listele"""
+        return self.execute_query("""
+            SELECT c.*, k.ad as konum_adi 
+            FROM siramatik.cihazlar c
+            LEFT JOIN siramatik.kuyruk_konumlar k ON c.konum = k.id
+            WHERE c.firma_id = :firma_id 
+            ORDER BY c.son_gorulme DESC
+        """, {"firma_id": firma_id})
+
+    def update_cihaz(self, cihaz_id: int, data: Dict) -> Dict:
+        """Cihaz güncelle"""
+        fields = []
+        params = {"id": cihaz_id}
+        
+        for key, value in data.items():
+            if key in ['ad', 'tip', 'konum_id', 'aktif']:
+                fields.append(f"{key} = :{key}")
+                params[key] = value
+                
+        if not fields:
+            return None
+            
+        return self.execute_query(f"""
+            UPDATE siramatik.cihazlar 
+            SET {', '.join(fields)} 
+            WHERE id = :id 
+            RETURNING *
+        """, params)[0]
         ticket = self.execute_query("SELECT * FROM siramatik.siralar WHERE id = :id", {"id": sira_id})
         if not ticket:
             return None
