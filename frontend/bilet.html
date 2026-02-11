@@ -248,6 +248,7 @@
         let notificationPlayed = false;
         let lastCount = -1;
         let isAudioUnlocked = false;
+        let isFirstLoad = true; // İlk yükleme flag'i
 
         // --- GELİŞMİŞ SES VE TİTREŞİM YÖNETİMİ ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -268,6 +269,9 @@
         // 'Ding' sesini yükle
         loadSound('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').then(buf => {
             tickBuffer = buf;
+            console.log('✅ Ses dosyası yüklendi');
+        }).catch(err => {
+            console.warn('⚠️ Ses dosyası yüklenemedi, fallback bip sesi kullanılacak:', err);
         });
 
         async function playBuffer(buffer) {
@@ -330,6 +334,12 @@
             // Test titreşimi (Güçlü)
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
+            // Test sesi çal (kullanıcı ses açıldığını anlasın)
+            setTimeout(() => {
+                playBuffer(tickBuffer);
+                console.log('🔊 Test sesi çalındı');
+            }, 300);
+
             updateStatus();
         }
 
@@ -371,13 +381,21 @@
 
                     const count = statusData.bekleyen_sayisi;
 
-                    if (lastCount !== -1 && count < lastCount && count >= 0) {
-                        // KISA UYARI
+                    // İlk yükleme: Sadece sayıyı kaydet, ses çalma
+                    if (isFirstLoad) {
+                        lastCount = count;
+                        isFirstLoad = false;
+                        console.log(`📊 İlk bekleyen sayısı: ${count}`);
+                    } else if (lastCount !== -1 && count < lastCount && count >= 0) {
+                        // Bekleyen sayısı azaldı - KISA UYARI
+                        console.log(`🔔 Bekleyen azaldı: ${lastCount} → ${count}`);
                         playBuffer(tickBuffer);
                         // Güçlendirilmiş Titreşim
                         if (navigator.vibrate) navigator.vibrate(200);
+                        lastCount = count;
+                    } else {
+                        lastCount = count;
                     }
-                    lastCount = count;
 
                     if (count === 0) {
                         statusEl.textContent = "Sıradaki sizsiniz!";
@@ -440,6 +458,11 @@
         setInterval(updateTime, 1000);
         updateTime();
         updateStatus(); // İlk yüklemede kontrol et
+        
+        // Otomatik güncelleme (polling) - Her 5 saniyede bir kontrol et
+        // WebSocket koptuğunda veya event gelmediğinde güncelleme yapılsın
+        setInterval(updateStatus, 5000);
+        console.log('🔄 Otomatik güncelleme aktif (5 saniye)');
     </script>
 </body>
 
