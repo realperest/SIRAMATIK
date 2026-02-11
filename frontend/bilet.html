@@ -290,33 +290,35 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 15px;
             overflow-y: auto;
+            box-sizing: border-box;
         }
 
         .survey-card {
             background: white;
-            border-radius: 20px;
-            padding: 20px 15px;
+            border-radius: 18px;
+            padding: 18px 12px;
             box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
             text-align: center;
-            width: 90%;
-            max-width: 360px;
+            width: 100%;
+            max-width: 340px;
+            box-sizing: border-box;
         }
 
         .rating-faces {
             display: flex;
             justify-content: space-between;
-            gap: 2px;
-            margin: 15px 0;
+            gap: 1px;
+            margin: 10px 0;
         }
 
         .face-option {
             flex: 1;
             cursor: pointer;
             transition: all 0.3s ease;
-            padding: 4px 1px;
-            border-radius: 8px;
+            padding: 3px 0px;
+            border-radius: 6px;
             border: 2px solid transparent;
         }
 
@@ -332,8 +334,8 @@
         }
 
         .face {
-            font-size: 24px;
-            margin-bottom: 2px;
+            font-size: 22px;
+            margin-bottom: 1px;
             transition: all 0.3s ease;
         }
 
@@ -342,9 +344,10 @@
         }
 
         .face-label {
-            font-size: 7px;
+            font-size: 6.5px;
             color: #7f8c8d;
             font-weight: 600;
+            line-height: 1;
         }
 
         .face-option.selected .face-label {
@@ -353,10 +356,11 @@
 
         .survey-submit-btn {
             width: 100%;
-            padding: 12px;
+            padding: 11px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
+            font-size: 14px;
             border-radius: 50px;
             font-size: 16px;
             font-weight: bold;
@@ -421,8 +425,8 @@
     <!-- Memnuniyet Anketi -->
     <div id="survey-container" class="survey-container" style="display: none;">
         <div class="survey-card">
-            <h3 style="color: #764ba2; margin-bottom: 8px; font-size: 18px;">🎯 Aldığınız Hizmeti Puanlayın</h3>
-            <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 12px;">
+            <h3 style="color: #764ba2; margin-bottom: 6px; font-size: 16px; font-weight: 700;">🎯 Aldığınız Hizmeti Puanlayın</h3>
+            <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 10px;">
                 Görüşünüz bizim için değerli!
             </p>
 
@@ -451,24 +455,24 @@
             </div>
 
             <!-- Yorum Alanı -->
-            <div style="margin-top: 15px;">
-                <label style="display: block; font-size: 12px; color: #7f8c8d; margin-bottom: 6px; text-align: center;">
-                    Diyeceğiniz bir şey var mı?
+            <div style="margin-top: 12px;">
+                <label style="display: block; font-size: 11px; color: #7f8c8d; margin-bottom: 5px; text-align: center;">
+                    Bize iletmek istediğiniz bir şey var mı?
                 </label>
                 <textarea id="survey-comment" placeholder="İsteğe bağlı..." rows="2"
-                    style="width: 100%; padding: 10px; border: 2px solid #eee; border-radius: 10px; font-size: 13px; font-family: inherit; resize: vertical; text-align: center;"></textarea>
+                    style="width: 100%; padding: 8px; border: 2px solid #eee; border-radius: 8px; font-size: 12px; font-family: inherit; resize: vertical; text-align: center; box-sizing: border-box;"></textarea>
             </div>
 
             <!-- Gönder Butonu -->
-            <button id="survey-submit-btn" class="survey-submit-btn" onclick="submitSurvey()" disabled>
+            <button id="survey-submit-btn" class="survey-submit-btn" onclick="submitSurvey()" disabled style="margin-top: 10px;">
                 Gönder
             </button>
 
             <!-- Teşekkür Mesajı -->
-            <div id="survey-thanks" style="display: none; text-align: center; padding: 25px 15px;">
-                <div style="font-size: 56px; margin-bottom: 15px;">🎉</div>
-                <h2 style="color: #22c55e; margin-bottom: 12px; font-size: 22px;">Teşekkür Ederiz!</h2>
-                <p style="color: #7f8c8d; font-size: 14px; line-height: 1.5;">
+            <div id="survey-thanks" style="display: none; text-align: center; padding: 20px 12px;">
+                <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+                <h2 style="color: #22c55e; margin-bottom: 10px; font-size: 20px;">Teşekkür Ederiz!</h2>
+                <p style="color: #7f8c8d; font-size: 13px; line-height: 1.5;">
                     Görüşünüz kaydedildi.<br>
                     İyi günler dileriz! 💙
                 </p>
