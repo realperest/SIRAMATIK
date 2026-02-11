@@ -25,7 +25,8 @@ from models import (
     ManuelSiraRequest, IstatistikResponse,
     DeviceResponse, DeviceUpdateRequest, DeviceHeartbeatRequest,
     UserResponse, UserCreateRequest, UserUpdateRequest, UserStatusUpdateRequest,
-    SiraTransferRequest, SiraNotlarRequest, MemnuniyetAnketRequest
+    SiraTransferRequest, SiraNotlarRequest, MemnuniyetAnketRequest,
+    CihazKayitRequest, CihazAyarlarUpdateRequest, CihazHeartbeatRequest, CihazResponse
 )
 
 # --- WEBSOCKET MANAGER ---
@@ -993,6 +994,119 @@ async def kiosk_init(firma_id: int):
             "servisler": [],
             "kuyruklar": []
         }
+
+
+# ============================================
+# CİHAZ YÖNETİM ENDPOİNTLERİ
+# ============================================
+
+@app.post("/api/cihaz/kayit", response_model=dict)
+async def cihaz_kayit(request: CihazKayitRequest):
+    """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
+    try:
+        result = db.register_device(
+            firma_id=request.firma_id,
+            ad=request.ad,
+            tip=request.tip,
+            device_fingerprint=request.device_fingerprint,
+            mac_address=request.mac_address,
+            ip_address=request.ip_address,
+            ayarlar=request.ayarlar,
+            metadata=request.metadata
+        )
+        return {
+            "status": "success",
+            "device": result
+        }
+    except Exception as e:
+        logging.error(f"Cihaz kayıt hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/cihaz/{device_id}/ayarlar")
+async def get_cihaz_ayarlari(device_id: int):
+    """Cihaz ayarlarını getir"""
+    try:
+        settings_data = db.get_device_settings(device_id)
+        return {
+            "status": "success",
+            "device": settings_data
+        }
+    except Exception as e:
+        logging.error(f"Ayar getirme hatası: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.put("/api/cihaz/{device_id}/ayarlar")
+async def update_cihaz_ayarlari(
+    device_id: int,
+    request: CihazAyarlarUpdateRequest
+):
+    """Cihaz ayarlarını güncelle"""
+    try:
+        success = db.update_device_settings(device_id, request.ayarlar)
+        if success:
+            return {
+                "status": "success",
+                "message": "Ayarlar güncellendi"
+            }
+        raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+    except Exception as e:
+        logging.error(f"Ayar güncelleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cihaz/{device_id}/heartbeat")
+async def cihaz_heartbeat(
+    device_id: int,
+    request: CihazHeartbeatRequest
+):
+    """Cihaz heartbeat güncelle"""
+    try:
+        success = db.device_heartbeat(
+            device_id=request.device_id,
+            ip_address=request.ip_address,
+            metadata=request.metadata
+        )
+        if success:
+            return {"status": "success"}
+        raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+    except Exception as e:
+        logging.error(f"Heartbeat hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/cihazlar/{firma_id}")
+async def get_firmaya_ait_cihazlar(
+    firma_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Firmaya ait tüm cihazları listele (Admin)"""
+    try:
+        devices = db.get_devices_by_firma(firma_id)
+        return {
+            "status": "success",
+            "devices": devices
+        }
+    except Exception as e:
+        logging.error(f"Cihaz listeleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/admin/cihaz/{device_id}")
+async def delete_cihaz(
+    device_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Cihazı sil (Admin)"""
+    try:
+        success = db.delete_device(device_id)
+        if success:
+            return {"status": "success", "message": "Cihaz silindi"}
+        raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+    except Exception as e:
+        logging.error(f"Cihaz silme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================

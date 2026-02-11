@@ -207,6 +207,46 @@ class MemnuniyetAnketRequest(BaseModel):
     yorum: Optional[str] = None
     hizmet_suresi_dk: Optional[int] = None
 
+
+# --- CİHAZ YÖNETİM MODELS ---
+
+class CihazKayitRequest(BaseModel):
+    firma_id: int
+    ad: str  # Cihaz adı (örn: "Resepsiyon Tablet-1")
+    tip: str  # kiosk, ekran, tablet, pc
+    device_fingerprint: str  # Benzersiz browser fingerprint
+    mac_address: Optional[str] = None
+    ip_address: Optional[str] = None
+    ayarlar: Optional[Dict[str, Any]] = {}
+    metadata: Optional[Dict[str, Any]] = {}
+
+
+class CihazAyarlarUpdateRequest(BaseModel):
+    ayarlar: Dict[str, Any]  # servis_ids, kuyruk_ids, hideServisSelection, vb.
+
+
+class CihazHeartbeatRequest(BaseModel):
+    device_id: int
+    ip_address: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class CihazResponse(BaseModel):
+    id: int
+    firma_id: int
+    ad: str
+    tip: str
+    device_fingerprint: Optional[str] = None
+    mac_address: Optional[str] = None
+    ip_address: Optional[str] = None
+    durum: str
+    son_gorulen: datetime
+    ayarlar: Dict[str, Any]
+    metadata: Dict[str, Any]
+    olusturulma: datetime
+    guncelleme: datetime
+
+
 # --- İSTATİSTİK MODELS ---
 
 class IstatistikResponse(BaseModel):

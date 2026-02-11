@@ -1262,6 +1262,252 @@ class Database:
         except Exception as e:
             print(f"⚠️ Memnuniyet tablosu oluşturma hatası: {e}")
             session.rollback()
+    
+    # ============================================
+    # CİHAZ YÖNETİM METODLARI
+    # ============================================
+    
+    def register_device(self, firma_id: int, ad: str, tip: str, 
+                       device_fingerprint: str, mac_address: Optional[str] = None,
+                       ip_address: Optional[str] = None, ayarlar: Dict = {},
+                       metadata: Dict = {}) -> Dict[str, Any]:
+        """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
+        with Session(self.engine) as session:
+            try:
+                # Fingerprint ile cihaz var mı kontrol et
+                check_query = text("""
+                    SELECT id, firma_id FROM siramatik.cihazlar
+                    WHERE device_fingerprint = :fingerprint
+                """)
+                result = session.execute(check_query, {
+                    "fingerprint": device_fingerprint
+                }).first()
+                
+                if result:
+                    # Mevcut cihazı güncelle
+                    device_id = result[0]
+                    existing_firma_id = result[1]
+                    
+                    # Firma farklıysa güncelle
+                    if existing_firma_id != firma_id:
+                        update_query = text("""
+                            UPDATE siramatik.cihazlar
+                            SET firma_id = :firma_id,
+                                ad = :ad,
+                                tip = :tip,
+                                ip_address = :ip_address,
+                                son_gorulen = NOW(),
+                                durum = 'active'
+                            WHERE id = :device_id
+                            RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
+                        """)
+                    else:
+                        # Sadece heartbeat güncelle
+                        update_query = text("""
+                            UPDATE siramatik.cihazlar
+                            SET son_gorulen = NOW(),
+                                durum = 'active',
+                                ip_address = COALESCE(:ip_address, ip_address)
+                            WHERE id = :device_id
+                            RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
+                        """)
+                    
+                    result = session.execute(update_query, {
+                        "device_id": device_id,
+                        "firma_id": firma_id,
+                        "ad": ad,
+                        "tip": tip,
+                        "ip_address": ip_address
+                    }).first()
+                    
+                    session.commit()
+                    
+                    return {
+                        "id": result[0],
+                        "firma_id": result[1],
+                        "ad": result[2],
+                        "tip": result[3],
+                        "durum": result[4],
+                        "ayarlar": result[5] if result[5] else {},
+                        "metadata": result[6] if result[6] else {},
+                        "is_new": False
+                    }
+                
+                # Yeni cihaz kaydı
+                insert_query = text("""
+                    INSERT INTO siramatik.cihazlar 
+                    (firma_id, ad, tip, device_fingerprint, mac_address, ip_address, ayarlar, metadata, durum)
+                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active')
+                    RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
+                """)
+                
+                result = session.execute(insert_query, {
+                    "firma_id": firma_id,
+                    "ad": ad,
+                    "tip": tip,
+                    "fingerprint": device_fingerprint,
+                    "mac": mac_address,
+                    "ip": ip_address,
+                    "ayarlar": json.dumps(ayarlar),
+                    "metadata": json.dumps(metadata)
+                }).first()
+                
+                session.commit()
+                
+                return {
+                    "id": result[0],
+                    "firma_id": result[1],
+                    "ad": result[2],
+                    "tip": result[3],
+                    "durum": result[4],
+                    "ayarlar": result[5] if result[5] else {},
+                    "metadata": result[6] if result[6] else {},
+                    "is_new": True
+                }
+                
+            except Exception as e:
+                session.rollback()
+                raise Exception(f"Cihaz kayıt hatası: {str(e)}")
+    
+    def get_device_settings(self, device_id: int) -> Dict[str, Any]:
+        """Cihaz ayarlarını getir"""
+        with Session(self.engine) as session:
+            query = text("""
+                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen
+                FROM siramatik.cihazlar
+                WHERE id = :device_id
+            """)
+            result = session.execute(query, {"device_id": device_id}).first()
+            
+            if not result:
+                raise Exception("Cihaz bulunamadı")
+            
+            return {
+                "id": result[0],
+                "firma_id": result[1],
+                "ad": result[2],
+                "tip": result[3],
+                "ayarlar": result[4] if result[4] else {},
+                "metadata": result[5] if result[5] else {},
+                "durum": result[6],
+                "son_gorulen": result[7]
+            }
+    
+    def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any]) -> bool:
+        """Cihaz ayarlarını güncelle"""
+        with Session(self.engine) as session:
+            try:
+                query = text("""
+                    UPDATE siramatik.cihazlar
+                    SET ayarlar = :ayarlar,
+                        guncelleme = NOW()
+                    WHERE id = :device_id
+                    RETURNING id
+                """)
+                result = session.execute(query, {
+                    "device_id": device_id,
+                    "ayarlar": json.dumps(ayarlar)
+                }).first()
+                
+                session.commit()
+                return result is not None
+                
+            except Exception as e:
+                session.rollback()
+                raise Exception(f"Ayar güncelleme hatası: {str(e)}")
+    
+    def device_heartbeat(self, device_id: int, ip_address: Optional[str] = None,
+                        metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Cihaz heartbeat güncelle"""
+        with Session(self.engine) as session:
+            try:
+                query = text("""
+                    UPDATE siramatik.cihazlar
+                    SET son_gorulen = NOW(),
+                        ip_address = COALESCE(:ip_address, ip_address),
+                        metadata = COALESCE(:metadata, metadata),
+                        durum = 'active'
+                    WHERE id = :device_id
+                    RETURNING id
+                """)
+                result = session.execute(query, {
+                    "device_id": device_id,
+                    "ip_address": ip_address,
+                    "metadata": json.dumps(metadata) if metadata else None
+                }).first()
+                
+                session.commit()
+                return result is not None
+                
+            except Exception as e:
+                session.rollback()
+                raise Exception(f"Heartbeat hatası: {str(e)}")
+    
+    def get_devices_by_firma(self, firma_id: int) -> List[Dict[str, Any]]:
+        """Firmaya ait tüm cihazları listele"""
+        with Session(self.engine) as session:
+            query = text("""
+                SELECT 
+                    id, 
+                    firma_id, 
+                    ad, 
+                    tip, 
+                    device_fingerprint,
+                    mac_address,
+                    ip_address,
+                    durum, 
+                    son_gorulen, 
+                    ayarlar, 
+                    metadata,
+                    olusturulma,
+                    guncelleme,
+                    CASE 
+                        WHEN son_gorulen > (NOW() - INTERVAL '5 minutes') THEN 'online'
+                        ELSE 'offline'
+                    END as online_status
+                FROM siramatik.cihazlar
+                WHERE firma_id = :firma_id
+                ORDER BY olusturulma DESC
+            """)
+            results = session.execute(query, {"firma_id": firma_id}).fetchall()
+            
+            devices = []
+            for row in results:
+                devices.append({
+                    "id": row[0],
+                    "firma_id": row[1],
+                    "ad": row[2],
+                    "tip": row[3],
+                    "device_fingerprint": row[4],
+                    "mac_address": row[5],
+                    "ip_address": row[6],
+                    "durum": row[7],
+                    "son_gorulen": row[8],
+                    "ayarlar": row[9] if row[9] else {},
+                    "metadata": row[10] if row[10] else {},
+                    "olusturulma": row[11],
+                    "guncelleme": row[12],
+                    "online_status": row[13]
+                })
+            
+            return devices
+    
+    def delete_device(self, device_id: int) -> bool:
+        """Cihazı sil"""
+        with Session(self.engine) as session:
+            try:
+                query = text("""
+                    DELETE FROM siramatik.cihazlar
+                    WHERE id = :device_id
+                    RETURNING id
+                """)
+                result = session.execute(query, {"device_id": device_id}).first()
+                session.commit()
+                return result is not None
+                
+            except Exception as e:
+                session.rollback()
+                raise Exception(f"Cihaz silme hatası: {str(e)}")
 
 # Global database instance
 db = Database()
