@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>İrmet Hospital - Sıra Takip</title>
+    <title id="page-title">İrmet Hospital - Sıra Takip</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="İrmet Sıra">
+    <link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎫</text></svg>">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -172,10 +173,86 @@
             cursor: pointer;
             margin-top: 20px;
         }
+
+        /* Bağlantı Durumu Badge */
+        .connection-status {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 1000;
+            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .connection-status.online {
+            background: #22c55e;
+            color: white;
+        }
+
+        .connection-status.offline {
+            background: #ef4444;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-status.connecting {
+            background: #f59e0b;
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+        }
+
+        /* Sayı Azalma Animasyonu */
+        @keyframes number-decrease {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); color: #22c55e; }
+        }
+
+        .number.animate-decrease {
+            animation: number-decrease 0.6s ease;
+        }
+
+        /* Tahmini Bekleme Süresi */
+        .estimated-time {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(118, 75, 162, 0.1);
+            color: #764ba2;
+            border-radius: 15px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        /* Gizli element (HTML tekrarı düzeltmesi için) */
+        .hidden { display: none; }
     </style>
 </head>
 
 <body>
+    <!-- Bağlantı Durumu -->
+    <div id="connection-status" class="connection-status connecting">
+        <span class="status-dot"></span>
+        <span id="connection-text">Bağlanıyor...</span>
+    </div>
+
     <!-- Aktivasyon Katmanı -->
     <div id="activation-overlay">
         <div>
@@ -196,6 +273,9 @@
             <div class="number" id="ticket-number">---</div>
             <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
             <div class="status" id="wait-info">Giriş Yapılıyor...</div>
+            <div class="estimated-time" id="estimated-time" style="display: none;">
+                ⏱ Tahmini <span id="est-minutes">--</span> dakika
+            </div>
         </div>
         <div class="footer">
             <div id="current-time">--:--:--</div>
@@ -248,7 +328,11 @@
         let notificationPlayed = false;
         let lastCount = -1;
         let isAudioUnlocked = false;
-        let isFirstLoad = true; // YENİ: İlk yükleme flag'i
+        let isFirstLoad = true;
+        let ws = null; // WebSocket bağlantısı
+        let pollingInterval = null; // Polling interval referansı
+        let isPageVisible = true; // Sayfa görünürlük durumu
+        let avgProcessTime = 5; // Dinamik olarak güncellenecek ortalama süre (dakika)
 
         // Supabase Bağlantısı
         const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
@@ -281,14 +365,129 @@
             // Test titreşimi
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             
-            // YENİ: Test sesi çal
+            // Test sesi çal
             setTimeout(() => {
                 tickSound.play().catch(e => console.log('Test sesi hatası:', e));
                 console.log('🔊 Test sesi çalındı');
             }, 300);
             
+            // Ortalama bekleme süresini hesapla
+            await fetchAverageWaitTime();
+            
+            // WebSocket bağlantısını başlat
+            initWebSocket();
+            
+            // İlk durumu güncelle
             updateStatus();
+            
+            // Polling başlat (fallback)
+            startPolling();
         }
+
+        // ===== WEBSOCKET YÖNETİMİ =====
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname || 'localhost';
+            const wsUrl = `${protocol}//${host}:8000/ws`;
+
+            console.log('🔗 WebSocket bağlanıyor:', wsUrl);
+            updateConnectionStatus('connecting');
+
+            function connect() {
+                try {
+                    ws = new WebSocket(wsUrl);
+
+                    ws.onopen = () => {
+                        console.log('✅ WebSocket bağlandı!');
+                        updateConnectionStatus('online');
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            console.log('📩 WebSocket mesaj:', data);
+                            handleWebSocketMessage(data);
+                        } catch (e) {
+                            console.error('WebSocket veri hatası:', e);
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        console.warn('⚠️ WebSocket koptu. Yeniden bağlanılıyor...');
+                        updateConnectionStatus('connecting');
+                        ws = null;
+                        setTimeout(connect, 3000);
+                    };
+
+                    ws.onerror = (err) => {
+                        console.error('❌ WebSocket hatası:', err);
+                        updateConnectionStatus('offline');
+                    };
+                } catch (err) {
+                    console.error('WebSocket oluşturma hatası:', err);
+                    updateConnectionStatus('offline');
+                }
+            }
+
+            connect();
+        }
+
+        // WebSocket mesajlarını işle
+        function handleWebSocketMessage(data) {
+            // Eğer bu biletimizle ilgili bir güncelleme ise
+            if (data.sira_id && data.sira_id == sira_id) {
+                console.log('🎯 Biletimiz için güncelleme:', data);
+                updateStatus(); // Durumu güncelle
+            }
+            // Veya kuyruğumuzda bir değişiklik olduysa
+            else if (data.kuyruk_id && data.kuyruk_id == kuyruk_id) {
+                console.log('📊 Kuyruk güncellendi:', data);
+                updateStatus(); // Durumu güncelle
+            }
+        }
+
+        // Bağlantı durumu göstergesini güncelle
+        function updateConnectionStatus(status) {
+            const badge = document.getElementById('connection-status');
+            const text = document.getElementById('connection-text');
+            
+            badge.className = `connection-status ${status}`;
+            
+            if (status === 'online') {
+                text.textContent = 'Canlı';
+            } else if (status === 'connecting') {
+                text.textContent = 'Bağlanıyor...';
+            } else {
+                text.textContent = 'Çevrimdışı';
+            }
+        }
+
+        // Polling Mekanizması (Fallback)
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(() => {
+                // Eğer WebSocket bağlıysa polling'i durdur
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    console.log('✅ WebSocket aktif, polling devre dışı');
+                    return;
+                }
+                console.log('🔄 Polling güncelleme (WebSocket yok)');
+                updateStatus();
+            }, 5000);
+        }
+
+        // Page Visibility API (Arka plan kontrolü)
+        document.addEventListener('visibilitychange', () => {
+            isPageVisible = !document.hidden;
+            
+            if (isPageVisible) {
+                console.log('👀 Sayfa görünür hale geldi');
+                updateStatus(); // Sayfa açıldığında hemen güncelle
+                updatePageTitle(); // Başlığı sıfırla
+            } else {
+                console.log('🙈 Sayfa arka planda');
+            }
+        });
 
         // İlk verileri URL'den bas
         document.getElementById('ticket-number').textContent = numara;
@@ -296,12 +495,86 @@
         document.getElementById('hospital-name').textContent = firma_ad;
         document.getElementById('wait-info').textContent = `Önünüzde ${ticketSpecs.bekleyen} kişi var`;
 
-        // YENİ: İlk bekleyen sayısını kaydet (URL'den)
+        // İlk bekleyen sayısını kaydet (URL'den)
         const bekleyen_url = ticketSpecs.bekleyen;
         if (bekleyen_url && bekleyen_url !== '0') {
             lastCount = parseInt(bekleyen_url);
             isFirstLoad = false; // İlk veri URL'den geldi
             console.log(`📊 İlk bekleyen sayısı (URL): ${lastCount}`);
+        }
+
+        // Kuyruk için ortalama bekleme süresini hesapla
+        async function fetchAverageWaitTime() {
+            if (!kuyruk_id) return;
+            
+            try {
+                const kid = parseInt(kuyruk_id);
+                
+                // Son 7 günün ortalamasını al (siramatik şemasındaki fonksiyon)
+                const { data, error } = await _supabase
+                    .schema('siramatik')
+                    .rpc('ortalama_bekleme_suresi', { 
+                        p_kuyruk_id: kid,
+                        p_gun_sayisi: 7 
+                    });
+
+                if (error) {
+                    console.warn('Ortalama süre RPC hatası:', error);
+                    // Fallback: Manuel hesapla
+                    const avgToday = await calculateTodayAverage(kid);
+                    avgProcessTime = avgToday > 0 ? avgToday : 5;
+                    console.log(`📊 Manuel hesaplama: ${avgProcessTime} dk (fallback: 5 dk)`);
+                } else if (data !== null && data > 0) {
+                    avgProcessTime = data;
+                    console.log(`📊 Kuyruk ${kuyruk_id} için ortalama bekleme (7 gün): ${avgProcessTime} dk`);
+                } else {
+                    // Veri yoksa bugünün ortalamasını dene
+                    const avgToday = await calculateTodayAverage(kid);
+                    avgProcessTime = avgToday > 0 ? avgToday : 5;
+                    console.log(`📊 Bugünün ortalaması: ${avgProcessTime} dk (fallback: 5 dk)`);
+                }
+            } catch (e) {
+                console.error('Ortalama süre hatası:', e);
+                avgProcessTime = 5; // Fallback
+            }
+        }
+
+        // Bugünün ortalamasını manuel hesapla (fallback)
+        async function calculateTodayAverage(kid) {
+            try {
+                // Türkiye saatiyle bugünün başlangıcı
+                const simdi = new Date();
+                const trBaslangic = new Date(simdi.getTime() + (3 * 60 * 60 * 1000));
+                trBaslangic.setUTCHours(0, 0, 0, 0);
+                const trBaslangicUtc = new Date(trBaslangic.getTime() - (3 * 60 * 60 * 1000)).toISOString();
+
+                const { data, error } = await _supabase
+                    .schema('siramatik')
+                    .from('siralar')
+                    .select('olusturulma, cagirilma')
+                    .eq('kuyruk_id', kid)
+                    .in('durum', ['calling', 'completed'])
+                    .gte('olusturulma', trBaslangicUtc)
+                    .not('cagirilma', 'is', null);
+
+                if (error || !data || data.length === 0) {
+                    return 0;
+                }
+
+                // Ortalama bekleme süresini hesapla (dakika)
+                const totalMinutes = data.reduce((sum, row) => {
+                    const created = new Date(row.olusturulma);
+                    const called = new Date(row.cagirilma);
+                    const diffMinutes = (called - created) / 60000;
+                    return sum + diffMinutes;
+                }, 0);
+
+                const avgMinutes = Math.round(totalMinutes / data.length);
+                return avgMinutes > 0 ? avgMinutes : 0;
+            } catch (e) {
+                console.error('Bugün ortalama hesaplama hatası:', e);
+                return 0;
+            }
         }
 
         async function updateStatus() {
@@ -413,15 +686,21 @@
                 const count = (highPriority.count || 0) + (samePriorityBefore.count || 0);
                 console.log(`🔍 Sayaç: Yüksek:${highPriority.count}, Aynı:${samePriorityBefore.count}, Toplam:${count}`);
 
-                // ===== YENİ: Gelişmiş sıra azalma kontrolü =====
+                // Gelişmiş sıra azalma kontrolü
                 if (isFirstLoad) {
                     // İlk yükleme: Sadece kaydet
                     lastCount = count;
                     isFirstLoad = false;
                     console.log(`📊 İlk bekleyen sayısı (API): ${count}`);
                 } else if (lastCount !== -1 && count < lastCount && count >= 0) {
-                    // Bekleyen azaldı - ses + titreşim
+                    // Bekleyen azaldı - ses + titreşim + animasyon
                     console.log(`🔔 Bekleyen azaldı: ${lastCount} → ${count}`);
+                    
+                    // Sayı animasyonu
+                    numEl.classList.add('animate-decrease');
+                    setTimeout(() => numEl.classList.remove('animate-decrease'), 600);
+                    
+                    // Ses + Titreşim
                     if (isAudioUnlocked) {
                         tickSound.pause();
                         tickSound.currentTime = 0;
@@ -430,6 +709,12 @@
                     if (navigator.vibrate) {
                         navigator.vibrate(200);
                     }
+                    
+                    // Sayfa arka plandaysa başlığı güncelle
+                    if (!isPageVisible) {
+                        updatePageTitle(`🔔 ${count} kişi kaldı!`);
+                    }
+                    
                     lastCount = count;
                 } else {
                     lastCount = count;
@@ -444,9 +729,16 @@
                     statusEl.textContent = "Sıradaki sizsiniz!";
                     statusEl.style.color = "#764ba2";
                     statusEl.style.fontWeight = "bold";
+                    updateEstimatedTime(0);
                 } else {
                     statusEl.textContent = `Önünüzde ${count} kişi var`;
                     statusEl.style.color = "#667eea";
+                    updateEstimatedTime(count);
+                }
+
+                // Sayfa başlığını güncelle
+                if (isPageVisible) {
+                    updatePageTitle();
                 }
 
                 if (me.durum === 'waiting') notificationPlayed = false;
@@ -460,15 +752,46 @@
             document.getElementById('current-time').textContent = new Date().toLocaleTimeString('tr-TR');
         }
 
+        // Tahmini bekleme süresini güncelle
+        function updateEstimatedTime(count) {
+            const estimatedEl = document.getElementById('estimated-time');
+            const minutesEl = document.getElementById('est-minutes');
+            
+            if (count === 0) {
+                estimatedEl.style.display = 'none';
+            } else {
+                // Dinamik ortalama süre ile hesapla
+                const minutes = Math.ceil(count * avgProcessTime);
+                minutesEl.textContent = minutes;
+                estimatedEl.style.display = 'inline-block';
+                
+                console.log(`⏱ Tahmini bekleme: ${count} kişi × ${avgProcessTime} dk = ${minutes} dk`);
+            }
+        }
+
+        // Sayfa başlığını güncelle (Arka plan bildirimleri için)
+        function updatePageTitle(customTitle = null) {
+            const titleEl = document.getElementById('page-title');
+            const faviconEl = document.getElementById('favicon');
+            
+            if (customTitle) {
+                titleEl.textContent = customTitle;
+                // Favicon'u bildirim ikonu yap
+                faviconEl.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>";
+            } else {
+                // Normal başlık
+                titleEl.textContent = `${firma_ad} - Sıra Takip`;
+                faviconEl.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎫</text></svg>";
+            }
+        }
+
+        // Sayfa yüklendiğinde
         setInterval(updateTime, 1000);
-        setInterval(updateStatus, 5000); // YENİ: Otomatik polling
-        console.log('🔄 Otomatik güncelleme aktif (5 saniye)');
-        
         updateTime();
-        updateStatus();
+        
+        // İlk başlık ayarı
+        updatePageTitle();
     </script>
 </body>
-
-</html>
 
 </html>
