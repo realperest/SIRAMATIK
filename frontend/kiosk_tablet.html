@@ -636,12 +636,22 @@
             
             if (endpoint.includes('/servisler/')) {
                 const firmaId = endpoint.split('/')[2];
-                const { data, error } = await supabase.schema('siramatik').from('servisler')
-                    .select('*, kuyruk_sayisi:kuyruklar(count)')
+                const { data: servisler, error } = await supabase.schema('siramatik').from('servisler')
+                    .select('*')
                     .eq('firma_id', firmaId)
                     .eq('aktif', true);
                 if (error) throw new Error(error.message);
-                return data.map(s => ({ ...s, kuyruk_sayisi: s.kuyruk_sayisi[0]?.count || 0 }));
+                
+                // Her servis için kuyruk sayısını ayrı ayrı al
+                for (let servis of servisler) {
+                    const { count } = await supabase.schema('siramatik').from('kuyruklar')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('servis_id', servis.id)
+                        .eq('aktif', true);
+                    servis.kuyruk_sayisi = count || 0;
+                }
+                
+                return servisler;
             }
             
             if (endpoint.includes('/kuyruklar/firma/')) {
