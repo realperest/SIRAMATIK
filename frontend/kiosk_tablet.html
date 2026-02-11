@@ -696,6 +696,17 @@
                     console.log('[OK] Yeni fingerprint oluşturuldu:', fingerprint);
                 }
                 
+                // Browser bilgisini tespit et (okunabilir format)
+                function detectBrowser() {
+                    const ua = navigator.userAgent;
+                    if (ua.includes('Edg')) return 'Edge';
+                    if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome';
+                    if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+                    if (ua.includes('Firefox')) return 'Firefox';
+                    if (ua.includes('Opera') || ua.includes('OPR')) return 'Opera';
+                    return 'Unknown';
+                }
+                
                 // Cihaz bilgilerini topla
                 const deviceInfo = {
                     firma_id: parseInt(FIRMA_ID),
@@ -706,7 +717,8 @@
                     ip_address: null,
                     ayarlar: kioskSettings,
                     metadata: {
-                        browser: navigator.userAgent,
+                        browser: detectBrowser(),
+                        browser_version: navigator.userAgent,
                         screen_resolution: `${screen.width}x${screen.height}`,
                         platform: navigator.platform,
                         language: navigator.language,

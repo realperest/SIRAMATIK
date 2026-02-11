@@ -2111,11 +2111,17 @@
                 
                 // IP veya Browser bilgisi göster
                 let ipOrBrowser = device.ip_address || '-';
-                if (ipOrBrowser === '-' && device.metadata && device.metadata.platform) {
-                    const platform = device.metadata.platform || '';
-                    const isIOS = platform.includes('iPhone') || platform.includes('iPad');
-                    const isAndroid = platform.includes('Android');
-                    ipOrBrowser = isIOS ? ' iOS' : isAndroid ? ' Android' : ' Browser';
+                if (ipOrBrowser === '-' && device.metadata) {
+                    // Önce browser bilgisi varsa onu göster
+                    if (device.metadata.browser) {
+                        ipOrBrowser = device.metadata.browser;
+                    } else if (device.metadata.platform) {
+                        // Yoksa platform'dan tahmin et
+                        const platform = device.metadata.platform || '';
+                        const isIOS = platform.includes('iPhone') || platform.includes('iPad');
+                        const isAndroid = platform.includes('Android');
+                        ipOrBrowser = isIOS ? 'iOS Safari' : isAndroid ? 'Android' : 'Browser';
+                    }
                 }
                 
                 return `
