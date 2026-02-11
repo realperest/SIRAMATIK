@@ -11,6 +11,10 @@
     <!-- PDF Export Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <!-- HTML -> PDF (Better Turkish character support via browser rendering) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Explicit html2canvas for paged rendering (html2pdf bundle may not expose window.html2canvas) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-grid.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-theme-quartz.css">
@@ -731,32 +735,75 @@
             if (!gridApi) return;
 
             try {
-                const jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
-                if (!jsPDFLib) {
-                    alert("PDF kütüphanesi yüklenemedi.");
-                    return;
+                // Popup blocker'a takılmamak için sekmeyi kullanıcı tıklaması anında aç
+                // (PDF hazır olunca bu sekmeyi blob URL'e yönlendireceğiz)
+                let preOpenedWin = null;
+                try {
+                    preOpenedWin = window.open('', '_blank');
+                    if (preOpenedWin) {
+                        preOpenedWin.document.open();
+                        preOpenedWin.document.write(`
+                            <!doctype html>
+                            <html lang="tr">
+                            <head>
+                              <meta charset="utf-8" />
+                              <meta name="viewport" content="width=device-width, initial-scale=1" />
+                              <title>PDF Hazırlanıyor...</title>
+                              <style>
+                                body{font-family: Arial, sans-serif; margin:0; background:#0f172a; color:#fff; display:flex; align-items:center; justify-content:center; height:100vh;}
+                                .box{max-width:520px; padding:24px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:12px;}
+                                h1{font-size:18px; margin:0 0 8px 0;}
+                                p{margin:0; opacity:0.85; font-size:13px; line-height:1.5;}
+                                .row{display:flex; gap:12px; align-items:center; margin-top:14px;}
+                                .spinner{width:18px; height:18px; border-radius:50%; border:3px solid rgba(255,255,255,0.25); border-top-color:#fff; animation:spin 0.9s linear infinite;}
+                                @keyframes spin{to{transform:rotate(360deg);}}
+                                .small{font-size:12px; opacity:0.9; margin-top:10px;}
+                                .bar{height:8px; background:rgba(255,255,255,0.12); border-radius:999px; overflow:hidden; margin-top:10px;}
+                                .bar > div{height:100%; width:0%; background:#60a5fa;}
+                              </style>
+                            </head>
+                            <body>
+                              <div class="box">
+                                <h1>PDF hazırlanıyor...</h1>
+                                <p>Rapor büyükse bu işlem biraz sürebilir. Sekmeyi kapatmayın.</p>
+                                <div class="row">
+                                  <div class="spinner" aria-label="Yükleniyor"></div>
+                                  <div id="pdfProgressText">Başlatılıyor...</div>
+                                </div>
+                                <div class="bar"><div id="pdfProgressBar"></div></div>
+                                <div class="small" id="pdfProgressDetail"> </div>
+                              </div>
+                            </body>
+                            </html>
+                        `);
+                        preOpenedWin.document.close();
+                    }
+                } catch (e) {
+                    preOpenedWin = null;
                 }
 
-                const doc = new jsPDFLib('l', 'pt', 'a4');
-
-                // --- GERÇEK TÜRKÇE ROBOTO FONT (Metrik Verisi İçeren Versiyon) ---
-                // Bu base64 verisi karakter genişliklerini doğru hesaplaması için gerekli yapıları içerir.
-                const robotoBase64 = "AAEAAAARAQAABAAQR0RFRgBEAAsAAAEcAAAAFkdQT1N6pX90AAACPAAAAFpPUy8yYHBkcgAAAXgAAABg" +
-                    "Y21hcOfU3WwAAANoAAABemN2dCAAKAAAAAAFeAAAAARnYXNwAAAAEAAABHAAAAAIZ2x5ZlmiX0UAAAZA" +
-                    "AAAIDmhlYWQTre3FAAAA7AAAADZoaGVhC0YF0wAAASwAAAAkaG10eBAfAAAAAAHAAAAAIGxvY2EAKACY" +
-                    "AAAGIAAAABJtYXhwAGEAVAAAAWAAAAAgbmFtZeS66H8AAAWAAAAB9nBvc3T/bQBkAAAHAAAAACBwcmVw" +
-                    "u8IAvQAAA3QAAAB9AAEAAAAKADA8AABkREZMVAAbeWenAAABABAAAAACAAUAAQAHAAUAAQAAAAEAAAAA" +
-                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg" +
-                    "AAABAAAAAA4AAAABAAIAAgAEAAEAAQABAAAAAgAAAAEAAAAAAAEAAAAA/+EFVwABAAAAAAAAAAAAAAAC" +
-                    "AAAAAQAAAAAAAP+hAGQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAsMAAQAOAA4ADgAOAA4ADgAOAA4AAAAB" +
-                    "AAAAAQAAAsMAAAAABAAAAAQAAAQAOAA4ADgAAAAEAAAABAAIAAgAAAAEAAAABAAEAAQAAAAEAAAABAAAA" +
-                    "AAAAAAAAAA==";
-
-                try {
-                    doc.addFileToVFS('Roboto-Regular.ttf', robotoBase64);
-                    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-                    doc.setFont('Roboto');
-                } catch (e) { console.warn("Font metrik yüklemesi başarısız, helvetica'ya dönülüyor."); }
+                const updateProgressUI = (current, total) => {
+                    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+                    const txt = `PDF hazırlanıyor... (${current}/${total})`;
+                    // Ana sayfadaki overlay
+                    try {
+                        if (window.__pdfOverlayEl) {
+                            window.__pdfOverlayEl.querySelector('#_txt').innerText = txt;
+                            window.__pdfOverlayEl.querySelector('#_bar').style.width = `${pct}%`;
+                        }
+                    } catch (e) { }
+                    // Önceden açılan sekme (aynı origin olduğu için DOM güncelleyebiliriz)
+                    try {
+                        if (preOpenedWin && !preOpenedWin.closed) {
+                            const t = preOpenedWin.document.getElementById('pdfProgressText');
+                            const b = preOpenedWin.document.getElementById('pdfProgressBar');
+                            const d = preOpenedWin.document.getElementById('pdfProgressDetail');
+                            if (t) t.innerText = txt;
+                            if (b) b.style.width = `${pct}%`;
+                            if (d) d.innerText = pct ? `%${pct}` : '';
+                        }
+                    } catch (e) { }
+                };
 
                 // --- STERİL SÜTUN VE VERİ HAZIRLIĞI ---
                 const displayedCols = gridApi.getAllDisplayedColumns() || [];
@@ -775,6 +822,13 @@
                         columnIdsRaw.push(id);
                     }
                 });
+
+                // Sütun sayısı kontrolü - çok fazla sütun varsa uyar
+                if (exportColumns.length > 15) {
+                    if (!confirm(`${exportColumns.length} sütun var. PDF oluşturma işlemi uzun sürebilir veya başarısız olabilir. Devam etmek istiyor musunuz?`)) {
+                        return;
+                    }
+                }
 
                 const dataBody = [];
                 const decPlaces = (typeof decimalPlacesGlobal !== 'undefined') ? decimalPlacesGlobal : 2;
@@ -801,8 +855,14 @@
 
                         // Width hatasını engellemek için her zaman string ve temiz veri
                         let str = String(value != null ? value : "").trim();
-                        // Gizli karakterleri ve sembolleri temizle
+                        // Gizli karakterleri ve sembolleri temizle, çok uzun metinleri kısalt
                         str = str.replace(/[^\x20-\x7E\u00C0-\u017F\s]/g, "");
+                        // NBSP gibi boşlukları normalize et (bazı kaynaklarda harfler arası boşluk olarak gelebiliyor)
+                        str = str.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+                        // Çok uzun metinleri kısalt (100 karakter limit)
+                        if (str.length > 100) {
+                            str = str.substring(0, 97) + "...";
+                        }
                         row.push(str);
                     });
                     dataBody.push(row);
@@ -813,55 +873,206 @@
                     return;
                 }
 
-                // --- PDF OLUŞTURMA (jsPDF-AutoTable Strict Mode) ---
+                // --- PDF OLUŞTURMA (Paged HTML2Canvas -> jsPDF) ---
+                // Uzun tabloları tek dev canvas yapmak Chrome'da boş PDF sorununa yol açabiliyor.
+                // Sayfalara bölüp her sayfayı ayrı render ederek hem Türkçe karakterleri hem stabiliteyi koruyoruz.
+                const jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
+                const canHtml2Canvas = (typeof window.html2canvas !== 'undefined');
+                if (jsPDFLib && canHtml2Canvas) {
+                    const overlay = document.createElement('div');
+                    overlay.style.position = 'fixed';
+                    overlay.style.left = '0';
+                    overlay.style.top = '0';
+                    overlay.style.right = '0';
+                    overlay.style.bottom = '0';
+                    overlay.style.background = 'rgba(15, 23, 42, 0.55)';
+                    // Overlay mutlaka render konteynerinin ÜSTÜNDE olmalı ki kullanıcı tabloyu görmesin
+                    overlay.style.zIndex = '1000001';
+                    overlay.style.display = 'flex';
+                    overlay.style.alignItems = 'center';
+                    overlay.style.justifyContent = 'center';
+                    overlay.style.fontFamily = "'Inter', Arial, sans-serif";
+                    overlay.style.color = '#ffffff';
+                    overlay.style.fontWeight = '700';
+                    overlay.innerHTML = `
+                        <div style="width: min(520px, calc(100vw - 32px)); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 18px 18px;">
+                          <div style="display:flex; gap:12px; align-items:center;">
+                            <div style="width:18px; height:18px; border-radius:50%; border:3px solid rgba(255,255,255,0.25); border-top-color:#fff; animation: _spin 0.9s linear infinite;"></div>
+                            <div id="_txt">PDF hazırlanıyor...</div>
+                          </div>
+                          <div style="height:8px; background: rgba(255,255,255,0.12); border-radius:999px; overflow:hidden; margin-top:10px;">
+                            <div id="_bar" style="height:100%; width:0%; background:#60a5fa;"></div>
+                          </div>
+                          <style>@keyframes _spin { to { transform: rotate(360deg); } }</style>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+                    // progress updater için referans
+                    window.__pdfOverlayEl = overlay;
+
+                    const container = document.createElement('div');
+                    container.style.position = 'fixed';
+                    container.style.left = '0';
+                    container.style.top = '0';
+                    // Render konteyneri overlay'in altında kalsın (yine de canvas render edilir)
+                    container.style.zIndex = '1000000';
+                    container.style.background = '#ffffff';
+                    container.style.width = '1122px'; // approx A4 landscape @96dpi
+                    container.style.padding = '24px';
+                    container.style.fontFamily = "'Inter', Arial, sans-serif";
+                    container.style.color = '#0f172a';
+                    container.style.pointerEvents = 'none';
+                    document.body.appendChild(container);
+
+                    const waitFonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+
+                    (async () => {
+                        try {
+                            await waitFonts;
+
+                            const doc = new jsPDFLib({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true });
+                            const pageWidth = doc.internal.pageSize.getWidth();
+                            const pageHeight = doc.internal.pageSize.getHeight();
+
+                            // Render ayarları
+                            const rowsPerPage = 45; // daha düşük = daha stabil
+                            const totalPages = Math.max(1, Math.ceil(dataBody.length / rowsPerPage));
+
+                            for (let page = 0; page < totalPages; page++) {
+                                container.innerHTML = '';
+
+                                const title = document.createElement('div');
+                                title.style.fontSize = '16px';
+                                title.style.fontWeight = '800';
+                                title.style.marginBottom = '6px';
+                                title.innerText = "RAPOR ÖNİZLEME - SIRAMATİK";
+
+                                const dateInfo = document.createElement('div');
+                                dateInfo.style.fontSize = '11px';
+                                dateInfo.style.color = '#334155';
+                                dateInfo.style.marginBottom = '12px';
+                                dateInfo.innerText = `Tarih: ${new Date().toLocaleString('tr-TR')}  |  Sayfa: ${page + 1}/${totalPages}`;
+
+                                const table = document.createElement('table');
+                                table.style.width = '100%';
+                                table.style.borderCollapse = 'collapse';
+                                table.style.tableLayout = 'fixed';
+                                table.style.fontSize = exportColumns.length > 12 ? '8px' : '9px';
+
+                                const thead = document.createElement('thead');
+                                const trh = document.createElement('tr');
+                                exportColumns.forEach(h => {
+                                    const th = document.createElement('th');
+                                    th.innerText = h;
+                                    th.style.background = '#0f172a';
+                                    th.style.color = '#ffffff';
+                                    th.style.border = '1px solid #cbd5e1';
+                                    th.style.padding = '6px';
+                                    th.style.textAlign = 'left';
+                                    th.style.wordBreak = 'break-word';
+                                    trh.appendChild(th);
+                                });
+                                thead.appendChild(trh);
+                                table.appendChild(thead);
+
+                                const tbody = document.createElement('tbody');
+                                const start = page * rowsPerPage;
+                                const end = Math.min(dataBody.length, start + rowsPerPage);
+                                for (let i = start; i < end; i++) {
+                                    const r = dataBody[i];
+                                    const tr = document.createElement('tr');
+                                    r.forEach(cell => {
+                                        const td = document.createElement('td');
+                                        td.innerText = cell;
+                                        td.style.border = '1px solid #e2e8f0';
+                                        td.style.padding = '5px';
+                                        td.style.verticalAlign = 'top';
+                                        td.style.wordBreak = 'break-word';
+                                        tr.appendChild(td);
+                                    });
+                                    tbody.appendChild(tr);
+                                }
+                                table.appendChild(tbody);
+
+                                container.appendChild(title);
+                                container.appendChild(dateInfo);
+                                container.appendChild(table);
+
+                                updateProgressUI(page + 1, totalPages);
+
+                                const canvas = await window.html2canvas(container, {
+                                    scale: 1.5,
+                                    useCORS: true,
+                                    backgroundColor: '#ffffff',
+                                    scrollX: 0,
+                                    scrollY: 0
+                                });
+
+                                const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                                const imgWidth = pageWidth;
+                                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                                if (page > 0) doc.addPage();
+                                doc.addImage(imgData, 'JPEG', 0, 0, imgWidth, Math.min(imgHeight, pageHeight));
+                            }
+
+                            const blob = doc.output('blob');
+                            const url = URL.createObjectURL(blob);
+                            window.__lastExportedPdfUrl = url;
+                            if (preOpenedWin && !preOpenedWin.closed) {
+                                preOpenedWin.location.href = url;
+                            } else {
+                                window.open(url, '_blank');
+                            }
+                        } catch (e) {
+                            console.error("Paged PDF Error:", e);
+                            alert(`PDF oluşturulamadı: ${e.message || e}`);
+                        } finally {
+                            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                            if (window.__pdfOverlayEl === overlay) window.__pdfOverlayEl = null;
+                            if (container && container.parentNode) container.parentNode.removeChild(container);
+                        }
+                    })();
+
+                    return;
+                }
+
+                // html2pdf yoksa eski yöntem (jsPDF) fallback
+                const jsPDFLibFallback = window.jspdf ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
+                if (!jsPDFLibFallback) {
+                    alert("PDF kütüphanesi yüklenemedi.");
+                    return;
+                }
+
+                const doc = new jsPDFLibFallback('l', 'pt', 'a4');
+                doc.setFont('helvetica');
                 doc.setFontSize(14);
-                doc.text("RAPOR ONIZLEME - SIRAMATIK", 40, 40);
+                doc.text("RAPOR ONIZLEME - SIRAMATIK", 30, 40);
                 doc.setFontSize(9);
-                doc.text(`Tarih: ${new Date().toLocaleString('tr-TR')}`, 40, 55);
+                doc.text(`Tarih: ${new Date().toLocaleString('tr-TR')}`, 30, 55);
 
                 doc.autoTable({
                     head: [exportColumns],
                     body: dataBody,
                     startY: 70,
                     theme: 'grid',
-                    styles: {
-                        font: 'Roboto',
-                        fontSize: exportColumns.length > 12 ? 6 : 7,
-                        cellPadding: 2,
-                        valign: 'middle',
-                        overflow: 'linebreak'
-                    },
-                    headStyles: {
-                        fillColor: [15, 23, 42],
-                        textColor: [255, 255, 255],
-                        font: 'Roboto',
-                        fontStyle: 'normal'
-                    },
+                    styles: { font: 'helvetica', fontSize: exportColumns.length > 12 ? 6 : 7, cellPadding: 2, overflow: 'linebreak' },
+                    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
                     margin: { left: 30, right: 30 },
-                    // Widths hatasını kökten engellemek için zorunlu (forced) ayar
-                    tableWidth: 'auto',
-                    columnStyles: {
-                        all: { minCellWidth: 10 }
-                    },
-                    didParseCell: function (data) {
-                        // Font ölçümlerini her hücrede garanti et
-                        data.cell.styles.font = 'Roboto';
-                        if (data.section === 'body') {
-                            const txt = String(data.cell.text[0] || "");
-                            if (txt && !isNaN(txt.replace('.', '').replace(',', '.'))) {
-                                data.cell.styles.halign = 'right';
-                            }
-                        }
-                    }
+                    tableWidth: 'auto'
                 });
 
-                // PDF Açılış
                 const blobUrl = doc.output('bloburl');
                 window.open(blobUrl, '_blank');
 
             } catch (err) {
-                console.error("PDF Fatal Error (Widths Resolution):", err);
-                alert("PDF oluşturulamadı. Lütfen tabloyu sadeleştirip (bazı sütunları kapatıp) tekrar deneyin.");
+                console.error("PDF Fatal Error:", err);
+                console.error("Error Details:", {
+                    message: err.message,
+                    stack: err.stack,
+                    name: err.name
+                });
+                alert(`PDF oluşturulamadı: ${err.message}\n\nLütfen:\n1. Bazı sütunları kapatarak tabloyu sadeleştirin\n2. Sayfayı yenileyip tekrar deneyin\n3. Tarayıcı konsolunu kontrol edin`);
             }
         }
 
