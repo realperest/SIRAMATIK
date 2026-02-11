@@ -386,6 +386,13 @@
 
         // ===== WEBSOCKET YÖNETİMİ =====
         function initWebSocket() {
+            // GitHub Pages gibi statik hostlarda WebSocket'i atla
+            if (window.location.hostname.includes('github.io')) {
+                console.log('ℹ️ GitHub Pages tespit edildi, WebSocket devre dışı (Polling aktif)');
+                updateConnectionStatus('online'); // Polling çalıştığı için "online" göster
+                return;
+            }
+
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.hostname || 'localhost';
             const wsUrl = `${protocol}//${host}:8000/ws`;
@@ -413,15 +420,19 @@
                     };
 
                     ws.onclose = () => {
-                        console.warn('⚠️ WebSocket koptu. Yeniden bağlanılıyor...');
-                        updateConnectionStatus('connecting');
+                        console.warn('⚠️ WebSocket koptu. Polling fallback aktif.');
+                        updateConnectionStatus('online'); // Polling çalıştığı için online
                         ws = null;
-                        setTimeout(connect, 3000);
+                        // GitHub Pages'te yeniden deneme (zaten çalışmayacak)
+                        if (!window.location.hostname.includes('github.io')) {
+                            setTimeout(connect, 3000);
+                        }
                     };
 
                     ws.onerror = (err) => {
                         console.error('❌ WebSocket hatası:', err);
-                        updateConnectionStatus('offline');
+                        // Hata durumunda da online göster (polling çalışıyor)
+                        updateConnectionStatus('online');
                     };
                 } catch (err) {
                     console.error('WebSocket oluşturma hatası:', err);
