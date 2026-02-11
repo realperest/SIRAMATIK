@@ -790,36 +790,6 @@ async def admin_stats(
     )
 
 
-@app.get("/api/kiosk/init/{firma_id}")
-async def kiosk_init(firma_id: int):
-    """Kiosk açılışında gereken tüm verileri tek seferde getir (Yüksek Performans)"""
-    firma = db.get_firma(firma_id)
-    if not firma:
-        raise HTTPException(status_code=404, detail="Firma bulunamadı")
-        
-    # Config
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-    except:
-        ip = "localhost"
-    config = {"host_ip": ip, "port": 3000}
-    
-    # Veriler
-    servisler = db.get_servisler(firma_id)
-    kuyruklar = db.get_kuyruklar_by_firma(firma_id)
-    
-    return {
-        "firma": firma,
-        "config": config,
-        "servisler": servisler,
-        "kuyruklar": kuyruklar
-    }
-
-
 @app.get("/api/admin/reports/{firma_id}")
 async def admin_reports(
     firma_id: int,

@@ -611,157 +611,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
-    <!-- SUPABASE CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Backend API Helper -->
+    <script src="static/app.js"></script>
     
     <script>
-        // ============================================
-        // SUPABASE DİREKT BAĞLANTI v2.0 (Cache bypass)
-        // ============================================
-        const SUPABASE_URL = 'https://wyursjdrnnjabpfeucyi.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUyMjQ1ODMsImV4cCI6MjA1MDgwMDU4M30.LzQ6-H9VvTm3dDmRDTT8cPc1qYcOr-c7kJoYj_kPHD4';
-        
-        // Global Supabase client (CDN yüklendikten sonra initialize edilecek)
-        let sbClient = null;
-        
-        // Supabase'i initialize et
-        function initSupabase() {
-            if (!sbClient && typeof window.supabase !== 'undefined') {
-                sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('✅ Supabase client başlatıldı');
-                return true;
-            }
-            return sbClient !== null;
-        }
-        
-        // Sayfa yüklenene kadar bekle
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initSupabase);
-        } else {
-            initSupabase();
-        }
-        
-        // API Call yerine Supabase fonksiyonu
-        async function apiCall(endpoint, options = {}) {
-            console.log('🔄 API Call:', endpoint, options);
-            
-            // Supabase hazır değilse initialize et
-            if (!sbClient) {
-                initSupabase();
-                if (!sbClient) {
-                    throw new Error('Supabase client başlatılamadı');
-                }
-            }
-            
-            // Endpoint'e göre Supabase çağrısı yap
-            if (endpoint.includes('/firma/')) {
-                const firmaId = endpoint.split('/')[2];
-                const { data, error } = await sbClient.schema('siramatik').from('firmalar').select('*').eq('id', firmaId).single();
-                if (error) throw new Error(error.message);
-                return data;
-            }
-            
-            if (endpoint.includes('/servisler/')) {
-                const firmaId = endpoint.split('/')[2];
-                const { data: servisler, error } = await sbClient.schema('siramatik').from('servisler')
-                    .select('*')
-                    .eq('firma_id', firmaId)
-                    .eq('aktif', true);
-                if (error) throw new Error(error.message);
-                
-                // Her servis için kuyruk sayısını ayrı ayrı al
-                for (let servis of servisler) {
-                    const { count } = await sbClient.schema('siramatik').from('kuyruklar')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('servis_id', servis.id)
-                        .eq('aktif', true);
-                    servis.kuyruk_sayisi = count || 0;
-                }
-                
-                return servisler;
-            }
-            
-            if (endpoint.includes('/kuyruklar/firma/')) {
-                const firmaId = endpoint.split('/')[3];
-                const { data: servisler } = await sbClient.schema('siramatik').from('servisler').select('id').eq('firma_id', firmaId);
-                const servisIds = servisler.map(s => s.id);
-                const { data, error } = await sbClient.schema('siramatik').from('kuyruklar')
-                    .select('*')
-                    .in('servis_id', servisIds)
-                    .eq('aktif', true);
-                if (error) throw new Error(error.message);
-                return data;
-            }
-            
-            if (endpoint === '/sira/al' && options.method === 'POST') {
-                const body = JSON.parse(options.body);
-                
-                // Yeni sıra numarası al
-                const { data: numData } = await sbClient.schema('siramatik')
-                    .rpc('yeni_sira_numarasi', { 
-                        p_kuyruk_id: body.kuyruk_id, 
-                        p_oncelik: body.oncelik || 0 
-                    });
-                
-                if (!numData) throw new Error('Sıra numarası alınamadı');
-                
-                // Sırayı kaydet
-                const { data: sira, error } = await sbClient.schema('siramatik').from('siralar')
-                    .insert({
-                        kuyruk_id: body.kuyruk_id,
-                        servis_id: body.servis_id,
-                        firma_id: body.firma_id,
-                        numara: numData,
-                        oncelik: body.oncelik || 0,
-                        durum: 'waiting'
-                    })
-                    .select()
-                    .single();
-                
-                if (error) throw new Error(error.message);
-                
-                // Kuyruk adını al
-                const { data: kuyruk } = await sbClient.schema('siramatik').from('kuyruklar')
-                    .select('ad')
-                    .eq('id', body.kuyruk_id)
-                    .single();
-                
-                // Bekleyen sayısını hesapla
-                const { count } = await sbClient.schema('siramatik').from('siralar')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('kuyruk_id', body.kuyruk_id)
-                    .eq('durum', 'waiting');
-                
-                return {
-                    sira_id: sira.id,
-                    numara: numData,
-                    kuyruk_ad: kuyruk?.ad || 'Sıra',
-                    kuyruk_id: body.kuyruk_id,
-                    bekleyen_sayisi: count || 1,
-                    mesaj: `${numData} numaralı sıranız alındı.`
-                };
-            }
-            
-            if (endpoint === '/auth/ekran-login' && options.method === 'POST') {
-                const body = JSON.parse(options.body);
-                const { data, error } = await sbClient.schema('siramatik').from('firmalar')
-                    .select('id, ad')
-                    .eq('ekran_sifre', body.sifre)
-                    .eq('aktif', true)
-                    .single();
-                if (error) throw new Error('Geçersiz şifre');
-                return { status: 'authorized', firma_id: data.id, firma_ad: data.ad };
-            }
-            
-            // Cihaz kayıt endpoints'leri - GitHub Pages'te çalışmaz, sessizce atla
-            if (endpoint.includes('/cihaz/')) {
-                console.warn('⚠️ Cihaz kayıt devre dışı (backend yok)');
-                return { status: 'skipped', device: { id: null, is_new: false } };
-            }
-            
-            console.warn('❌ Bilinmeyen endpoint:', endpoint);
-            return {};
-        }
         
         // Toast, Loading, vs. yardımcı fonksiyonlar
         function showLoading(show) {
@@ -830,7 +683,7 @@
         }
 
         /**
-         * Cihazı Supabase'e Kaydet veya Güncelle
+         * Cihazı Backend'e Kaydet veya Güncelle
          */
         async function registerOrUpdateDevice() {
             try {
@@ -861,25 +714,24 @@
                     }
                 };
                 
-                // Supabase'e kayıt (upsert)
-                const { data, error } = await sbClient.schema('siramatik').from('cihazlar')
-                    .upsert(deviceInfo, { onConflict: 'device_fingerprint' })
-                    .select()
-                    .single();
+                // Backend'e kayıt
+                const response = await apiCall('/api/cihaz/kayit', {
+                    method: 'POST',
+                    body: JSON.stringify(deviceInfo)
+                });
                 
-                if (error) {
-                    console.warn('⚠️ Cihaz kaydedilemedi (tablo eksik olabilir):', error.message);
-                    return false;
+                if (response.status === 'success' && response.device) {
+                    DEVICE_ID = response.device.id;
+                    localStorage.setItem('tablet_device_id', DEVICE_ID);
+                    console.log('✅ Cihaz kaydedildi:', DEVICE_ID);
+                    
+                    // Backend'den ayarları çek
+                    await syncSettingsFromBackend();
+                    return true;
                 }
                 
-                DEVICE_ID = data.id;
-                localStorage.setItem('tablet_device_id', DEVICE_ID);
-                console.log('✅ Cihaz kaydedildi:', DEVICE_ID);
-                
-                // Backend'den ayarları çek
-                await syncSettingsFromBackend();
-                
-                return true;
+                console.warn('⚠️ Cihaz kaydedilemedi');
+                return false;
                 
             } catch (error) {
                 console.error('❌ Cihaz kayıt hatası:', error);
@@ -889,31 +741,23 @@
         }
 
         /**
-         * Supabase'den Ayarları Çek ve Senkronize Et
+         * Backend'den Ayarları Çek ve Senkronize Et
          */
         async function syncSettingsFromBackend() {
             if (!DEVICE_ID) return;
             
             try {
-                const { data, error } = await sbClient.schema('siramatik').from('cihazlar')
-                    .select('ayarlar')
-                    .eq('id', DEVICE_ID)
-                    .single();
+                const response = await apiCall(`/api/cihaz/${DEVICE_ID}/ayarlar`);
                 
-                if (error) {
-                    console.warn('⚠️ Ayarlar çekilemedi:', error.message);
-                    return false;
-                }
-                
-                if (data && data.ayarlar) {
-                    const backendSettings = data.ayarlar;
+                if (response.status === 'success' && response.device && response.device.ayarlar) {
+                    const backendSettings = response.device.ayarlar;
                     
                     // Backend ayarları ile local ayarları karşılaştır
                     const localSettings = JSON.stringify(kioskSettings);
                     const remoteSettings = JSON.stringify(backendSettings);
                     
                     if (localSettings !== remoteSettings) {
-                        console.log('🔄 Supabase ayarları uygulanıyor...');
+                        console.log('🔄 Backend ayarları uygulanıyor...');
                         kioskSettings = { ...kioskSettings, ...backendSettings };
                         localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
                         console.log('✅ Ayarlar senkronize edildi');
@@ -927,23 +771,24 @@
         }
 
         /**
-         * Ayarları Supabase'e Kaydet
+         * Ayarları Backend'e Kaydet
          */
         async function saveSettingsToBackend(settings) {
             if (!DEVICE_ID) return false;
             
             try {
-                const { error } = await sbClient.schema('siramatik').from('cihazlar')
-                    .update({ ayarlar: settings, guncelleme: new Date().toISOString() })
-                    .eq('id', DEVICE_ID);
+                const response = await apiCall(`/api/cihaz/${DEVICE_ID}/ayarlar`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ ayarlar: settings })
+                });
                 
-                if (error) {
-                    console.error('❌ Supabase ayar kayıt hatası:', error.message);
-                    return false;
+                if (response.status === 'success') {
+                    console.log('✅ Ayarlar Backend\'e kaydedildi');
+                    return true;
                 }
                 
-                console.log('✅ Ayarlar Supabase\'e kaydedildi');
-                return true;
+                console.error('❌ Ayar kayıt hatası');
+                return false;
             } catch (error) {
                 console.error('❌ Ayar kayıt hatası:', error);
             }
@@ -957,18 +802,16 @@
             if (!DEVICE_ID) return;
             
             try {
-                const { error } = await sbClient.schema('siramatik').from('cihazlar')
-                    .update({ 
-                        son_gorulen: new Date().toISOString(),
-                        durum: 'active'
+                await apiCall(`/api/cihaz/${DEVICE_ID}/heartbeat`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        device_id: DEVICE_ID,
+                        ip_address: null,
+                        metadata: {}
                     })
-                    .eq('id', DEVICE_ID);
-                
-                if (error) {
-                    console.warn('⚠️ Heartbeat hatası:', error.message);
-                }
+                });
             } catch (error) {
-                console.error('⚠️ Heartbeat hatası:', error);
+                console.warn('⚠️ Heartbeat hatası:', error);
             }
         }
 
@@ -1496,11 +1339,6 @@
             // Başlangaçta tüm verileri yükle
             try {
                 showLoading(true);
-                
-                // 0. Supabase'i başlat
-                if (!initSupabase()) {
-                    throw new Error('Supabase başlatılamadı');
-                }
                 
                 // 1. CİHAZ KAYIT VE AYAR SENKRONİZASYONU
                 await registerOrUpdateDevice();
