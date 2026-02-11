@@ -1520,7 +1520,7 @@ class Database:
                     olusturulma,
                     guncelleme,
                     CASE 
-                        WHEN son_gorulen > (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Istanbul' - INTERVAL '5 minutes') THEN 'online'
+                        WHEN son_gorulen > (NOW() - INTERVAL '5 minutes') THEN 'online'
                         ELSE 'offline'
                     END as online_status
                 FROM siramatik.cihazlar
