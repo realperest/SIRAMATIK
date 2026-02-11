@@ -614,6 +614,7 @@
     <script>
         let allQueues = [];
         let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
+        let DEVICE_ID = localStorage.getItem('tablet_device_id') || null;
 
         // Kiosk Ayarları Yönetimi
         let kioskSettings = {
@@ -621,6 +622,183 @@
             kuyrukIds: [],
             hideServisSelection: false
         };
+
+        // ============================================
+        // CİHAZ KAYIT VE YÖNETİM SİSTEMİ
+        // ============================================
+
+        /**
+         * Browser Fingerprint Oluştur
+         * Canvas, WebGL, Screen, Navigator bilgilerini kullanarak benzersiz ID
+         */
+        async function generateFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(125, 1, 62, 20);
+            ctx.fillStyle = '#069';
+            ctx.fillText('SIRAMATIK', 2, 15);
+            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+            ctx.fillText('DEVICE', 4, 17);
+            
+            const canvasData = canvas.toDataURL();
+            
+            const components = [
+                canvasData,
+                navigator.userAgent,
+                navigator.language,
+                screen.colorDepth,
+                screen.width + 'x' + screen.height,
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency || 0,
+                navigator.deviceMemory || 0
+            ].join('|||');
+            
+            // Simple hash
+            let hash = 0;
+            for (let i = 0; i < components.length; i++) {
+                const char = components.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            return 'fp_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+        }
+
+        /**
+         * Cihazı Backend'e Kaydet veya Güncelle
+         */
+        async function registerOrUpdateDevice() {
+            try {
+                console.log('🔧 Cihaz kaydı kontrol ediliyor...');
+                
+                let fingerprint = localStorage.getItem('device_fingerprint');
+                if (!fingerprint) {
+                    fingerprint = await generateFingerprint();
+                    localStorage.setItem('device_fingerprint', fingerprint);
+                    console.log('✅ Yeni fingerprint oluşturuldu:', fingerprint);
+                }
+                
+                // Cihaz bilgilerini topla
+                const deviceInfo = {
+                    firma_id: parseInt(FIRMA_ID),
+                    ad: `TABLET-${fingerprint.substring(3, 10)}`,
+                    tip: 'tablet',
+                    device_fingerprint: fingerprint,
+                    mac_address: null,
+                    ip_address: null,
+                    ayarlar: kioskSettings,
+                    metadata: {
+                        browser: navigator.userAgent,
+                        screen_resolution: `${screen.width}x${screen.height}`,
+                        platform: navigator.platform,
+                        language: navigator.language,
+                        last_url: window.location.href
+                    }
+                };
+                
+                // Backend'e kayıt
+                const response = await apiCall('/cihaz/kayit', {
+                    method: 'POST',
+                    body: JSON.stringify(deviceInfo)
+                });
+                
+                if (response.status === 'success') {
+                    DEVICE_ID = response.device.id;
+                    localStorage.setItem('tablet_device_id', DEVICE_ID);
+                    
+                    console.log(`✅ Cihaz ${response.device.is_new ? 'kaydedildi' : 'güncellendi'}:`, DEVICE_ID);
+                    
+                    // Backend'den ayarları çek
+                    await syncSettingsFromBackend();
+                    
+                    return true;
+                }
+                
+            } catch (error) {
+                console.error('❌ Cihaz kayıt hatası:', error);
+                // Hata durumunda local ayarlarla devam et
+                return false;
+            }
+        }
+
+        /**
+         * Backend'den Ayarları Çek ve Senkronize Et
+         */
+        async function syncSettingsFromBackend() {
+            if (!DEVICE_ID) return;
+            
+            try {
+                const response = await apiCall(`/cihaz/${DEVICE_ID}/ayarlar`);
+                
+                if (response.status === 'success' && response.device.ayarlar) {
+                    const backendSettings = response.device.ayarlar;
+                    
+                    // Backend ayarları ile local ayarları karşılaştır
+                    const localSettings = JSON.stringify(kioskSettings);
+                    const remoteSettings = JSON.stringify(backendSettings);
+                    
+                    if (localSettings !== remoteSettings) {
+                        console.log('🔄 Backend ayarları uygulanıyor...');
+                        kioskSettings = { ...kioskSettings, ...backendSettings };
+                        localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
+                        console.log('✅ Ayarlar senkronize edildi');
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('⚠️ Ayar senkronizasyon hatası:', error);
+            }
+            return false;
+        }
+
+        /**
+         * Ayarları Backend'e Kaydet
+         */
+        async function saveSettingsToBackend(settings) {
+            if (!DEVICE_ID) return false;
+            
+            try {
+                const response = await apiCall(`/cihaz/${DEVICE_ID}/ayarlar`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ ayarlar: settings })
+                });
+                
+                if (response.status === 'success') {
+                    console.log('✅ Ayarlar backend\'e kaydedildi');
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ Backend ayar kayıt hatası:', error);
+            }
+            return false;
+        }
+
+        /**
+         * Heartbeat Gönder
+         */
+        async function sendHeartbeat() {
+            if (!DEVICE_ID) return;
+            
+            try {
+                await apiCall(`/cihaz/${DEVICE_ID}/heartbeat`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        device_id: DEVICE_ID,
+                        ip_address: null,
+                        metadata: {
+                            last_seen: new Date().toISOString(),
+                            page_url: window.location.href
+                        }
+                    })
+                });
+            } catch (error) {
+                console.error('⚠️ Heartbeat hatası:', error);
+            }
+        }
 
         function loadKioskSettings() {
             const saved = localStorage.getItem('kiosk_settings');
@@ -705,7 +883,7 @@
             document.getElementById('settings-modal').style.display = 'none';
         }
 
-        function saveSettings() {
+        async function saveSettings() {
             const servisSelect = document.getElementById('servis-filter');
             const kuyrukSelect = document.getElementById('kuyruk-filter');
 
@@ -718,7 +896,13 @@
                 hideServisSelection: document.getElementById('hide-servis-checkbox').checked
             };
 
+            // LocalStorage'a kaydet
             localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
+            
+            // Backend'e de kaydet
+            if (DEVICE_ID) {
+                await saveSettingsToBackend(kioskSettings);
+            }
 
             alert('✅ Ayarlar kaydedildi! Sayfa yenileniyor...');
             location.reload();
@@ -1133,6 +1317,10 @@
             // Başlangaçta tüm verileri TEK BİR PAKET (init) olarak çekerek hızı maksimuma çıkarıyoruz
             try {
                 showLoading(true);
+                
+                // 0. CİHAZ KAYIT VE AYAR SENKRONİZASYONU (YENİ!)
+                await registerOrUpdateDevice();
+                
                 const initData = await apiCall(`/kiosk/init/${FIRMA_ID}`);
 
                 // 1. Firma Bilgileri
@@ -1150,9 +1338,13 @@
                 allQueues = filtered.kuyruklar;
                 renderServisler(filtered.servisler);
 
-                // 4. Heartbeat Başlat
+                // 4. Heartbeat Başlat (Hem bildirCihaz hem de yeni heartbeat)
                 bildirCihaz();
-                setInterval(bildirCihaz, 30000);
+                sendHeartbeat();
+                setInterval(() => {
+                    bildirCihaz();
+                    sendHeartbeat();
+                }, 30000);
 
             } catch (err) {
                 console.error("Kiosk başlatma hatası:", err);

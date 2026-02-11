@@ -430,6 +430,11 @@
                 <i class="fas fa-chart-bar"></i> RAPOR VE ANALİZLER
             </a>
 
+            <a onclick="showView('cihazlar')" class="nav-item" id="nav-cihazlar"
+                style="cursor: pointer;">
+                <i class="fas fa-tablet-alt"></i> CİHAZLAR
+            </a>
+
             <!-- PROFESYONEL ANALİZ (PRO) menüsü kaldırıldı -->
 
             <div class="nav-header">TANIMLAR & AYARLAR</div>
@@ -566,6 +571,57 @@
                 <div id="device-summary-list">
                     <!-- Statik olmayan dinamik liste buraya gelecek -->
                 </div>
+            </div>
+        </div>
+
+        <!-- CİHAZLAR VIEW -->
+        <div id="view-cihazlar" style="display: none;">
+            <h2 style="margin-bottom: 20px;">
+                <i class="fas fa-tablet-alt"></i> Cihaz Yönetimi
+            </h2>
+
+            <!-- Cihaz İstatistikleri -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h3 id="stat-toplam-cihaz">0</h3>
+                    <p>Toplam Cihaz</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);">
+                    <h3 id="stat-online-cihaz">0</h3>
+                    <p>Online</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <h3 id="stat-offline-cihaz">0</h3>
+                    <p>Offline</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                    <h3 id="stat-tablet-cihaz">0</h3>
+                    <p>Tablet</p>
+                </div>
+            </div>
+
+            <!-- Cihaz Listesi -->
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Durum</th>
+                            <th>Ad</th>
+                            <th>Tip</th>
+                            <th>IP Adresi</th>
+                            <th>Son Görülme</th>
+                            <th>Ayarlar</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cihaz-listesi">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px;">
+                                <i class="fas fa-spinner fa-spin"></i> Yükleniyor...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -1083,6 +1139,7 @@
 
             if (viewId === 'dashboard' || viewId === 'istatistik') loadStats();
             if (viewId === 'ayarlar') loadFirmaSettings();
+            if (viewId === 'cihazlar') loadCihazlar();
         }
 
         async function loadFirmaSettings() {
@@ -1994,6 +2051,124 @@
         }
 
         function logout() { localStorage.clear(); window.location.href = 'personel.html'; }
+
+        // ============================================
+        // CİHAZ YÖNETİM FONKSİYONLARI
+        // ============================================
+
+        async function loadCihazlar() {
+            try {
+                const response = await apiCall(`/admin/cihazlar/${currentUser.firma_id}`);
+                
+                if (response.status === 'success') {
+                    const devices = response.devices || [];
+                    
+                    // İstatistikleri güncelle
+                    const toplamCihaz = devices.length;
+                    const onlineCihaz = devices.filter(d => d.online_status === 'online').length;
+                    const offlineCihaz = toplamCihaz - onlineCihaz;
+                    const tabletCihaz = devices.filter(d => d.tip === 'tablet').length;
+                    
+                    document.getElementById('stat-toplam-cihaz').textContent = toplamCihaz;
+                    document.getElementById('stat-online-cihaz').textContent = onlineCihaz;
+                    document.getElementById('stat-offline-cihaz').textContent = offlineCihaz;
+                    document.getElementById('stat-tablet-cihaz').textContent = tabletCihaz;
+                    
+                    // Tabloyu doldur
+                    renderCihazlar(devices);
+                }
+            } catch (error) {
+                console.error('Cihaz yükleme hatası:', error);
+                showToast('Cihazlar yüklenemedi', 'error');
+            }
+        }
+
+        function renderCihazlar(devices) {
+            const tbody = document.getElementById('cihaz-listesi');
+            
+            if (devices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">Henüz kayıtlı cihaz yok</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = devices.map(device => {
+                const onlineStatus = device.online_status === 'online';
+                const statusBadge = onlineStatus 
+                    ? '<span style="background: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">🟢 ONLİNE</span>'
+                    : '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">🔴 OFFLİNE</span>';
+                
+                const sonGorulen = new Date(device.son_gorulen);
+                const sonGorulenStr = sonGorulen.toLocaleString('tr-TR');
+                const gecenDakika = Math.floor((Date.now() - sonGorulen.getTime()) / 60000);
+                const gecenSure = gecenDakika < 60 
+                    ? `${gecenDakika} dk önce`
+                    : `${Math.floor(gecenDakika / 60)} saat önce`;
+                
+                const tipIkon = device.tip === 'tablet' ? '📱' : device.tip === 'kiosk' ? '🖥️' : '💻';
+                
+                const ayarlarCount = device.ayarlar ? 
+                    (device.ayarlar.servisIds || []).length + (device.ayarlar.kuyrukIds || []).length : 0;
+                
+                return `
+                    <tr>
+                        <td>${statusBadge}</td>
+                        <td><strong>${device.ad}</strong></td>
+                        <td>${tipIkon} ${device.tip.toUpperCase()}</td>
+                        <td>${device.ip_address || '-'}</td>
+                        <td title="${sonGorulenStr}">${gecenSure}</td>
+                        <td>
+                            <button onclick="viewCihazAyarlar(${device.id})" class="btn-view" style="font-size: 12px;">
+                                <i class="fas fa-cog"></i> ${ayarlarCount} Ayar
+                            </button>
+                        </td>
+                        <td>
+                            <button onclick="deleteCihaz(${device.id}, '${device.ad}')" class="btn-delete" style="font-size: 12px;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function viewCihazAyarlar(deviceId) {
+            try {
+                const response = await apiCall(`/cihaz/${deviceId}/ayarlar`);
+                
+                if (response.status === 'success') {
+                    const device = response.device;
+                    const ayarlar = device.ayarlar || {};
+                    
+                    const ayarlarStr = JSON.stringify(ayarlar, null, 2);
+                    
+                    alert(`📱 ${device.ad}\n\nTip: ${device.tip}\nDurum: ${device.durum}\n\nAyarlar:\n${ayarlarStr}`);
+                }
+            } catch (error) {
+                console.error('Ayar görüntüleme hatası:', error);
+                showToast('Ayarlar görüntülenemedi', 'error');
+            }
+        }
+
+        async function deleteCihaz(deviceId, deviceName) {
+            if (!confirm(`"${deviceName}" cihazını silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz!`)) {
+                return;
+            }
+            
+            try {
+                const response = await apiCall(`/admin/cihaz/${deviceId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.status === 'success') {
+                    showToast('Cihaz silindi', 'success');
+                    loadCihazlar();
+                }
+            } catch (error) {
+                console.error('Cihaz silme hatası:', error);
+                showToast('Cihaz silinemedi', 'error');
+            }
+        }
+
         // init(); // Removed from here, added to body onload
         // WebSocket Dinleyici
         initWebSocket((data) => {
