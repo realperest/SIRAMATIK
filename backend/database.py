@@ -1204,7 +1204,7 @@ class Database:
             result = session.execute(check_query).scalar()
             
             if result:
-                print("✅ memnuniyet_anketleri tablosu zaten var")
+                print("[OK] memnuniyet_anketleri tablosu zaten var")
                 return
             
             # Tabloyu oluştur
@@ -1244,10 +1244,10 @@ class Database:
             
             session.execute(create_table_query)
             session.commit()
-            print("✅ memnuniyet_anketleri tablosu oluşturuldu!")
+            print("[OK] memnuniyet_anketleri tablosu olusturuldu!")
             
         except Exception as e:
-            print(f"⚠️ Memnuniyet tablosu oluşturma hatası: {e}")
+            print(f"[WARN] Memnuniyet tablosu olusturma hatasi: {e}")
             session.rollback()
     
     def _create_cihazlar_table(self, session):
@@ -1265,7 +1265,7 @@ class Database:
             result = session.execute(check_query).scalar()
             
             if result:
-                print("✅ cihazlar tablosu (device_fingerprint ile) zaten var")
+                print("[OK] cihazlar tablosu (device_fingerprint ile) zaten var")
                 return
             
             # Yeni tabloyu oluştur (IF NOT EXISTS ile)
@@ -1315,10 +1315,10 @@ class Database:
             
             session.execute(create_table_query)
             session.commit()
-            print("✅ cihazlar tablosu (yeni yapı ile) oluşturuldu!")
+            print("[OK] cihazlar tablosu (yeni yapi ile) olusturuldu!")
             
         except Exception as e:
-            print(f"⚠️ Cihazlar tablosu oluşturma hatası: {e}")
+            print(f"[WARN] Cihazlar tablosu olusturma hatasi: {e}")
             session.rollback()
     
     # ============================================

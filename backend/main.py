@@ -822,15 +822,6 @@ async def cihaz_bildir(request: DeviceHeartbeatRequest):
     return {"status": "ok", "cihaz": cihaz}
 
 
-@app.get("/api/admin/cihazlar/{firma_id}", response_model=List[dict])
-async def admin_cihazlar(
-    firma_id: int,
-    current_user: dict = Depends(get_current_active_user)
-):
-    """Firmaya ait cihazları listele"""
-    return db.get_cihazlar(firma_id)
-
-
 @app.put("/api/admin/cihaz/{cihaz_id}")
 async def update_cihaz(
     cihaz_id: int,
