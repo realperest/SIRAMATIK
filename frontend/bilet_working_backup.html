@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İrmet Hospital - Sıra Takip</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="İrmet Sıra">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px 20px;
+            overscroll-behavior-y: contain;
+            /* Pull-to-refresh engelleme */
+        }
+
+        .ticket {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .ticket::before,
+        .ticket::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #f0f2f5;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .ticket::before {
+            left: -20px;
+        }
+
+        .ticket::after {
+            right: -20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+            border-top: 2px dashed #eee;
+        }
+
+        .number {
+            font-size: 84px;
+            font-weight: 900;
+            color: #764ba2;
+            margin: 20px 0;
+            letter-spacing: -2px;
+        }
+
+        .label {
+            color: #7f8c8d;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #95a5a6;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border-radius: 50px;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: all 0.5s ease;
+        }
+
+        .calling-active-body {
+            animation: party-alert 0.8s infinite;
+        }
+
+        @keyframes party-alert {
+            0% {
+                background-color: #ff0000;
+            }
+
+            /* Kırmızı */
+            25% {
+                background-color: #ffeb3b;
+            }
+
+            /* Sarı */
+            50% {
+                background-color: #2196f3;
+            }
+
+            /* Mavi */
+            75% {
+                background-color: #4caf50;
+            }
+
+            /* Yeşil */
+            100% {
+                background-color: #ff0000;
+            }
+        }
+
+        /* Çarpıcı etki için bilet kartına gölge ekle */
+        .calling-active-body .ticket {
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+            border: 4px solid white;
+        }
+
+        .calling-status {
+            background: #22c55e !important;
+            color: white !important;
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+        }
+
+        /* Aktivasyon Overlay */
+        #activation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .activation-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Aktivasyon Katmanı -->
+    <div id="activation-overlay">
+        <div>
+            <div style="font-size: 40px; margin-bottom: 20px;">🔔</div>
+            <h2 style="margin-bottom: 10px;">Sesli Bildirimler</h2>
+            <p style="opacity: 0.8; margin-bottom: 20px;">Sıranız geldiğinde sizi sesli ve görüntülü <br> uyarabilmemiz
+                için onay veriniz.</p>
+            <button class="activation-btn" onclick="startNotifications()">BİLDİRİMLERİ AÇ</button>
+        </div>
+    </div>
+    <div class="ticket">
+        <div class="header">
+            <h2 id="hospital-name">İRMET HOSPITAL</h2>
+            <div style="font-size: 14px; opacity: 0.8;">Sıra Takip Sistemi</div>
+        </div>
+        <div class="content">
+            <div class="label">Sıra Numaranız</div>
+            <div class="number" id="ticket-number">---</div>
+            <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
+            <div class="status" id="wait-info">Giriş Yapılıyor...</div>
+        </div>
+        <div class="footer">
+            <div id="current-time">--:--:--</div>
+            <div style="margin-top: 5px;">Lütfen ekranlardan numaranızı takip ediniz.</div>
+        </div>
+    </div>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Verileri sakla/getir (Yenileme koruması)
+        function getTicketData() {
+            const params = new URLSearchParams(window.location.search);
+            const data = {
+                numara: params.get('numara') || localStorage.getItem('bt_numara') || '---',
+                kuyruk_ad: params.get('kuyruk') || localStorage.getItem('bt_kuyruk_ad') || 'Sıramatik',
+                firma_ad: params.get('firma') || localStorage.getItem('bt_firma_ad') || 'İRMET HOSPITAL',
+                kuyruk_id: params.get('kuyruk_id') || localStorage.getItem('bt_kuyruk_id'),
+                sira_id: params.get('sira_id') || localStorage.getItem('bt_sira_id'),
+                bekleyen: params.get('bekleyen') || localStorage.getItem('bt_bekleyen') || '0'
+            };
+
+            // Eğer URL'den geldiyse hafızaya kaydet
+            if (params.get('numara')) {
+                localStorage.setItem('bt_numara', data.numara);
+                localStorage.setItem('bt_kuyruk_ad', data.kuyruk_ad);
+                localStorage.setItem('bt_firma_ad', data.firma_ad);
+                localStorage.setItem('bt_kuyruk_id', data.kuyruk_id);
+                localStorage.setItem('bt_sira_id', data.sira_id);
+                localStorage.setItem('bt_bekleyen', data.bekleyen);
+            }
+            return data;
+        }
+
+        const ticketSpecs = getTicketData();
+
+        // URL Maskeleme (Veriler saklandıktan sonra)
+        if (window.history.replaceState && window.location.search) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        }
+
+        const numara = ticketSpecs.numara;
+        const kuyruk_ad = ticketSpecs.kuyruk_ad;
+        const firma_ad = ticketSpecs.firma_ad;
+        const kuyruk_id = ticketSpecs.kuyruk_id;
+        const sira_id = ticketSpecs.sira_id;
+
+        let sessionDurum = 'waiting';
+        let notificationPlayed = false;
+        let lastCount = -1;
+        let isAudioUnlocked = false;
+        let isFirstLoad = true; // YENİ: İlk yükleme flag'i
+
+        // Supabase Bağlantısı
+        const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // ===== UPGRADE: HTML5 Audio (ESKİ) + Gelişmiş Hata Yönetimi (YENİ) =====
+        const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        const alertSound = tickSound; // Bitiş alarmı da aynı ses
+
+        // Ses yükleme kontrolü
+        tickSound.addEventListener('loadeddata', () => {
+            console.log('✅ Ses dosyası yüklendi');
+        });
+        tickSound.addEventListener('error', (e) => {
+            console.warn('⚠️ Ses dosyası yüklenemedi:', e);
+        });
+
+        async function startNotifications() {
+            // iOS için ses kilidi açma yöntemi
+            alertSound.volume = 0.5;
+            tickSound.volume = 0.5;
+
+            alertSound.play().then(() => { alertSound.pause(); }).catch(() => { });
+            tickSound.play().then(() => { tickSound.pause(); }).catch(() => { });
+
+            isAudioUnlocked = true;
+            document.getElementById('activation-overlay').style.display = 'none';
+            
+            // Test titreşimi
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            
+            // YENİ: Test sesi çal
+            setTimeout(() => {
+                tickSound.play().catch(e => console.log('Test sesi hatası:', e));
+                console.log('🔊 Test sesi çalındı');
+            }, 300);
+            
+            updateStatus();
+        }
+
+        // İlk verileri URL'den bas
+        document.getElementById('ticket-number').textContent = numara;
+        document.getElementById('queue-name').textContent = kuyruk_ad;
+        document.getElementById('hospital-name').textContent = firma_ad;
+        document.getElementById('wait-info').textContent = `Önünüzde ${ticketSpecs.bekleyen} kişi var`;
+
+        // YENİ: İlk bekleyen sayısını kaydet (URL'den)
+        const bekleyen_url = ticketSpecs.bekleyen;
+        if (bekleyen_url && bekleyen_url !== '0') {
+            lastCount = parseInt(bekleyen_url);
+            isFirstLoad = false; // İlk veri URL'den geldi
+            console.log(`📊 İlk bekleyen sayısı (URL): ${lastCount}`);
+        }
+
+        async function updateStatus() {
+            const statusEl = document.getElementById('wait-info');
+            const numEl = document.getElementById('ticket-number');
+
+            if (!kuyruk_id || !sira_id) {
+                console.warn("Canlı takip için sira_id veya kuyruk_id eksik.");
+                return;
+            }
+
+            try {
+                const kid = parseInt(kuyruk_id);
+                const sid = parseInt(sira_id);
+                
+                // Türkiye saatiyle (UTC+3) bugünün başlangıcını bulalım
+                const simdi = new Date();
+                const trBaslangic = new Date(simdi.getTime() + (3 * 60 * 60 * 1000));
+                trBaslangic.setUTCHours(0, 0, 0, 0);
+                const trBaslangicUtc = new Date(trBaslangic.getTime() - (3 * 60 * 60 * 1000)).toISOString();
+
+                // 1. Kendi bilet bilgilerimizi çekelim
+                const myTicket = await _supabase
+                    .schema('siramatik')
+                    .from('siralar')
+                    .select('durum, oncelik, olusturulma')
+                    .eq('id', sid)
+                    .single();
+
+                if (myTicket.error) throw myTicket.error;
+                const me = myTicket.data;
+
+                // Durum kontrolü
+                if (me.durum === 'calling') {
+                    statusEl.textContent = "SIRA SİZDE!";
+                    statusEl.classList.add('calling-status');
+                    document.body.classList.add('calling-active-body');
+                    numEl.style.color = "#22c55e";
+
+                    if (!notificationPlayed) {
+                        notificationPlayed = true;
+
+                        // YENİ: Gelişmiş 3x alarm çalma mantığı
+                        let playCount = 0;
+                        alertSound.volume = 1.0;
+
+                        const playAlert = () => {
+                            if (playCount < 3) {
+                                console.log(`📢 Alarm çalınıyor: ${playCount + 1}/3`);
+                                alertSound.pause();
+                                alertSound.currentTime = 0;
+
+                                alertSound.onended = () => {
+                                    playCount++;
+                                    if (playCount < 3) {
+                                        setTimeout(playAlert, 800);
+                                    } else {
+                                        alertSound.onended = null;
+                                    }
+                                };
+
+                                alertSound.play().catch(e => {
+                                    console.error("Alarm hatası:", e);
+                                    playCount++;
+                                    setTimeout(playAlert, 1500);
+                                });
+                            }
+                        };
+                        playAlert();
+
+                        // YENİ: Güçlü titreşim
+                        if (navigator.vibrate) {
+                            navigator.vibrate([500, 200, 500, 200, 1000]);
+                        }
+                    }
+                    return;
+                } else if (me.durum === 'completed') {
+                    statusEl.textContent = "İŞLEM TAMAMLANDI";
+                    statusEl.classList.remove('calling-status');
+                    document.body.classList.remove('calling-active-body');
+                    statusEl.style.background = "#94a3b8";
+                    notificationPlayed = false;
+                    return;
+                }
+
+                // Önünüzdekileri saymak için 2 ayrı sorgu
+                const highPriority = await _supabase
+                    .schema('siramatik')
+                    .from('siralar')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('kuyruk_id', kid)
+                    .eq('durum', 'waiting')
+                    .gte('olusturulma', trBaslangicUtc)
+                    .gt('oncelik', me.oncelik);
+
+                const samePriorityBefore = await _supabase
+                    .schema('siramatik')
+                    .from('siralar')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('kuyruk_id', kid)
+                    .eq('durum', 'waiting')
+                    .gte('olusturulma', trBaslangicUtc)
+                    .eq('oncelik', me.oncelik)
+                    .lt('olusturulma', me.olusturulma);
+
+                if (highPriority.error) throw highPriority.error;
+                if (samePriorityBefore.error) throw samePriorityBefore.error;
+
+                const count = (highPriority.count || 0) + (samePriorityBefore.count || 0);
+                console.log(`🔍 Sayaç: Yüksek:${highPriority.count}, Aynı:${samePriorityBefore.count}, Toplam:${count}`);
+
+                // ===== YENİ: Gelişmiş sıra azalma kontrolü =====
+                if (isFirstLoad) {
+                    // İlk yükleme: Sadece kaydet
+                    lastCount = count;
+                    isFirstLoad = false;
+                    console.log(`📊 İlk bekleyen sayısı (API): ${count}`);
+                } else if (lastCount !== -1 && count < lastCount && count >= 0) {
+                    // Bekleyen azaldı - ses + titreşim
+                    console.log(`🔔 Bekleyen azaldı: ${lastCount} → ${count}`);
+                    if (isAudioUnlocked) {
+                        tickSound.pause();
+                        tickSound.currentTime = 0;
+                        tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
+                    }
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200);
+                    }
+                    lastCount = count;
+                } else {
+                    lastCount = count;
+                }
+
+                // Durum mesajı güncelle
+                document.body.classList.remove('calling-active-body');
+                statusEl.classList.remove('calling-status');
+                numEl.style.color = "#764ba2";
+
+                if (count === 0) {
+                    statusEl.textContent = "Sıradaki sizsiniz!";
+                    statusEl.style.color = "#764ba2";
+                    statusEl.style.fontWeight = "bold";
+                } else {
+                    statusEl.textContent = `Önünüzde ${count} kişi var`;
+                    statusEl.style.color = "#667eea";
+                }
+
+                if (me.durum === 'waiting') notificationPlayed = false;
+
+            } catch (e) {
+                console.error("Takip Hatası:", e);
+            }
+        }
+
+        function updateTime() {
+            document.getElementById('current-time').textContent = new Date().toLocaleTimeString('tr-TR');
+        }
+
+        setInterval(updateTime, 1000);
+        setInterval(updateStatus, 5000); // YENİ: Otomatik polling
+        console.log('🔄 Otomatik güncelleme aktif (5 saniye)');
+        
+        updateTime();
+        updateStatus();
+    </script>
+</body>
+
+</html>

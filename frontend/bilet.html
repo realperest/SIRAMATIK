@@ -270,6 +270,98 @@
                 display: none !important;
             }
         }
+
+        /* ===== MEMNUNİYET ANKETİ STİLLERİ ===== */
+        .survey-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .survey-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .rating-faces {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .face-option {
+            flex: 1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 10px 5px;
+            border-radius: 15px;
+            border: 3px solid transparent;
+        }
+
+        .face-option:hover {
+            background: rgba(102, 126, 234, 0.05);
+            transform: scale(1.05);
+        }
+
+        .face-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.1);
+        }
+
+        .face {
+            font-size: 48px;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .face-option:hover .face {
+            transform: scale(1.2);
+        }
+
+        .face-label {
+            font-size: 11px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .face-option.selected .face-label {
+            color: #667eea;
+        }
+
+        .survey-submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .survey-submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .survey-submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .survey-submit-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
@@ -307,6 +399,70 @@
         <div class="footer">
             <div id="current-time">--:--:--</div>
             <div style="margin-top: 5px;">Lütfen ekranlardan numaranızı takip ediniz.</div>
+        </div>
+    </div>
+
+    <!-- Memnuniyet Anketi -->
+    <div id="survey-container" class="survey-container" style="display: none;">
+        <div class="survey-card">
+            <h3 style="color: #764ba2; margin-bottom: 10px;">🎯 Aldığınız Hizmeti Puanlayın</h3>
+            <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 20px;">
+                Görüşünüz bizim için değerli!
+            </p>
+            
+            <!-- Yüz İfadeleri -->
+            <div class="rating-faces">
+                <div class="face-option" data-rating="1" onclick="selectRating(1)">
+                    <div class="face">😞</div>
+                    <div class="face-label">Çok Kötü</div>
+                </div>
+                <div class="face-option" data-rating="2" onclick="selectRating(2)">
+                    <div class="face">😕</div>
+                    <div class="face-label">Kötü</div>
+                </div>
+                <div class="face-option" data-rating="3" onclick="selectRating(3)">
+                    <div class="face">😐</div>
+                    <div class="face-label">Normal</div>
+                </div>
+                <div class="face-option" data-rating="4" onclick="selectRating(4)">
+                    <div class="face">😊</div>
+                    <div class="face-label">İyi</div>
+                </div>
+                <div class="face-option" data-rating="5" onclick="selectRating(5)">
+                    <div class="face">😍</div>
+                    <div class="face-label">Mükemmel</div>
+                </div>
+            </div>
+
+            <!-- Yorum Alanı -->
+            <div style="margin-top: 25px;">
+                <label style="display: block; font-size: 14px; color: #7f8c8d; margin-bottom: 8px;">
+                    Diyeceğiniz bir şey var mı?
+                </label>
+                <textarea 
+                    id="survey-comment" 
+                    placeholder="İsteğe bağlı..."
+                    rows="3"
+                    style="width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical;"
+                ></textarea>
+            </div>
+
+            <!-- Gönder Butonu -->
+            <button 
+                id="survey-submit-btn" 
+                class="survey-submit-btn" 
+                onclick="submitSurvey()"
+                disabled
+            >
+                Gönder
+            </button>
+
+            <!-- Teşekkür Mesajı -->
+            <div id="survey-thanks" style="display: none; text-align: center; padding: 20px;">
+                <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+                <h3 style="color: #22c55e; margin-bottom: 5px;">Teşekkür Ederiz!</h3>
+                <p style="color: #7f8c8d; font-size: 14px;">Görüşünüz kaydedildi.</p>
+            </div>
         </div>
     </div>
 
@@ -756,6 +912,9 @@
                     document.body.classList.remove('calling-active-body');
                     statusEl.style.background = "#94a3b8";
                     notificationPlayed = false;
+                    
+                    // Anket göster (sadece bir kez)
+                    showSurvey();
                     return;
                 }
 
@@ -907,6 +1066,116 @@
                 console.warn('⚠️ Telefon yatay konumda - Lütfen dikey konuma getirin');
             }
         });
+
+        // ===== MEMNUNİYET ANKETİ =====
+        let selectedRating = 0;
+        let surveyShown = false;
+
+        function showSurvey() {
+            // Sadece bir kez göster
+            if (surveyShown) return;
+            
+            // Daha önce anket gönderilmiş mi kontrol et
+            const surveySubmitted = localStorage.getItem(`survey_${sira_id}`);
+            if (surveySubmitted) {
+                console.log('ℹ️ Anket daha önce gönderilmiş');
+                return;
+            }
+
+            surveyShown = true;
+            document.getElementById('survey-container').style.display = 'block';
+            
+            // Anket gösterilince sayfayı yumuşakça kaydır
+            setTimeout(() => {
+                document.getElementById('survey-container').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 300);
+            
+            console.log('📋 Memnuniyet anketi gösterildi');
+        }
+
+        function selectRating(rating) {
+            selectedRating = rating;
+            
+            // Tüm seçimleri temizle
+            document.querySelectorAll('.face-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Seçilen yüzü vurgula
+            document.querySelector(`.face-option[data-rating="${rating}"]`).classList.add('selected');
+            
+            // Gönder butonunu aktif et
+            document.getElementById('survey-submit-btn').disabled = false;
+            
+            console.log(`⭐ Puan seçildi: ${rating}/5`);
+        }
+
+        async function submitSurvey() {
+            if (selectedRating === 0) {
+                alert('Lütfen bir puan seçin');
+                return;
+            }
+
+            const submitBtn = document.getElementById('survey-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Gönderiliyor...';
+
+            try {
+                const comment = document.getElementById('survey-comment').value.trim();
+                
+                // Hizmet süresi hesapla (şu anki zaman - oluşturulma zamanı)
+                const hizmetSuresiDk = localStorage.getItem(`bt_hizmet_suresi_dk`) || null;
+
+                // Supabase'e kaydet
+                const { data, error } = await _supabase
+                    .schema('siramatik')
+                    .from('memnuniyet_anketleri')
+                    .insert([{
+                        sira_id: parseInt(sira_id),
+                        kuyruk_id: parseInt(kuyruk_id),
+                        servis_id: parseInt(localStorage.getItem('bt_servis_id') || 0),
+                        firma_id: parseInt(localStorage.getItem('bt_firma_id') || 1),
+                        cagiran_kullanici_id: parseInt(localStorage.getItem('bt_cagiran_kullanici_id')) || null,
+                        puan: selectedRating,
+                        yorum: comment || null,
+                        hizmet_suresi_dk: hizmetSuresiDk ? parseInt(hizmetSuresiDk) : null,
+                        anket_tarihi: new Date().toISOString()
+                    }]);
+
+                if (error) {
+                    console.error('Anket kayıt hatası:', error);
+                    alert('Anket gönderilemedi. Lütfen tekrar deneyin.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Gönder';
+                    return;
+                }
+
+                console.log('✅ Anket gönderildi:', data);
+
+                // localStorage'a kaydet (tekrar gösterme)
+                localStorage.setItem(`survey_${sira_id}`, 'submitted');
+
+                // Form'u gizle, teşekkür mesajını göster
+                document.querySelectorAll('.survey-card > *:not(#survey-thanks)').forEach(el => {
+                    el.style.display = 'none';
+                });
+                document.getElementById('survey-thanks').style.display = 'block';
+
+                // 3 saniye sonra anketi tamamen gizle
+                setTimeout(() => {
+                    document.getElementById('survey-container').style.display = 'none';
+                }, 3000);
+
+            } catch (e) {
+                console.error('Anket gönderme hatası:', e);
+                alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Gönder';
+            }
+        }
     </script>
 </body>
 

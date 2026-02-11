@@ -197,6 +197,16 @@ class SiraTransferRequest(BaseModel):
 class SiraNotlarRequest(BaseModel):
     notlar: str
 
+class MemnuniyetAnketRequest(BaseModel):
+    sira_id: int
+    kuyruk_id: int
+    servis_id: int
+    firma_id: int
+    cagiran_kullanici_id: Optional[int] = None
+    puan: int  # 1-5 arası
+    yorum: Optional[str] = None
+    hizmet_suresi_dk: Optional[int] = None
+
 # --- İSTATİSTİK MODELS ---
 
 class IstatistikResponse(BaseModel):

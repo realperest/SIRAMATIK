@@ -25,7 +25,7 @@ from models import (
     ManuelSiraRequest, IstatistikResponse,
     DeviceResponse, DeviceUpdateRequest, DeviceHeartbeatRequest,
     UserResponse, UserCreateRequest, UserUpdateRequest, UserStatusUpdateRequest,
-    SiraTransferRequest, SiraNotlarRequest
+    SiraTransferRequest, SiraNotlarRequest, MemnuniyetAnketRequest
 )
 
 # --- WEBSOCKET MANAGER ---
@@ -614,6 +614,49 @@ async def sira_durum(sira_id: int):
         return status
     except Exception as e:
         # Pydantic validation error gibi görünmesin diye str(e)
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/memnuniyet/anket")
+async def save_memnuniyet_anketi(request: MemnuniyetAnketRequest):
+    """
+    Müşteri memnuniyet anketi kaydet (Public - Anon kullanıcı)
+    """
+    try:
+        # Puan validasyonu
+        if request.puan < 1 or request.puan > 5:
+            raise HTTPException(status_code=400, detail="Puan 1-5 arasında olmalıdır")
+        
+        # Database'e kaydet
+        result = db.execute_query("""
+            INSERT INTO siramatik.memnuniyet_anketleri 
+            (sira_id, kuyruk_id, servis_id, firma_id, cagiran_kullanici_id, puan, yorum, hizmet_suresi_dk)
+            VALUES (:sira_id, :kuyruk_id, :servis_id, :firma_id, :cagiran_kullanici_id, :puan, :yorum, :hizmet_suresi_dk)
+            RETURNING id
+        """, {
+            "sira_id": request.sira_id,
+            "kuyruk_id": request.kuyruk_id,
+            "servis_id": request.servis_id,
+            "firma_id": request.firma_id,
+            "cagiran_kullanici_id": request.cagiran_kullanici_id,
+            "puan": request.puan,
+            "yorum": request.yorum,
+            "hizmet_suresi_dk": request.hizmet_suresi_dk
+        })
+        
+        anket_id = result[0]['id'] if result else None
+        
+        logging.info(f"Memnuniyet anketi kaydedildi: Sıra {request.sira_id}, Puan: {request.puan}")
+        
+        return {
+            "success": True,
+            "anket_id": anket_id,
+            "message": "Anket kaydedildi, teşekkür ederiz!"
+        }
+        
+    except Exception as e:
+        logging.error(f"Anket kaydetme hatası: {e}")
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 
