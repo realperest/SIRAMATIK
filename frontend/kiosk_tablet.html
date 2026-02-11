@@ -621,22 +621,37 @@
         const SUPABASE_URL = 'https://wyursjdrnnjabpfeucyi.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUyMjQ1ODMsImV4cCI6MjA1MDgwMDU4M30.LzQ6-H9VvTm3dDmRDTT8cPc1qYcOr-c7kJoYj_kPHD4';
         
-        // Supabase client'ı sadece 1 kez oluştur (window.supabase CDN'den gelir)
+        // Global Supabase client (CDN yüklendikten sonra initialize edilecek)
         let supabase = null;
         
-        // Sayfa tamamen yüklendikten sonra initialize et
-        if (typeof window.supabase !== 'undefined') {
-            if (!window._supabaseClient) {
-                window._supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Supabase'i initialize et
+        function initSupabase() {
+            if (!supabase && typeof window.supabase !== 'undefined') {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase client başlatıldı');
+                return true;
             }
-            supabase = window._supabaseClient;
+            return supabase !== null;
+        }
+        
+        // Sayfa yüklenene kadar bekle
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSupabase);
         } else {
-            console.error('❌ Supabase CDN yüklenemedi!');
+            initSupabase();
         }
         
         // API Call yerine Supabase fonksiyonu
         async function apiCall(endpoint, options = {}) {
             console.log('🔄 API Call:', endpoint, options);
+            
+            // Supabase hazır değilse initialize et
+            if (!supabase) {
+                initSupabase();
+                if (!supabase) {
+                    throw new Error('Supabase client başlatılamadı');
+                }
+            }
             
             // Endpoint'e göre Supabase çağrısı yap
             if (endpoint.includes('/firma/')) {
@@ -1478,31 +1493,25 @@
 
         // Başlat
         async function baslat() {
-            // Başlangaçta tüm verileri TEK BİR PAKET (init) olarak çekerek hızı maksimuma çıkarıyoruz
+            // Başlangaçta tüm verileri yükle
             try {
                 showLoading(true);
                 
-                // 0. CİHAZ KAYIT VE AYAR SENKRONİZASYONU (YENİ!)
+                // 0. Supabase'i başlat
+                if (!initSupabase()) {
+                    throw new Error('Supabase başlatılamadı');
+                }
+                
+                // 1. CİHAZ KAYIT VE AYAR SENKRONİZASYONU
                 await registerOrUpdateDevice();
                 
-                const initData = await apiCall(`/kiosk/init/${FIRMA_ID}`);
+                // 2. Firma bilgilerini yükle
+                await initFirma();
+                
+                // 3. Servis ve Kuyruklar yükle
+                await verileriYukle(false);
 
-                // 1. Firma Bilgileri
-                if (initData.firma && initData.firma.ad) {
-                    const el = document.getElementById('hospital-name');
-                    if (el) el.textContent = initData.firma.ad;
-                    document.title = initData.firma.ad + " - Sıra Al";
-                }
-
-                // 2. Config IP/Port
-                kioskConfig = initData.config || kioskConfig;
-
-                // 3. Servis ve Kuyruklar (Filtreleri uygula ve render et)
-                const filtered = applyFilters(initData.servisler || [], initData.kuyruklar || []);
-                allQueues = filtered.kuyruklar;
-                renderServisler(filtered.servisler);
-
-                // 4. Heartbeat Başlat (Hem bildirCihaz hem de yeni heartbeat)
+                // 4. Heartbeat Başlat
                 bildirCihaz();
                 sendHeartbeat();
                 setInterval(() => {
@@ -1511,12 +1520,8 @@
                 }, 30000);
 
             } catch (err) {
-                console.error("Kiosk başlatma hatası:", err);
-                // Eğer init patlarsa eski yöntemle tek tek denemesi için (fallback)
-                await initFirma();
-                await initConfig();
-                await verileriYukle(true);
-            } finally {
+                console.error("❌ Kiosk başlatma hatası:", err);
+                alert('⚠️ Veriler yüklenirken hata oluştu: ' + err.message);
                 showLoading(false);
             }
         }
