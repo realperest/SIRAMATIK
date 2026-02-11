@@ -285,7 +285,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #f0f2f5;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             z-index: 10000;
             display: flex;
             align-items: center;
@@ -296,12 +296,12 @@
 
         .survey-card {
             background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 25px;
+            padding: 35px 25px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
             text-align: center;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
         }
 
         .rating-faces {
@@ -465,10 +465,13 @@
             </button>
 
             <!-- Teşekkür Mesajı -->
-            <div id="survey-thanks" style="display: none; text-align: center; padding: 20px;">
-                <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
-                <h3 style="color: #22c55e; margin-bottom: 5px;">Teşekkür Ederiz!</h3>
-                <p style="color: #7f8c8d; font-size: 14px;">Görüşünüz kaydedildi.</p>
+            <div id="survey-thanks" style="display: none; text-align: center; padding: 30px;">
+                <div style="font-size: 72px; margin-bottom: 20px;">🎉</div>
+                <h2 style="color: #22c55e; margin-bottom: 15px; font-size: 28px;">Teşekkür Ederiz!</h2>
+                <p style="color: #7f8c8d; font-size: 16px; line-height: 1.6;">
+                    Görüşünüz kaydedildi.<br>
+                    İyi günler dileriz! 💙
+                </p>
             </div>
         </div>
     </div>
@@ -1187,10 +1190,7 @@
                 });
                 document.getElementById('survey-thanks').style.display = 'block';
 
-                // 3 saniye sonra anketi tamamen gizle
-                setTimeout(() => {
-                    document.getElementById('survey-container').style.display = 'none';
-                }, 3000);
+                // Teşekkür ekranında kalsın - bilete dönmesin (iş bitti)
 
             } catch (e) {
                 console.error('Anket gönderme hatası:', e);
