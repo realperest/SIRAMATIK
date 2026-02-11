@@ -195,14 +195,34 @@
             <button class="btn-refresh" onclick="exportToPDF()" style="background: #e11d48;">
                 <i class="fas fa-file-pdf"></i> PDF
             </button>
-            <a href="admin.html" style="text-decoration: none; color: #f87171; margin-left:10px; font-size: 13px;">
-                <i class="fas fa-arrow-left"></i> Panel
-            </a>
         </div>
     </header>
 
     <div id="grid-wrapper">
         <div id="myGrid" class="ag-theme-quartz-dark"></div>
+    </div>
+
+    <!-- Şablon Çakışma Modali -->
+    <div id="presetOverwriteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:999999; align-items:center; justify-content:center;">
+        <div style="width:min(520px, calc(100vw - 32px)); background:#0b1220; border:1px solid rgba(255,255,255,0.12); border-radius:14px; padding:16px 16px 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.6);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+                <div style="font-weight:800; color:#e2e8f0;">Bu şablon zaten kayıtlı</div>
+                <button onclick="closePresetModal()" style="background:transparent; border:0; color:#94a3b8; cursor:pointer; font-size:18px;">×</button>
+            </div>
+            <div id="presetOverwriteText" style="color:#cbd5e1; font-size:13px; line-height:1.5; margin-bottom:10px;"></div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                <label style="font-size:11px; color:#94a3b8; font-weight:700; white-space:nowrap;">YENİ İSİM:</label>
+                <input id="presetOverwriteNewName" type="text" placeholder="Yeni şablon adı..."
+                    style="flex:1; padding:8px 10px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:10px; font-size:13px;">
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button onclick="closePresetModal()" style="background:#334155; color:#fff; border:0; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:700;">İptal</button>
+                <button onclick="presetModalSaveAsNew()" style="background:#a855f7; color:#fff; border:0; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:800;">Yeni isimle kaydet</button>
+                <button onclick="presetModalOverwrite()" style="background:#10b981; color:#06281f; border:0; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:900;">Şablonu değiştir</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -493,7 +513,14 @@
                 filter: true,
                 sortable: true,
                 resizable: true,
-                floatingFilter: true
+                floatingFilter: true,
+                cellStyle: params => {
+                    // Sayısal değerleri sağa hizala
+                    if (params.value != null && typeof params.value === 'number') {
+                        return { textAlign: 'right' };
+                    }
+                    return null;
+                }
             },
             statusBar: {
                 statusPanels: [
@@ -528,12 +555,31 @@
         // Yeni Şablon Kaydet
         function saveNewPreset() {
             if (!gridApi) return;
-            const name = document.getElementById('newPresetName').value.trim();
+            const presetSelect = document.getElementById('presetSelect');
+            const selectedPreset = (presetSelect && presetSelect.value) ? presetSelect.value.trim() : "";
+            const typedName = document.getElementById('newPresetName').value.trim();
+
+            // Eğer comboda seçili şablon varsa, "kaydet" işlemi varsayılan olarak overwrite anlamına gelir.
+            // Kullanıcıya seçim sor.
+            if (selectedPreset) {
+                openPresetModal(selectedPreset, typedName);
+                return;
+            }
+
+            const name = typedName;
             if (!name) {
                 alert("Lütfen bir rapor adı girin!");
                 return;
             }
 
+            savePresetByName(name);
+            document.getElementById('newPresetName').value = '';
+            updatePresetList();
+            document.getElementById('presetSelect').value = name;
+            alert(`"${name}" şablonu başarıyla kaydedildi!`);
+        }
+
+        function savePresetByName(name) {
             const state = {
                 columnState: gridApi.getColumnState(),
                 filterModel: gridApi.getFilterModel(),
@@ -545,11 +591,54 @@
             const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
             savedPresets[name] = state;
             localStorage.setItem(`ag_grid_presets_${currentUser.firma_id}`, JSON.stringify(savedPresets));
+        }
 
-            document.getElementById('newPresetName').value = '';
+        // --- Şablon overwrite / save-as modal yönetimi ---
+        let __presetModalSelected = "";
+        function openPresetModal(selectedPresetName, typedName) {
+            __presetModalSelected = selectedPresetName || "";
+            const modal = document.getElementById('presetOverwriteModal');
+            const text = document.getElementById('presetOverwriteText');
+            const input = document.getElementById('presetOverwriteNewName');
+            if (!modal || !text || !input) return;
+
+            text.innerText = `"${__presetModalSelected}" şablonu zaten kayıtlı. Ne yapmak istiyorsunuz?`;
+            input.value = (typedName && typedName !== __presetModalSelected) ? typedName : "";
+            modal.style.display = 'flex';
+            setTimeout(() => input.focus(), 0);
+        }
+
+        function closePresetModal() {
+            const modal = document.getElementById('presetOverwriteModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function presetModalOverwrite() {
+            if (!__presetModalSelected) {
+                closePresetModal();
+                return;
+            }
+            savePresetByName(__presetModalSelected);
             updatePresetList();
-            document.getElementById('presetSelect').value = name;
-            alert(`"${name}" şablonu başarıyla kaydedildi!`);
+            document.getElementById('presetSelect').value = __presetModalSelected;
+            document.getElementById('newPresetName').value = '';
+            closePresetModal();
+            alert(`"${__presetModalSelected}" şablonu güncellendi!`);
+        }
+
+        function presetModalSaveAsNew() {
+            const input = document.getElementById('presetOverwriteNewName');
+            const newName = input ? input.value.trim() : "";
+            if (!newName) {
+                alert("Lütfen yeni şablon için bir isim girin!");
+                return;
+            }
+            savePresetByName(newName);
+            updatePresetList();
+            document.getElementById('presetSelect').value = newName;
+            document.getElementById('newPresetName').value = '';
+            closePresetModal();
+            alert(`"${newName}" şablonu başarıyla kaydedildi!`);
         }
 
         // Şablon Yükle
@@ -833,7 +922,13 @@
                 const dataBody = [];
                 const decPlaces = (typeof decimalPlacesGlobal !== 'undefined') ? decimalPlacesGlobal : 2;
 
-                gridApi.forEachNodeAfterFilterAndSort(node => {
+                // Sadece ekranda görünen satırları al (rendered nodes)
+                // forEachNodeAfterFilterAndSort tüm node'ları gezer, biz sadece displayed olanları istiyoruz
+                const displayedRowCount = gridApi.getDisplayedRowCount();
+                for (let i = 0; i < displayedRowCount; i++) {
+                    const node = gridApi.getDisplayedRowAtIndex(i);
+                    if (!node) continue;
+                    
                     const row = [];
                     columnIdsRaw.forEach(id => {
                         let value = "";
@@ -846,11 +941,13 @@
                             else if (node.data && node.data[id] !== undefined) value = node.data[id];
                         }
 
-                        if (typeof value === 'number') {
+                        // Sayısal değerleri formatla (hem number hem de string içinde sayı olanları)
+                        if (typeof value === 'number' || (!isNaN(parseFloat(value)) && isFinite(value))) {
+                            const numVal = typeof value === 'number' ? value : parseFloat(value);
                             value = new Intl.NumberFormat('tr-TR', {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: decPlaces
-                            }).format(value);
+                            }).format(numVal);
                         }
 
                         // Width hatasını engellemek için her zaman string ve temiz veri
@@ -866,7 +963,7 @@
                         row.push(str);
                     });
                     dataBody.push(row);
-                });
+                }
 
                 if (dataBody.length === 0) {
                     alert("Tabloda dışa aktarılacak veri bulunamadı.");
@@ -988,6 +1085,15 @@
                                         td.style.padding = '5px';
                                         td.style.verticalAlign = 'top';
                                         td.style.wordBreak = 'break-word';
+                                        
+                                        // Sayısal değerleri sağa hizala
+                                        const cleanCell = String(cell).replace(/\./g, '').replace(',', '.').replace(/\s/g, '');
+                                        if (cleanCell && !isNaN(cleanCell) && cleanCell !== '') {
+                                            td.style.textAlign = 'right';
+                                        } else {
+                                            td.style.textAlign = 'left';
+                                        }
+                                        
                                         tr.appendChild(td);
                                     });
                                     tbody.appendChild(tr);
