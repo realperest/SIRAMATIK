@@ -50,6 +50,8 @@ class Database:
         with Session(self.engine) as session:
             # Memnuniyet anketi tablosunu oluştur
             self._create_memnuniyet_table(session)
+            # Tablet/Cihaz yönetim tablosunu oluştur
+            self._create_cihazlar_table(session)
             # 1. Ana Tabloları Oluştur
             session.execute(text("""
                 CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
@@ -58,20 +60,6 @@ class Database:
                     ad VARCHAR(50) NOT NULL,
                     aciklama TEXT,
                     aktif BOOLEAN DEFAULT TRUE,
-                    olusturulma TIMESTAMP DEFAULT NOW()
-                );
-
-                CREATE TABLE IF NOT EXISTS siramatik.cihazlar (
-                    id SERIAL PRIMARY KEY,
-                    firma_id INTEGER REFERENCES siramatik.firmalar(id) ON DELETE CASCADE,
-                    konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL,
-                    ad VARCHAR(100),
-                    tip VARCHAR(20),
-                    mac VARCHAR(20),
-                    ip VARCHAR(20),
-                    metadata JSONB DEFAULT '{}',
-                    aktif BOOLEAN DEFAULT TRUE,
-                    son_gorulme TIMESTAMP DEFAULT NOW(),
                     olusturulma TIMESTAMP DEFAULT NOW()
                 );
             """))
@@ -1261,6 +1249,77 @@ class Database:
             
         except Exception as e:
             print(f"⚠️ Memnuniyet tablosu oluşturma hatası: {e}")
+            session.rollback()
+    
+    def _create_cihazlar_table(self, session):
+        """Cihazlar (Tablet/Kiosk) tablosunu oluştur"""
+        try:
+            # Tablo var mı ve doğru kolonlar var mı kontrol et
+            check_query = text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_schema = 'siramatik' 
+                    AND table_name = 'cihazlar'
+                    AND column_name = 'device_fingerprint'
+                );
+            """)
+            result = session.execute(check_query).scalar()
+            
+            if result:
+                print("✅ cihazlar tablosu (device_fingerprint ile) zaten var")
+                return
+            
+            # Yeni tabloyu oluştur (IF NOT EXISTS ile)
+            create_table_query = text("""
+                CREATE TABLE IF NOT EXISTS siramatik.cihazlar (
+                    id SERIAL PRIMARY KEY,
+                    firma_id INTEGER NOT NULL REFERENCES siramatik.firmalar(id) ON DELETE CASCADE,
+                    ad VARCHAR(255) NOT NULL,
+                    tip VARCHAR(50) NOT NULL CHECK (tip IN ('kiosk', 'ekran', 'tablet', 'pc')),
+                    device_fingerprint VARCHAR(500) UNIQUE,
+                    mac_address VARCHAR(100),
+                    ip_address VARCHAR(50),
+                    durum VARCHAR(50) DEFAULT 'active' CHECK (durum IN ('active', 'inactive', 'maintenance')),
+                    son_gorulen TIMESTAMP DEFAULT NOW(),
+                    ayarlar JSONB DEFAULT '{}'::jsonb,
+                    metadata JSONB DEFAULT '{}'::jsonb,
+                    olusturulma TIMESTAMP DEFAULT NOW(),
+                    guncelleme TIMESTAMP DEFAULT NOW()
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_cihazlar_firma_id ON siramatik.cihazlar(firma_id);
+                CREATE INDEX IF NOT EXISTS idx_cihazlar_tip ON siramatik.cihazlar(tip);
+                CREATE INDEX IF NOT EXISTS idx_cihazlar_durum ON siramatik.cihazlar(durum);
+                CREATE INDEX IF NOT EXISTS idx_cihazlar_fingerprint ON siramatik.cihazlar(device_fingerprint);
+                CREATE INDEX IF NOT EXISTS idx_cihazlar_son_gorulen ON siramatik.cihazlar(son_gorulen);
+                
+                ALTER TABLE siramatik.cihazlar ENABLE ROW LEVEL SECURITY;
+                
+                DROP POLICY IF EXISTS cihazlar_select_policy ON siramatik.cihazlar;
+                CREATE POLICY cihazlar_select_policy ON siramatik.cihazlar
+                    FOR SELECT USING (true);
+                
+                DROP POLICY IF EXISTS cihazlar_insert_policy ON siramatik.cihazlar;
+                CREATE POLICY cihazlar_insert_policy ON siramatik.cihazlar
+                    FOR INSERT WITH CHECK (true);
+                
+                DROP POLICY IF EXISTS cihazlar_update_policy ON siramatik.cihazlar;
+                CREATE POLICY cihazlar_update_policy ON siramatik.cihazlar
+                    FOR UPDATE USING (true) WITH CHECK (true);
+                
+                DROP POLICY IF EXISTS cihazlar_delete_policy ON siramatik.cihazlar;
+                CREATE POLICY cihazlar_delete_policy ON siramatik.cihazlar
+                    FOR DELETE USING (true);
+                
+                COMMENT ON TABLE siramatik.cihazlar IS 'Tablet, Kiosk ve diğer cihazların kayıt ve yönetim tablosu';
+            """)
+            
+            session.execute(create_table_query)
+            session.commit()
+            print("✅ cihazlar tablosu (yeni yapı ile) oluşturuldu!")
+            
+        except Exception as e:
+            print(f"⚠️ Cihazlar tablosu oluşturma hatası: {e}")
             session.rollback()
     
     # ============================================
