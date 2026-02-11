@@ -2094,8 +2094,8 @@
             tbody.innerHTML = devices.map(device => {
                 const onlineStatus = device.online_status === 'online';
                 const statusBadge = onlineStatus 
-                    ? '<span style="background: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">🟢 ONLİNE</span>'
-                    : '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">🔴 OFFLİNE</span>';
+                    ? '<span style="background: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">ONLİNE</span>'
+                    : '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">OFFLİNE</span>';
                 
                 const sonGorulen = new Date(device.son_gorulen);
                 const sonGorulenStr = sonGorulen.toLocaleString('tr-TR');
@@ -2104,17 +2104,26 @@
                     ? `${gecenDakika} dk önce`
                     : `${Math.floor(gecenDakika / 60)} saat önce`;
                 
-                const tipIkon = device.tip === 'tablet' ? '' : device.tip === 'kiosk' ? '🖥️' : '💻';
+                const tipIkon = device.tip === 'tablet' ? '' : device.tip === 'kiosk' ? '' : '';
                 
                 const ayarlarCount = device.ayarlar ? 
                     (device.ayarlar.servisIds || []).length + (device.ayarlar.kuyrukIds || []).length : 0;
+                
+                // IP veya Browser bilgisi göster
+                let ipOrBrowser = device.ip_address || '-';
+                if (ipOrBrowser === '-' && device.metadata && device.metadata.platform) {
+                    const platform = device.metadata.platform || '';
+                    const isIOS = platform.includes('iPhone') || platform.includes('iPad');
+                    const isAndroid = platform.includes('Android');
+                    ipOrBrowser = isIOS ? ' iOS' : isAndroid ? ' Android' : ' Browser';
+                }
                 
                 return `
                     <tr>
                         <td>${statusBadge}</td>
                         <td><strong>${device.ad}</strong></td>
                         <td>${tipIkon} ${device.tip.toUpperCase()}</td>
-                        <td>${device.ip_address || '-'}</td>
+                        <td>${ipOrBrowser}</td>
                         <td title="${sonGorulenStr}">${gecenSure}</td>
                         <td>
                             <button onclick="viewCihazAyarlar(${device.id})" class="btn-view" style="font-size: 12px;">
