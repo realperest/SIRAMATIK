@@ -1159,12 +1159,19 @@
         // Tüm verileri yükle
         async function verileriYukle(silent = false) {
             console.log("Servis ve kuyruk verileri yükleniyor...");
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;background:rgba(231,76,60,0.95);color:white;padding:15px;border-radius:10px;z-index:10000;font-size:14px;';
+            
             try {
                 if (!silent) showLoading(true);
-                const [servisler, kuyruklar] = await Promise.all([
-                    apiCall(`/servisler/${FIRMA_ID}`),
-                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
-                ]);
+                
+                console.log('🔍 Servisler çağrılıyor...');
+                const servisler = await apiCall(`/servisler/${FIRMA_ID}`);
+                console.log('✅ Servisler geldi:', servisler);
+                
+                console.log('🔍 Kuyruklar çağrılıyor...');
+                const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
+                console.log('✅ Kuyruklar geldi:', kuyruklar);
 
                 console.log("Gelen Servisler:", servisler.length);
                 console.log("Gelen Kuyruklar:", kuyruklar.length);
@@ -1176,9 +1183,20 @@
 
                 if (!silent) showLoading(false);
             } catch (error) {
-                console.error("Veri yükleme hatası:", error);
+                console.error("❌ VERİ YÜKLEME HATASI:", error);
+                console.error("Hata Detayı:", error.message);
+                console.error("Stack:", error.stack);
+                
                 if (!silent) showLoading(false);
-                showToast('Veriler yüklenemedi: ' + error.message, 'error');
+                
+                errorDiv.innerHTML = `
+                    <strong>⚠️ HATA:</strong><br>
+                    ${error.message}<br>
+                    <small>${error.stack ? error.stack.substring(0, 200) : ''}</small>
+                `;
+                document.body.appendChild(errorDiv);
+                
+                setTimeout(() => errorDiv.remove(), 10000);
             }
         }
 
