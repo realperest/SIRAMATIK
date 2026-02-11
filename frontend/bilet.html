@@ -286,6 +286,34 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        /*
+         * ============================================================
+         * SIRAMATİK BİLET TAKİP SİSTEMİ
+         * ============================================================
+         * 
+         * GÜNCELLEME MANTIĞI:
+         * -------------------
+         * 1. WebSocket (Gerçek Zamanlı - 0ms gecikme)
+         *    - Backend sunucuya deploy edildiğinde otomatik aktif
+         *    - Anında bildirim alırsın
+         * 
+         * 2. Polling (Yedek Sistem - 5 saniye)
+         *    - WebSocket yoksa veya koptuğunda devreye girer
+         *    - Her 5 saniyede Supabase'den veri çeker
+         *    - Her durumda çalışır garantisi
+         * 
+         * BACKEND SUNUCUYA KOYDUĞUNDA:
+         * ----------------------------
+         * Satır ~387'de PRODUCTION_WS_URL'e sunucu URL'ini yaz:
+         * const PRODUCTION_WS_URL = 'wss://api.yourdomain.com/ws';
+         * 
+         * Sistem otomatik şuna geçer:
+         * - WebSocket: Aktif (gerçek zamanlı)
+         * - Polling: Pasif bekleme (sadece WebSocket koparsa devreye girer)
+         * 
+         * ============================================================
+         */
+
         // Verileri sakla/getir (Yenileme koruması)
         function getTicketData() {
             const params = new URLSearchParams(window.location.search);
@@ -386,16 +414,32 @@
 
         // ===== WEBSOCKET YÖNETİMİ =====
         function initWebSocket() {
-            // GitHub Pages gibi statik hostlarda WebSocket'i atla
-            if (window.location.hostname.includes('github.io')) {
-                console.log('ℹ️ GitHub Pages tespit edildi, WebSocket devre dışı (Polling aktif)');
-                updateConnectionStatus('online'); // Polling çalıştığı için "online" göster
+            // ====== BACKEND SUNUCU AYARI ======
+            // Backend'i sunucuya koyduğunda buraya URL'ini yaz:
+            // Örnek: 'wss://api.yourdomain.com/ws' veya 'wss://siramatik.herokuapp.com/ws'
+            const PRODUCTION_WS_URL = '';
+            // ==================================
+            
+            let wsUrl;
+            
+            // Production URL varsa kullan
+            if (PRODUCTION_WS_URL) {
+                wsUrl = PRODUCTION_WS_URL;
+                console.log('🔗 Production WebSocket bağlanıyor:', wsUrl);
+            } 
+            // GitHub Pages'te ve production URL yoksa polling kullan
+            else if (window.location.hostname.includes('github.io')) {
+                console.log('ℹ️ Backend sunucu bulunamadı, Polling modu aktif (5 saniye)');
+                updateConnectionStatus('online'); // Polling çalışıyor, yeşil göster
                 return;
+            } 
+            // Local development
+            else {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.hostname || 'localhost';
+                wsUrl = `${protocol}//${host}:8000/ws`;
+                console.log('🔗 Local WebSocket bağlanıyor:', wsUrl);
             }
-
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.hostname || 'localhost';
-            const wsUrl = `${protocol}//${host}:8000/ws`;
 
             console.log('🔗 WebSocket bağlanıyor:', wsUrl);
             updateConnectionStatus('connecting');
@@ -405,8 +449,14 @@
                     ws = new WebSocket(wsUrl);
 
                     ws.onopen = () => {
-                        console.log('✅ WebSocket bağlandı!');
+                        console.log('✅ WebSocket bağlandı! Gerçek zamanlı mod aktif.');
                         updateConnectionStatus('online');
+                        // WebSocket başarılı, polling'i durdur
+                        if (pollingInterval) {
+                            console.log('🔄 Polling durduruldu (WebSocket aktif)');
+                            clearInterval(pollingInterval);
+                            pollingInterval = null;
+                        }
                     };
 
                     ws.onmessage = (event) => {
@@ -423,20 +473,25 @@
                         console.warn('⚠️ WebSocket koptu. Polling fallback aktif.');
                         updateConnectionStatus('online'); // Polling çalıştığı için online
                         ws = null;
-                        // GitHub Pages'te yeniden deneme (zaten çalışmayacak)
-                        if (!window.location.hostname.includes('github.io')) {
-                            setTimeout(connect, 3000);
+                        
+                        // Polling'i tekrar başlat (eğer durdurulmuşsa)
+                        if (!pollingInterval) {
+                            console.log('🔄 Polling yeniden başlatılıyor...');
+                            startPolling();
                         }
+                        
+                        // Yeniden bağlanmayı dene (3 saniye sonra)
+                        setTimeout(connect, 3000);
                     };
 
                     ws.onerror = (err) => {
-                        console.error('❌ WebSocket hatası:', err);
+                        console.error('❌ WebSocket bağlantı hatası (Polling devrede)');
                         // Hata durumunda da online göster (polling çalışıyor)
                         updateConnectionStatus('online');
                     };
                 } catch (err) {
                     console.error('WebSocket oluşturma hatası:', err);
-                    updateConnectionStatus('offline');
+                    updateConnectionStatus('online'); // Polling devrede
                 }
             }
 
@@ -473,16 +528,21 @@
             }
         }
 
-        // Polling Mekanizması (Fallback)
+        // Polling Mekanizması (Fallback & Yedek)
         function startPolling() {
-            if (pollingInterval) clearInterval(pollingInterval);
+            if (pollingInterval) {
+                console.log('ℹ️ Polling zaten aktif');
+                return;
+            }
+            
+            console.log('🔄 Polling başlatılıyor (5 saniye aralık)');
             pollingInterval = setInterval(() => {
-                // Eğer WebSocket bağlıysa polling'i durdur
+                // WebSocket bağlıysa polling'i geçici durdur (kaynak tasarrufu)
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    console.log('✅ WebSocket aktif, polling devre dışı');
+                    // WebSocket çalışırken polling sessizce bekler
                     return;
                 }
-                console.log('🔄 Polling güncelleme (WebSocket yok)');
+                // WebSocket yoksa veya kopuksa polling güncelleme yapar
                 updateStatus();
             }, 5000);
         }
