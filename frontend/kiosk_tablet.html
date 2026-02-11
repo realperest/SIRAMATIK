@@ -622,16 +622,16 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUyMjQ1ODMsImV4cCI6MjA1MDgwMDU4M30.LzQ6-H9VvTm3dDmRDTT8cPc1qYcOr-c7kJoYj_kPHD4';
         
         // Global Supabase client (CDN yüklendikten sonra initialize edilecek)
-        let supabase = null;
+        let sbClient = null;
         
         // Supabase'i initialize et
         function initSupabase() {
-            if (!supabase && typeof window.supabase !== 'undefined') {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            if (!sbClient && typeof window.supabase !== 'undefined') {
+                sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 console.log('✅ Supabase client başlatıldı');
                 return true;
             }
-            return supabase !== null;
+            return sbClient !== null;
         }
         
         // Sayfa yüklenene kadar bekle
@@ -646,9 +646,9 @@
             console.log('🔄 API Call:', endpoint, options);
             
             // Supabase hazır değilse initialize et
-            if (!supabase) {
+            if (!sbClient) {
                 initSupabase();
-                if (!supabase) {
+                if (!sbClient) {
                     throw new Error('Supabase client başlatılamadı');
                 }
             }
@@ -656,14 +656,14 @@
             // Endpoint'e göre Supabase çağrısı yap
             if (endpoint.includes('/firma/')) {
                 const firmaId = endpoint.split('/')[2];
-                const { data, error } = await supabase.schema('siramatik').from('firmalar').select('*').eq('id', firmaId).single();
+                const { data, error } = await sbClient.schema('siramatik').from('firmalar').select('*').eq('id', firmaId).single();
                 if (error) throw new Error(error.message);
                 return data;
             }
             
             if (endpoint.includes('/servisler/')) {
                 const firmaId = endpoint.split('/')[2];
-                const { data: servisler, error } = await supabase.schema('siramatik').from('servisler')
+                const { data: servisler, error } = await sbClient.schema('siramatik').from('servisler')
                     .select('*')
                     .eq('firma_id', firmaId)
                     .eq('aktif', true);
@@ -671,7 +671,7 @@
                 
                 // Her servis için kuyruk sayısını ayrı ayrı al
                 for (let servis of servisler) {
-                    const { count } = await supabase.schema('siramatik').from('kuyruklar')
+                    const { count } = await sbClient.schema('siramatik').from('kuyruklar')
                         .select('*', { count: 'exact', head: true })
                         .eq('servis_id', servis.id)
                         .eq('aktif', true);
@@ -683,9 +683,9 @@
             
             if (endpoint.includes('/kuyruklar/firma/')) {
                 const firmaId = endpoint.split('/')[3];
-                const { data: servisler } = await supabase.schema('siramatik').from('servisler').select('id').eq('firma_id', firmaId);
+                const { data: servisler } = await sbClient.schema('siramatik').from('servisler').select('id').eq('firma_id', firmaId);
                 const servisIds = servisler.map(s => s.id);
-                const { data, error } = await supabase.schema('siramatik').from('kuyruklar')
+                const { data, error } = await sbClient.schema('siramatik').from('kuyruklar')
                     .select('*')
                     .in('servis_id', servisIds)
                     .eq('aktif', true);
@@ -697,7 +697,7 @@
                 const body = JSON.parse(options.body);
                 
                 // Yeni sıra numarası al
-                const { data: numData } = await supabase.schema('siramatik')
+                const { data: numData } = await sbClient.schema('siramatik')
                     .rpc('yeni_sira_numarasi', { 
                         p_kuyruk_id: body.kuyruk_id, 
                         p_oncelik: body.oncelik || 0 
@@ -706,7 +706,7 @@
                 if (!numData) throw new Error('Sıra numarası alınamadı');
                 
                 // Sırayı kaydet
-                const { data: sira, error } = await supabase.schema('siramatik').from('siralar')
+                const { data: sira, error } = await sbClient.schema('siramatik').from('siralar')
                     .insert({
                         kuyruk_id: body.kuyruk_id,
                         servis_id: body.servis_id,
@@ -721,13 +721,13 @@
                 if (error) throw new Error(error.message);
                 
                 // Kuyruk adını al
-                const { data: kuyruk } = await supabase.schema('siramatik').from('kuyruklar')
+                const { data: kuyruk } = await sbClient.schema('siramatik').from('kuyruklar')
                     .select('ad')
                     .eq('id', body.kuyruk_id)
                     .single();
                 
                 // Bekleyen sayısını hesapla
-                const { count } = await supabase.schema('siramatik').from('siralar')
+                const { count } = await sbClient.schema('siramatik').from('siralar')
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', body.kuyruk_id)
                     .eq('durum', 'waiting');
@@ -744,7 +744,7 @@
             
             if (endpoint === '/auth/ekran-login' && options.method === 'POST') {
                 const body = JSON.parse(options.body);
-                const { data, error } = await supabase.schema('siramatik').from('firmalar')
+                const { data, error } = await sbClient.schema('siramatik').from('firmalar')
                     .select('id, ad')
                     .eq('ekran_sifre', body.sifre)
                     .eq('aktif', true)
@@ -862,7 +862,7 @@
                 };
                 
                 // Supabase'e kayıt (upsert)
-                const { data, error } = await supabase.schema('siramatik').from('cihazlar')
+                const { data, error } = await sbClient.schema('siramatik').from('cihazlar')
                     .upsert(deviceInfo, { onConflict: 'device_fingerprint' })
                     .select()
                     .single();
@@ -895,7 +895,7 @@
             if (!DEVICE_ID) return;
             
             try {
-                const { data, error } = await supabase.schema('siramatik').from('cihazlar')
+                const { data, error } = await sbClient.schema('siramatik').from('cihazlar')
                     .select('ayarlar')
                     .eq('id', DEVICE_ID)
                     .single();
@@ -933,7 +933,7 @@
             if (!DEVICE_ID) return false;
             
             try {
-                const { error } = await supabase.schema('siramatik').from('cihazlar')
+                const { error } = await sbClient.schema('siramatik').from('cihazlar')
                     .update({ ayarlar: settings, guncelleme: new Date().toISOString() })
                     .eq('id', DEVICE_ID);
                 
@@ -957,7 +957,7 @@
             if (!DEVICE_ID) return;
             
             try {
-                const { error } = await supabase.schema('siramatik').from('cihazlar')
+                const { error } = await sbClient.schema('siramatik').from('cihazlar')
                     .update({ 
                         son_gorulen: new Date().toISOString(),
                         durum: 'active'
