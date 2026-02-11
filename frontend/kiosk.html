@@ -813,15 +813,76 @@
         loadKioskSettings();
 
         // Firma bilgilerini yükle
+        // Browser Fingerprint Oluştur
+        async function generateFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(125, 1, 62, 20);
+            ctx.fillStyle = '#069';
+            ctx.fillText('SIRAMATIK', 2, 15);
+            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+            ctx.fillText('DEVICE', 4, 17);
+            
+            const canvasData = canvas.toDataURL();
+            
+            const components = [
+                canvasData,
+                navigator.userAgent,
+                navigator.language,
+                screen.colorDepth,
+                screen.width + 'x' + screen.height,
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency || 0,
+                navigator.deviceMemory || 0
+            ].join('|||');
+            
+            // Simple hash
+            let hash = 0;
+            for (let i = 0; i < components.length; i++) {
+                const char = components.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            return 'fp_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+        }
+
+        // Browser bilgisini tespit et
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Edg')) return 'Edge';
+            if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome';
+            if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+            if (ua.includes('Firefox')) return 'Firefox';
+            if (ua.includes('Opera') || ua.includes('OPR')) return 'Opera';
+            return 'Unknown';
+        }
+
         async function bildirCihaz() {
             try {
+                // Fingerprint al veya oluştur
+                let fingerprint = localStorage.getItem('kiosk_device_fingerprint');
+                if (!fingerprint) {
+                    fingerprint = await generateFingerprint();
+                    localStorage.setItem('kiosk_device_fingerprint', fingerprint);
+                }
+
                 await apiCall('/admin/cihaz/bildir', {
                     method: 'POST',
                     body: JSON.stringify({
                         firma_id: parseInt(FIRMA_ID),
-                        ad: 'KIOSK-' + FIRMA_ID,
+                        ad: 'KIOSK-' + fingerprint.substring(3, 10),
                         tip: 'kiosk',
+                        mac: fingerprint,
                         metadata: {
+                            browser: detectBrowser(),
+                            browser_version: navigator.userAgent,
+                            screen_resolution: `${screen.width}x${screen.height}`,
+                            platform: navigator.platform,
                             servis_ids: kioskSettings.servisIds,
                             kuyruk_ids: kioskSettings.kuyrukIds
                         }
