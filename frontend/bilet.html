@@ -3,11 +3,13 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title id="page-title">İrmet Hospital - Sıra Takip</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="İrmet Sıra">
+    <meta name="screen-orientation" content="portrait">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎫</text></svg>">
     <style>
         body {
@@ -243,6 +245,31 @@
 
         /* Gizli element (HTML tekrarı düzeltmesi için) */
         .hidden { display: none; }
+
+        /* Ekran Yönlendirme Kilidi - Sadece Portre Mod */
+        @media screen and (orientation: landscape) {
+            body::before {
+                content: '🔄 Lütfen telefonunuzu dikey konuma getirin';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 99999;
+                font-size: 18px;
+                text-align: center;
+                padding: 20px;
+            }
+            
+            body > *:not(::before) {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
@@ -688,37 +715,38 @@
                     if (!notificationPlayed) {
                         notificationPlayed = true;
 
-                        // YENİ: Gelişmiş 3x alarm çalma mantığı
+                        // 3x alarm çalma (1 saniye aralıkla)
                         let playCount = 0;
                         alertSound.volume = 1.0;
 
                         const playAlert = () => {
                             if (playCount < 3) {
-                                console.log(`📢 Alarm çalınıyor: ${playCount + 1}/3`);
+                                console.log(`📢 SIRA SİZDE! Alarm ${playCount + 1}/3`);
+                                
+                                // Sesi sıfırdan başlat
                                 alertSound.pause();
                                 alertSound.currentTime = 0;
-
-                                alertSound.onended = () => {
-                                    playCount++;
-                                    if (playCount < 3) {
-                                        setTimeout(playAlert, 800);
-                                    } else {
-                                        alertSound.onended = null;
-                                    }
-                                };
-
+                                
+                                // Sesi çal
                                 alertSound.play().catch(e => {
-                                    console.error("Alarm hatası:", e);
-                                    playCount++;
-                                    setTimeout(playAlert, 1500);
+                                    console.error("Alarm çalma hatası:", e);
                                 });
+
+                                playCount++;
+                                
+                                // 1 saniye sonra tekrar (son ses değilse)
+                                if (playCount < 3) {
+                                    setTimeout(playAlert, 1000);
+                                }
                             }
                         };
+                        
+                        // İlk sesi hemen çal
                         playAlert();
 
-                        // YENİ: Güçlü titreşim
+                        // Güçlü titreşim (3 kez tekrarlı)
                         if (navigator.vibrate) {
-                            navigator.vibrate([500, 200, 500, 200, 1000]);
+                            navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 1000]);
                         }
                     }
                     return;
@@ -862,6 +890,23 @@
         
         // İlk başlık ayarı
         updatePageTitle();
+
+        // ===== EKRAN YÖNÜ KİLİDİ =====
+        // Screen Orientation API ile portre modunu kilitle
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').then(() => {
+                console.log('🔒 Ekran portre modunda kilitlendi');
+            }).catch(err => {
+                console.log('ℹ️ Ekran kilidi desteklenmiyor (CSS fallback aktif)');
+            });
+        }
+
+        // Oryantasyon değişimini dinle ve uyar
+        window.addEventListener('orientationchange', () => {
+            if (window.orientation === 90 || window.orientation === -90) {
+                console.warn('⚠️ Telefon yatay konumda - Lütfen dikey konuma getirin');
+            }
+        });
     </script>
 </body>
 
