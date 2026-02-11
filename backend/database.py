@@ -48,6 +48,8 @@ class Database:
     def init_tables(self):
         """Eksik tabloları oluştur ve kolonları güncelle (Optimize Edildi)"""
         with Session(self.engine) as session:
+            # Memnuniyet anketi tablosunu oluştur
+            self._create_memnuniyet_table(session)
             # 1. Ana Tabloları Oluştur
             session.execute(text("""
                 CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
@@ -1200,6 +1202,66 @@ class Database:
             "durum": ticket["durum"],
             "bekleyen_sayisi": count
         }
+    
+    def _create_memnuniyet_table(self, session):
+        """Memnuniyet anketi tablosunu oluştur"""
+        try:
+            # Tablo var mı kontrol et
+            check_query = text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'siramatik' 
+                    AND table_name = 'memnuniyet_anketleri'
+                );
+            """)
+            result = session.execute(check_query).scalar()
+            
+            if result:
+                print("✅ memnuniyet_anketleri tablosu zaten var")
+                return
+            
+            # Tabloyu oluştur
+            create_table_query = text("""
+                CREATE TABLE IF NOT EXISTS siramatik.memnuniyet_anketleri (
+                    id SERIAL PRIMARY KEY,
+                    sira_id INTEGER NOT NULL,
+                    kuyruk_id INTEGER NOT NULL,
+                    servis_id INTEGER,
+                    firma_id INTEGER NOT NULL,
+                    cagiran_kullanici_id INTEGER,
+                    puan INTEGER NOT NULL CHECK (puan >= 1 AND puan <= 5),
+                    yorum TEXT,
+                    anket_tarihi TIMESTAMPTZ DEFAULT NOW(),
+                    ip_adresi VARCHAR(45),
+                    cihaz_bilgisi TEXT,
+                    hizmet_suresi_dk INTEGER
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_memnuniyet_sira ON siramatik.memnuniyet_anketleri(sira_id);
+                CREATE INDEX IF NOT EXISTS idx_memnuniyet_kuyruk ON siramatik.memnuniyet_anketleri(kuyruk_id);
+                CREATE INDEX IF NOT EXISTS idx_memnuniyet_puan ON siramatik.memnuniyet_anketleri(puan);
+                CREATE INDEX IF NOT EXISTS idx_memnuniyet_tarih ON siramatik.memnuniyet_anketleri(anket_tarihi);
+                
+                ALTER TABLE siramatik.memnuniyet_anketleri ENABLE ROW LEVEL SECURITY;
+                
+                DROP POLICY IF EXISTS memnuniyet_select_policy ON siramatik.memnuniyet_anketleri;
+                CREATE POLICY memnuniyet_select_policy ON siramatik.memnuniyet_anketleri
+                    FOR SELECT USING (true);
+                
+                DROP POLICY IF EXISTS memnuniyet_insert_policy ON siramatik.memnuniyet_anketleri;
+                CREATE POLICY memnuniyet_insert_policy ON siramatik.memnuniyet_anketleri
+                    FOR INSERT WITH CHECK (true);
+                
+                COMMENT ON TABLE siramatik.memnuniyet_anketleri IS 'Müşteri memnuniyet anketleri';
+            """)
+            
+            session.execute(create_table_query)
+            session.commit()
+            print("✅ memnuniyet_anketleri tablosu oluşturuldu!")
+            
+        except Exception as e:
+            print(f"⚠️ Memnuniyet tablosu oluşturma hatası: {e}")
+            session.rollback()
 
 # Global database instance
 db = Database()
