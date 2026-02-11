@@ -750,10 +750,10 @@ class Database:
         """Cihazın aktif olduğunu bildir (Upsert)"""
         # MAC adresi yoksa Ad üzerinden eşle
         result = self.execute_query("""
-            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_adresi, aktif, son_gorunme, metadata)
-            VALUES (:firma_id, :ad, :tip, :mac, TRUE, NOW(), :metadata::jsonb)
-            ON CONFLICT (firma_id, mac_adresi) DO UPDATE 
-            SET aktif = TRUE, son_gorunme = NOW(), tip = :tip, metadata = :metadata::jsonb
+            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, durum, son_gorulen, metadata)
+            VALUES (:firma_id, :ad, :tip, :mac, 'active', NOW(), :metadata::jsonb)
+            ON CONFLICT (device_fingerprint) DO UPDATE 
+            SET durum = 'active', son_gorulen = NOW(), tip = :tip, metadata = :metadata::jsonb
             RETURNING *
         """, {"firma_id": firma_id, "ad": ad, "tip": tip, "mac": mac or ad, "metadata": json.dumps(metadata)})
         return result[0] if result else None
@@ -1089,7 +1089,7 @@ class Database:
         
         if mac:
             existing_list = self.execute_query(
-                "SELECT * FROM siramatik.cihazlar WHERE mac = :mac AND firma_id = :firma_id",
+                "SELECT * FROM siramatik.cihazlar WHERE mac_address = :mac AND firma_id = :firma_id",
                 {"mac": mac, "firma_id": firma_id}
             )
             if existing_list: existing = existing_list[0]
@@ -1103,7 +1103,7 @@ class Database:
         if existing:
             updated = self.execute_query("""
                 UPDATE siramatik.cihazlar 
-                SET son_gorulme = NOW(), metadata = :metadata, ad = :ad, tip = :tip
+                SET son_gorulen = NOW(), metadata = :metadata, ad = :ad, tip = :tip
                 WHERE id = :id
                 RETURNING *
             """, {
@@ -1116,14 +1116,14 @@ class Database:
 
         # Yeni kayıt oluştur
         result = self.execute_query("""
-            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac, metadata, son_gorulme)
-            VALUES (:firma_id, :ad, :tip, :mac, :metadata, NOW())
+            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, metadata, son_gorulen)
+            VALUES (:firma_id, :ad, :tip, :mac_address, :metadata, NOW())
             RETURNING *
         """, {
             "firma_id": firma_id,
             "ad": ad,
             "tip": tip,
-            "mac": mac,
+            "mac_address": mac,
             "metadata": json.dumps(metadata)
         })
         return result[0]
@@ -1131,11 +1131,10 @@ class Database:
     def get_cihazlar(self, firma_id: int) -> List[Dict]:
         """Firma cihazlarını listele"""
         return self.execute_query("""
-            SELECT c.*, k.ad as konum_adi 
+            SELECT c.*
             FROM siramatik.cihazlar c
-            LEFT JOIN siramatik.kuyruk_konumlar k ON c.konum = k.id
             WHERE c.firma_id = :firma_id 
-            ORDER BY c.son_gorulme DESC
+            ORDER BY c.son_gorulen DESC
         """, {"firma_id": firma_id})
 
     def update_cihaz(self, cihaz_id: int, data: Dict) -> Dict:
