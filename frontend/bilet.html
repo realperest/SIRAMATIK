@@ -256,7 +256,7 @@
         /* Ekran Yönlendirme Kilidi - Sadece Portre Mod */
         @media screen and (orientation: landscape) {
             body::before {
-                content: '🔄 Lütfen telefonunuzu dikey konuma getirin';
+                content: '[SYNC] Lütfen telefonunuzu dikey konuma getirin';
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -470,7 +470,7 @@
 
             <!-- Teşekkür Mesajı -->
             <div id="survey-thanks" style="display: none; text-align: center; padding: 20px 12px;">
-                <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+                <div style="font-size: 48px; margin-bottom: 12px;"></div>
                 <h2 style="color: #22c55e; margin-bottom: 10px; font-size: 20px;">Teşekkür Ederiz!</h2>
                 <p style="color: #7f8c8d; font-size: 13px; line-height: 1.5;">
                     Görüşünüz kaydedildi.<br>
@@ -574,10 +574,10 @@
 
         // Ses yükleme kontrolü
         tickSound.addEventListener('loadeddata', () => {
-            console.log('✅ Ses dosyası yüklendi');
+            console.log('[OK] Ses dosyası yüklendi');
         });
         tickSound.addEventListener('error', (e) => {
-            console.warn('⚠️ Ses dosyası yüklenemedi:', e);
+            console.warn('[WARN] Ses dosyası yüklenemedi:', e);
         });
 
         async function startNotifications() {
@@ -650,11 +650,11 @@
                     ws = new WebSocket(wsUrl);
 
                     ws.onopen = () => {
-                        console.log('✅ WebSocket bağlandı! Gerçek zamanlı mod aktif.');
+                        console.log('[OK] WebSocket bağlandı! Gerçek zamanlı mod aktif.');
                         updateConnectionStatus('online', true); // W göster
                         // WebSocket başarılı, polling'i durdur
                         if (pollingInterval) {
-                            console.log('🔄 Polling durduruldu (WebSocket aktif)');
+                            console.log('[SYNC] Polling durduruldu (WebSocket aktif)');
                             clearInterval(pollingInterval);
                             pollingInterval = null;
                         }
@@ -671,13 +671,13 @@
                     };
 
                     ws.onclose = () => {
-                        console.warn('⚠️ WebSocket koptu. Polling fallback aktif.');
+                        console.warn('[WARN] WebSocket koptu. Polling fallback aktif.');
                         updateConnectionStatus('online', false); // P göster
                         ws = null;
                         
                         // Polling'i tekrar başlat (eğer durdurulmuşsa)
                         if (!pollingInterval) {
-                            console.log('🔄 Polling yeniden başlatılıyor...');
+                            console.log('[SYNC] Polling yeniden başlatılıyor...');
                             startPolling();
                         }
                         
@@ -686,7 +686,7 @@
                     };
 
                     ws.onerror = (err) => {
-                        console.error('❌ WebSocket bağlantı hatası (Polling devrede)');
+                        console.error('[ERR] WebSocket bağlantı hatası (Polling devrede)');
                         // Hata durumunda P göster (polling çalışıyor)
                         updateConnectionStatus('online', false);
                     };
@@ -708,7 +708,7 @@
             }
             // Veya kuyruğumuzda bir değişiklik olduysa
             else if (data.kuyruk_id && data.kuyruk_id == kuyruk_id) {
-                console.log('📊 Kuyruk güncellendi:', data);
+                console.log(' Kuyruk güncellendi:', data);
                 updateStatus(); // Durumu güncelle
             }
         }
@@ -741,7 +741,7 @@
                 return;
             }
 
-            console.log('🔄 Polling başlatılıyor (5 saniye aralık)');
+            console.log('[SYNC] Polling başlatılıyor (5 saniye aralık)');
             pollingInterval = setInterval(() => {
                 // WebSocket bağlıysa polling'i geçici durdur (kaynak tasarrufu)
                 if (ws && ws.readyState === WebSocket.OPEN) {
@@ -777,7 +777,7 @@
         if (bekleyen_url && bekleyen_url !== '0') {
             lastCount = parseInt(bekleyen_url);
             isFirstLoad = false; // İlk veri URL'den geldi
-            console.log(`📊 İlk bekleyen sayısı (URL): ${lastCount}`);
+            console.log(` İlk bekleyen sayısı (URL): ${lastCount}`);
         }
 
         // Kuyruk için ortalama bekleme süresini hesapla
@@ -800,15 +800,15 @@
                     // Fallback: Manuel hesapla
                     const avgToday = await calculateTodayAverage(kid);
                     avgProcessTime = avgToday > 0 ? avgToday : 5;
-                    console.log(`📊 Manuel hesaplama: ${avgProcessTime} dk (fallback: 5 dk)`);
+                    console.log(` Manuel hesaplama: ${avgProcessTime} dk (fallback: 5 dk)`);
                 } else if (data !== null && data > 0) {
                     avgProcessTime = data;
-                    console.log(`📊 Kuyruk ${kuyruk_id} için ortalama bekleme (7 gün): ${avgProcessTime} dk`);
+                    console.log(` Kuyruk ${kuyruk_id} için ortalama bekleme (7 gün): ${avgProcessTime} dk`);
                 } else {
                     // Veri yoksa bugünün ortalamasını dene
                     const avgToday = await calculateTodayAverage(kid);
                     avgProcessTime = avgToday > 0 ? avgToday : 5;
-                    console.log(`📊 Bugünün ortalaması: ${avgProcessTime} dk (fallback: 5 dk)`);
+                    console.log(` Bugünün ortalaması: ${avgProcessTime} dk (fallback: 5 dk)`);
                 }
             } catch (e) {
                 console.error('Ortalama süre hatası:', e);
@@ -965,14 +965,14 @@
                 if (samePriorityBefore.error) throw samePriorityBefore.error;
 
                 const count = (highPriority.count || 0) + (samePriorityBefore.count || 0);
-                console.log(`🔍 Sayaç: Yüksek:${highPriority.count}, Aynı:${samePriorityBefore.count}, Toplam:${count}`);
+                console.log(`[SEARCH] Sayaç: Yüksek:${highPriority.count}, Aynı:${samePriorityBefore.count}, Toplam:${count}`);
 
                 // Gelişmiş sıra azalma kontrolü
                 if (isFirstLoad) {
                     // İlk yükleme: Sadece kaydet
                     lastCount = count;
                     isFirstLoad = false;
-                    console.log(`📊 İlk bekleyen sayısı (API): ${count}`);
+                    console.log(` İlk bekleyen sayısı (API): ${count}`);
                 } else if (lastCount !== -1 && count < lastCount && count >= 0) {
                     // Bekleyen azaldı - ses + titreşim + animasyon
                     console.log(`🔔 Bekleyen azaldı: ${lastCount} → ${count}`);
@@ -1086,7 +1086,7 @@
         // Oryantasyon değişimini dinle ve uyar
         window.addEventListener('orientationchange', () => {
             if (window.orientation === 90 || window.orientation === -90) {
-                console.warn('⚠️ Telefon yatay konumda - Lütfen dikey konuma getirin');
+                console.warn('[WARN] Telefon yatay konumda - Lütfen dikey konuma getirin');
             }
         });
 
@@ -1156,7 +1156,7 @@
                 const servis_id = ticketSpecs.servis_id || localStorage.getItem('bt_servis_id') || null;
                 const firma_id = ticketSpecs.firma_id || localStorage.getItem('bt_firma_id') || 1;
                 
-                console.log('📊 Anket verileri:', {
+                console.log(' Anket verileri:', {
                     sira_id, kuyruk_id, servis_id, firma_id
                 });
 
@@ -1183,7 +1183,7 @@
                     return;
                 }
 
-                console.log('✅ Anket gönderildi:', data);
+                console.log('[OK] Anket gönderildi:', data);
 
                 // localStorage'a kaydet (tekrar gösterme)
                 localStorage.setItem(`survey_${sira_id}`, 'submitted');

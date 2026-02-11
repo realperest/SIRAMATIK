@@ -460,7 +460,7 @@
     <!-- Ayarlar Modal -->
     <div class="settings-modal" id="settings-modal">
         <div class="settings-panel">
-            <h2>🔧 Kiosk Ayarları</h2>
+            <h2>[DEBUG] Kiosk Ayarları</h2>
             <p style="color: #666; font-size: 14px;">Bu kiosk'un hangi bölüm ve kuyruklara hizmet vereceğini seçin.</p>
 
             <label for="servis-filter">Bölümler (Servisler):</label>
@@ -490,9 +490,9 @@
             </div>
 
             <div style="margin-top: 30px; text-align: center;">
-                <button class="btn-save" onclick="saveSettings()">💾 Kaydet</button>
-                <button class="btn-reset" onclick="resetSettings()">🔄 Sıfırla</button>
-                <button class="btn-cancel" onclick="closeSettings()">❌ İptal</button>
+                <button class="btn-save" onclick="saveSettings()"> Kaydet</button>
+                <button class="btn-reset" onclick="resetSettings()">[SYNC] Sıfırla</button>
+                <button class="btn-cancel" onclick="closeSettings()">[ERR] İptal</button>
             </div>
         </div>
     </div>
@@ -511,7 +511,7 @@
     <div
         style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px 25px; border-radius: 15px; margin: 0 auto 15px; max-width: 900px; box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4); animation: pulse 2s infinite;">
         <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
-            <div style="font-size: 48px;">📱</div>
+            <div style="font-size: 48px;"></div>
             <div style="text-align: left;">
                 <div
                     style="font-size: 24px; font-weight: bold; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
@@ -687,13 +687,13 @@
          */
         async function registerOrUpdateDevice() {
             try {
-                console.log('🔧 Cihaz kaydı kontrol ediliyor...');
+                console.log('[DEBUG] Cihaz kaydı kontrol ediliyor...');
                 
                 let fingerprint = localStorage.getItem('device_fingerprint');
                 if (!fingerprint) {
                     fingerprint = await generateFingerprint();
                     localStorage.setItem('device_fingerprint', fingerprint);
-                    console.log('✅ Yeni fingerprint oluşturuldu:', fingerprint);
+                    console.log('[OK] Yeni fingerprint oluşturuldu:', fingerprint);
                 }
                 
                 // Cihaz bilgilerini topla
@@ -723,18 +723,18 @@
                 if (response.status === 'success' && response.device) {
                     DEVICE_ID = response.device.id;
                     localStorage.setItem('tablet_device_id', DEVICE_ID);
-                    console.log('✅ Cihaz kaydedildi:', DEVICE_ID);
+                    console.log('[OK] Cihaz kaydedildi:', DEVICE_ID);
                     
                     // Backend'den ayarları çek
                     await syncSettingsFromBackend();
                     return true;
                 }
                 
-                console.warn('⚠️ Cihaz kaydedilemedi');
+                console.warn('[WARN] Cihaz kaydedilemedi');
                 return false;
                 
             } catch (error) {
-                console.error('❌ Cihaz kayıt hatası:', error);
+                console.error('[ERR] Cihaz kayıt hatası:', error);
                 // Hata durumunda local ayarlarla devam et
                 return false;
             }
@@ -757,15 +757,15 @@
                     const remoteSettings = JSON.stringify(backendSettings);
                     
                     if (localSettings !== remoteSettings) {
-                        console.log('🔄 Backend ayarları uygulanıyor...');
+                        console.log('[SYNC] Backend ayarları uygulanıyor...');
                         kioskSettings = { ...kioskSettings, ...backendSettings };
                         localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
-                        console.log('✅ Ayarlar senkronize edildi');
+                        console.log('[OK] Ayarlar senkronize edildi');
                         return true;
                     }
                 }
             } catch (error) {
-                console.error('⚠️ Ayar senkronizasyon hatası:', error);
+                console.error('[WARN] Ayar senkronizasyon hatası:', error);
             }
             return false;
         }
@@ -783,14 +783,14 @@
                 });
                 
                 if (response.status === 'success') {
-                    console.log('✅ Ayarlar Backend\'e kaydedildi');
+                    console.log('[OK] Ayarlar Backend\'e kaydedildi');
                     return true;
                 }
                 
-                console.error('❌ Ayar kayıt hatası');
+                console.error('[ERR] Ayar kayıt hatası');
                 return false;
             } catch (error) {
-                console.error('❌ Ayar kayıt hatası:', error);
+                console.error('[ERR] Ayar kayıt hatası:', error);
             }
             return false;
         }
@@ -811,7 +811,7 @@
                     })
                 });
             } catch (error) {
-                console.warn('⚠️ Heartbeat hatası:', error);
+                console.warn('[WARN] Heartbeat hatası:', error);
             }
         }
 
@@ -854,7 +854,7 @@
                     loadSettingsData();
                 }
             } catch (err) {
-                alert('❌ Geçersiz müdahale şifresi!');
+                alert('[ERR] Geçersiz müdahale şifresi!');
             }
         }
 
@@ -919,14 +919,14 @@
                 await saveSettingsToBackend(kioskSettings);
             }
 
-            alert('✅ Ayarlar kaydedildi! Sayfa yenileniyor...');
+            alert('[OK] Ayarlar kaydedildi! Sayfa yenileniyor...');
             location.reload();
         }
 
         function resetSettings() {
-            if (confirm('⚠️ Tüm kiosk ayarlarını sıfırlamak istediğinizden emin misiniz?')) {
+            if (confirm('[WARN] Tüm kiosk ayarlarını sıfırlamak istediğinizden emin misiniz?')) {
                 localStorage.removeItem('kiosk_settings');
-                alert('✅ Ayarlar sıfırlandı! Sayfa yenileniyor...');
+                alert('[OK] Ayarlar sıfırlandı! Sayfa yenileniyor...');
                 location.reload();
             }
         }
@@ -959,7 +959,7 @@
 
             } catch (error) {
                 console.error('Ayarlar verisi yüklenemedi:', error);
-                alert('❌ Veriler yüklenirken hata oluştu!');
+                alert('[ERR] Veriler yüklenirken hata oluştu!');
             }
         }
 
@@ -986,7 +986,7 @@
         function applyFilters(servisler, kuyruklar) {
             // Eğer hiçbir filtre yoksa tümünü döndür
             if (kioskSettings.servisIds.length === 0 && kioskSettings.kuyrukIds.length === 0) {
-                console.log('✅ Filtre yok, tüm veriler gösteriliyor');
+                console.log('[OK] Filtre yok, tüm veriler gösteriliyor');
                 return { servisler, kuyruklar };
             }
 
@@ -1004,7 +1004,7 @@
                 filteredKuyruklar = filteredKuyruklar.filter(k => kioskSettings.kuyrukIds.includes(k.id));
             }
 
-            console.log(`🔍 Filtre uygulandı: ${filteredServisler.length} servis, ${filteredKuyruklar.length} kuyruk`);
+            console.log(`[SEARCH] Filtre uygulandı: ${filteredServisler.length} servis, ${filteredKuyruklar.length} kuyruk`);
             return { servisler: filteredServisler, kuyruklar: filteredKuyruklar };
         }
 
@@ -1045,13 +1045,13 @@
             try {
                 if (!silent) showLoading(true);
                 
-                console.log('🔍 Servisler çağrılıyor...');
+                console.log('[SEARCH] Servisler çağrılıyor...');
                 const servisler = await apiCall(`/servisler/${FIRMA_ID}`);
-                console.log('✅ Servisler geldi:', servisler);
+                console.log('[OK] Servisler geldi:', servisler);
                 
-                console.log('🔍 Kuyruklar çağrılıyor...');
+                console.log('[SEARCH] Kuyruklar çağrılıyor...');
                 const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
-                console.log('✅ Kuyruklar geldi:', kuyruklar);
+                console.log('[OK] Kuyruklar geldi:', kuyruklar);
 
                 console.log("Gelen Servisler:", servisler.length);
                 console.log("Gelen Kuyruklar:", kuyruklar.length);
@@ -1063,14 +1063,14 @@
 
                 if (!silent) showLoading(false);
             } catch (error) {
-                console.error("❌ VERİ YÜKLEME HATASI:", error);
+                console.error("[ERR] VERİ YÜKLEME HATASI:", error);
                 console.error("Hata Detayı:", error.message);
                 console.error("Stack:", error.stack);
                 
                 if (!silent) showLoading(false);
                 
                 errorDiv.innerHTML = `
-                    <strong>⚠️ HATA:</strong><br>
+                    <strong>[WARN] HATA:</strong><br>
                     ${error.message}<br>
                     <small>${error.stack ? error.stack.substring(0, 200) : ''}</small>
                 `;
@@ -1123,7 +1123,7 @@
                 <div class="departman-card fade-in" id="servis-card-${s.id}" onclick="servisSecildi(${s.id}, '${s.ad}')" style="flex: 1;">
                     <div class="kod">${s.kod}</div>
                     <h2>${s.ad}</h2>
-                    <div class="bekleyen">${s.kuyruk_sayisi > 0 ? `🕐 ${s.kuyruk_sayisi} Seçenek` : (s.id === 2 ? '🕐 1 Sıra' : 'Sıra Al')}</div>
+                    <div class="bekleyen">${s.kuyruk_sayisi > 0 ? ` ${s.kuyruk_sayisi} Seçenek` : (s.id === 2 ? ' 1 Sıra' : 'Sıra Al')}</div>
                 </div>
             `).join('');
         }
@@ -1358,8 +1358,8 @@
                 }, 30000);
 
             } catch (err) {
-                console.error("❌ Kiosk başlatma hatası:", err);
-                alert('⚠️ Veriler yüklenirken hata oluştu: ' + err.message);
+                console.error("[ERR] Kiosk başlatma hatası:", err);
+                alert('[WARN] Veriler yüklenirken hata oluştu: ' + err.message);
                 showLoading(false);
             }
         }

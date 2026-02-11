@@ -2104,7 +2104,7 @@
                     ? `${gecenDakika} dk önce`
                     : `${Math.floor(gecenDakika / 60)} saat önce`;
                 
-                const tipIkon = device.tip === 'tablet' ? '📱' : device.tip === 'kiosk' ? '🖥️' : '💻';
+                const tipIkon = device.tip === 'tablet' ? '' : device.tip === 'kiosk' ? '🖥️' : '💻';
                 
                 const ayarlarCount = device.ayarlar ? 
                     (device.ayarlar.servisIds || []).length + (device.ayarlar.kuyrukIds || []).length : 0;
@@ -2141,7 +2141,7 @@
                     
                     const ayarlarStr = JSON.stringify(ayarlar, null, 2);
                     
-                    alert(`📱 ${device.ad}\n\nTip: ${device.tip}\nDurum: ${device.durum}\n\nAyarlar:\n${ayarlarStr}`);
+                    alert(` ${device.ad}\n\nTip: ${device.tip}\nDurum: ${device.durum}\n\nAyarlar:\n${ayarlarStr}`);
                 }
             } catch (error) {
                 console.error('Ayar görüntüleme hatası:', error);

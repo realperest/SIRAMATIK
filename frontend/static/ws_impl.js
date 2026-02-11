@@ -35,7 +35,7 @@ function initWebSocket(callback) {
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            console.log('✅ WebSocket Bağlandı!');
+            console.log('[OK] WebSocket Bağlandı!');
         };
 
         ws.onmessage = (event) => {
@@ -44,18 +44,18 @@ function initWebSocket(callback) {
                 // console.log('📩 Yeni Mesaj:', data);
                 wsListeners.forEach(listener => listener(data));
             } catch (e) {
-                console.error('❌ WebSocket veri hatası:', e);
+                console.error('[ERR] WebSocket veri hatası:', e);
             }
         };
 
         ws.onclose = () => {
-            console.warn('⚠️ WebSocket koptu. Yeniden bağlanılıyor...');
+            console.warn('[WARN] WebSocket koptu. Yeniden bağlanılıyor...');
             ws = null;
             setTimeout(connect, wsReconnectDelay);
         };
 
         ws.onerror = (err) => {
-            console.error('❌ WebSocket hatası:', err);
+            console.error('[ERR] WebSocket hatası:', err);
             ws.close();
         };
     }
