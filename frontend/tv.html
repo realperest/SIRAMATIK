@@ -55,7 +55,7 @@
         }
 
         .spotlight-area {
-            min-height: 320px;
+            min-height: 380px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -81,7 +81,7 @@
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 20px;
+            font-size: 26px;
             font-weight: bold;
             letter-spacing: 5px;
             color: rgba(255, 255, 255, 0.8);
@@ -89,7 +89,7 @@
         }
 
         .spotlight-numara {
-            font-size: 130px;
+            font-size: 204px;
             font-weight: 900;
             text-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             color: white;
@@ -101,16 +101,30 @@
         }
 
         .spotlight-servis {
-            font-size: 40px;
+            font-size: 52px;
             margin-bottom: 5px;
             font-weight: bold;
         }
 
         .spotlight-oda {
-            font-size: 50px;
+            font-size: 62px;
             font-weight: bold;
-            color: #ffd700;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+            color: #22c55e;
+            text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .spotlight-oda .pin-icon,
+        .cagri-oda .pin-icon {
+            display: inline-block;
+            vertical-align: middle;
+            width: 0.85em;
+            height: 0.85em;
+            fill: #22c55e;
+        }
+
+        .cagri-oda {
+            color: #22c55e;
+            font-weight: bold;
         }
 
         .cagri-item {
@@ -150,7 +164,7 @@
         .cagri-oda {
             font-size: 28px;
             font-weight: bold;
-            color: #ffd700;
+            color: #22c55e;
         }
 
         .zaman {
@@ -251,56 +265,189 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 10001;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            box-sizing: border-box;
         }
 
         .settings-panel {
-            background: white;
-            color: #333;
-            padding: 30px;
-            border-radius: 20px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            color: #1e293b;
+            padding: 36px 40px;
+            border-radius: 24px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 88vh;
             overflow-y: auto;
-            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255,255,255,0.1);
         }
 
         .settings-panel h2 {
-            margin-top: 0;
-            color: #667eea;
-            font-size: 24px;
+            margin: 0 0 8px 0;
+            color: #0f172a;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
 
-        .settings-panel label {
-            display: block;
-            margin: 15px 0 5px;
-            font-weight: bold;
-            color: #444;
+        .settings-desc {
+            color: #64748b;
+            font-size: 15px;
+            line-height: 1.5;
             text-align: left;
+            margin: 0 0 28px 0;
+        }
+
+        .settings-section {
+            margin-bottom: 28px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .settings-section:last-of-type {
+            border-bottom: none;
+        }
+
+        .settings-section h3 {
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .settings-panel label:not(.toggle-wrap) {
+            display: block;
+            margin: 14px 0 6px;
+            font-weight: 600;
+            color: #334155;
+            text-align: left;
+            font-size: 14px;
         }
 
         .settings-panel select {
             width: 100%;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            padding: 12px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
             font-size: 14px;
+            background: #fff;
+            min-height: 120px;
         }
 
-        .settings-panel button {
-            margin: 10px 5px;
-            padding: 10px 20px;
+        .settings-panel select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .settings-hint {
+            color: #94a3b8;
+            font-size: 12px;
+            display: block;
+            text-align: left;
+            margin-top: 6px;
+        }
+
+        .settings-section-ses {
+            background: #f1f5f9;
+            margin-left: -40px;
+            margin-right: -40px;
+            padding: 20px 40px 24px;
+            border-radius: 16px;
             border: none;
-            border-radius: 8px;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
             font-size: 14px;
-            font-weight: bold;
+            color: #334155;
+            font-weight: 500;
+        }
+
+        .toggle-wrap {
+            display: inline-flex;
+            align-items: center;
             cursor: pointer;
-            transition: all 0.3s;
+            position: relative;
+        }
+
+        .toggle-wrap input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: relative;
+            display: block;
+            width: 48px;
+            height: 26px;
+            background: #cbd5e1;
+            border-radius: 26px;
+            transition: background 0.25s, box-shadow 0.25s;
+        }
+
+        .toggle-wrap input:checked + .toggle-slider {
+            background: #22c55e;
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3);
+        }
+
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            left: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: transform 0.25s;
+        }
+
+        .toggle-wrap {
+            position: relative;
+        }
+
+        .toggle-wrap input:checked + .toggle-slider::after {
+            left: 24px;
+        }
+
+        .settings-actions {
+            margin-top: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .settings-panel .btn-save,
+        .settings-panel .btn-cancel,
+        .settings-panel .btn-reset {
+            margin: 0;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
         }
 
         .btn-save {
@@ -313,21 +460,29 @@
         }
 
         .btn-cancel {
-            background: #e74c3c;
+            background: #64748b;
             color: white;
         }
 
         .btn-cancel:hover {
-            background: #c0392b;
+            background: #475569;
         }
 
         .btn-reset {
-            background: #f39c12;
+            background: #f59e0b;
             color: white;
         }
 
         .btn-reset:hover {
-            background: #d68910;
+            background: #d97706;
+        }
+
+        .btn-reset-gray {
+            background: #94a3b8;
+        }
+
+        .btn-reset-gray:hover {
+            background: #64748b;
         }
     </style>
 </head>
@@ -344,33 +499,45 @@
 
     <button class="settings-button" onclick="openTVSettings()" title="Ekran Ayarları">⚙️</button>
 
-    <div id="mute-toggle" onclick="toggleMute()"
-        style="position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.5); backdrop-filter: blur(5px); color:white; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease; z-index:9999;">
-        🔊
-    </div>
-
     <div class="settings-modal" id="tv-settings-modal">
         <div class="settings-panel">
             <h2>📺 Ekran Ayarları</h2>
-            <p style="color: #666; font-size: 14px; text-align: left;">Bu ekranda hangi bölüm ve kuyruklara ait
-                çağrıların gösterileceğini seçin.</p>
+            <p class="settings-desc">Bu ekranda hangi bölüm ve kuyruklara ait çağrıların gösterileceğini ve ses seçeneklerini ayarlayın.</p>
 
-            <label for="servis-filter">Bölümler (Servisler):</label>
-            <select id="servis-filter" multiple size="5" style="height: 120px;"></select>
-            <small style="color: #999; display: block; text-align: left;">Ctrl/Cmd ile çoklu seçim
-                yapabilirsiniz</small>
+            <section class="settings-section">
+                <h3>📋 Gösterim</h3>
+                <label for="servis-filter">Bölümler (Servisler):</label>
+                <select id="servis-filter" multiple size="5"></select>
+                <small class="settings-hint">Ctrl/Cmd ile çoklu seçim yapabilirsiniz.</small>
 
-            <label for="kuyruk-filter">Kuyruklar (Opsiyonel):</label>
-            <select id="kuyruk-filter" multiple size="5" style="height: 120px;"></select>
-            <small style="color: #999; display: block; text-align: left;">Boş bırakılırsa seçili bölümlerin tüm
-                kuyrukları listelenir</small>
+                <label for="kuyruk-filter">Kuyruklar (Opsiyonel):</label>
+                <select id="kuyruk-filter" multiple size="5"></select>
+                <small class="settings-hint">Boş bırakılırsa seçili bölümlerin tüm kuyrukları listelenir.</small>
+            </section>
 
-            <div style="margin-top: 25px; text-align: center;">
+            <section class="settings-section settings-section-ses">
+                <h3>🔊 Ses Ayarları</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Ses (ding-dong ve müzik)</span>
+                    <label class="toggle-wrap">
+                        <input type="checkbox" id="setting-ses-acik" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Sesli duyuru (sıra numarası okunsun)</span>
+                    <label class="toggle-wrap">
+                        <input type="checkbox" id="setting-sesli-duyuru" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <div class="settings-actions">
                 <button class="btn-save" onclick="saveTVSettings()">💾 Kaydet</button>
-                <button class="btn-reset" onclick="clearTVSelections()" style="background: #95a5a6;">🗑️
-                    Temizle</button>
-                <button class="btn-reset" onclick="resetTVSettings()">🔄 Sıfırla (Reload)</button>
-                <button class="btn-cancel" onclick="closeTVSettings()">❌ İptal</button>
+                <button class="btn-reset btn-reset-gray" onclick="clearTVSelections()">🗑️ Temizle</button>
+                <button class="btn-reset" onclick="resetTVSettings()">🔄 Sıfırla</button>
+                <button class="btn-cancel" onclick="closeTVSettings()">İptal</button>
             </div>
         </div>
     </div>
@@ -423,7 +590,7 @@
         let isMuted = false;
         let lastCagriId = null;
         let seenIds = {};
-        let tvSettings = { servisIds: [], kuyrukIds: [] };
+        let tvSettings = { servisIds: [], kuyrukIds: [], sesliDuyuru: true, sesAcik: true };
         let isFirstLoad = true;
         let displayedCalls = [];
         let updateTimeout = null;
@@ -459,8 +626,10 @@
             unlockAudio();
             isMuted = !isMuted;
             const btn = document.getElementById('mute-toggle');
-            btn.innerHTML = isMuted ? '🔇' : '🔊';
-            btn.style.background = isMuted ? 'rgba(231, 76, 60, 0.5)' : 'rgba(0,0,0,0.5)';
+            if (btn) {
+                btn.innerHTML = isMuted ? '🔇' : '🔊';
+                btn.style.background = isMuted ? 'rgba(231, 76, 60, 0.5)' : 'rgba(0,0,0,0.5)';
+            }
         }
 
         async function playDingDong() {
@@ -468,7 +637,7 @@
 
             try {
                 if (audioContext.state === 'suspended') {
-                    await audioCtx.resume();
+                    await audioContext.resume();
                 }
             } catch (e) { console.error("Audio resume error", e); }
 
@@ -498,6 +667,52 @@
             }, 600);
         }
 
+        // Sayıyı Türkçe söyle (0-999): 71 → "yetmiş bir"
+        function sayiToTurkce(n) {
+            if (n === 0) return 'sıfır';
+            const birlik = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+            const onluk = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+            if (n < 10) return birlik[n];
+            if (n < 100) return (onluk[Math.floor(n / 10)] + ' ' + birlik[n % 10]).trim();
+            if (n < 1000) {
+                const yuz = Math.floor(n / 100);
+                const kalan = n % 100;
+                const yuzStr = yuz === 1 ? 'yüz' : birlik[yuz] + ' yüz';
+                return kalan === 0 ? yuzStr : yuzStr + ' ' + sayiToTurkce(kalan);
+            }
+            return String(n);
+        }
+
+        // K0071 → "K sıfır sıfır yetmiş bir" (soldaki her 0 için "sıfır", sonra sayı Türkçe)
+        function numaraToSpeechText(numara) {
+            if (!numara || typeof numara !== 'string') return numara;
+            const m = numara.trim().match(/^([A-Za-zÇçĞğİıÖöŞşÜü])(\d+)$/);
+            if (!m) return numara;
+            const harf = m[1];
+            const rakamlar = m[2];
+            const sifirSayisi = (rakamlar.match(/^0*/) || [''])[0].length;
+            const kalan = rakamlar.slice(sifirSayisi) || '0';
+            const sayi = parseInt(kalan, 10);
+            const sifirKelimeler = sifirSayisi > 0 ? ' sıfır'.repeat(sifirSayisi).trim() : '';
+            const sayiKelime = sayiToTurkce(sayi);
+            return sifirKelimeler ? harf + ' ' + sifirKelimeler + ' ' + sayiKelime : harf + ' ' + sayiKelime;
+        }
+
+        function announceSira(numara) {
+            if (isMuted || !numara || !tvSettings.sesliDuyuru) return;
+            if (!('speechSynthesis' in window)) return;
+            const metin = numaraToSpeechText(numara);
+            const u = new SpeechSynthesisUtterance(metin);
+            u.lang = 'tr-TR';
+            u.rate = 0.9;
+            u.volume = 1; // Web Speech API'de maksimum ses
+            const sesler = speechSynthesis.getVoices();
+            const trSes = sesler.find(v => v.lang.startsWith('tr')) || sesler.find(v => v.lang.startsWith('tr-TR'));
+            if (trSes) u.voice = trSes;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+        }
+
         function saatGuncelle() {
             const now = new Date();
             const el = document.getElementById('saat');
@@ -510,11 +725,15 @@
             const saved = localStorage.getItem('tv_settings');
             if (saved) {
                 try {
-                    tvSettings = JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    tvSettings = { ...tvSettings, ...parsed };
+                    if (typeof parsed.sesliDuyuru === 'boolean') tvSettings.sesliDuyuru = parsed.sesliDuyuru;
+                    if (typeof parsed.sesAcik === 'boolean') tvSettings.sesAcik = parsed.sesAcik;
                 } catch (e) {
                     console.error('Ayarlar okunamadı:', e);
                 }
             }
+            isMuted = !tvSettings.sesAcik;
         }
 
         function openTVSettings() {
@@ -597,6 +816,8 @@
                 sSelect.onchange = updateKuyruklar;
                 updateKuyruklar();
 
+                document.getElementById('setting-ses-acik').checked = tvSettings.sesAcik;
+                document.getElementById('setting-sesli-duyuru').checked = tvSettings.sesliDuyuru;
             } catch (err) {
                 console.error("Veri yükleme hatası:", err);
             }
@@ -605,12 +826,17 @@
         function saveTVSettings() {
             const sSelect = document.getElementById('servis-filter');
             const kSelect = document.getElementById('kuyruk-filter');
+            const sesAcikEl = document.getElementById('setting-ses-acik');
+            const sesliDuyuruEl = document.getElementById('setting-sesli-duyuru');
 
             tvSettings = {
                 servisIds: Array.from(sSelect.selectedOptions).map(o => parseInt(o.value)),
-                kuyrukIds: Array.from(kSelect.selectedOptions).map(o => parseInt(o.value))
+                kuyrukIds: Array.from(kSelect.selectedOptions).map(o => parseInt(o.value)),
+                sesAcik: sesAcikEl ? sesAcikEl.checked : true,
+                sesliDuyuru: sesliDuyuruEl ? sesliDuyuruEl.checked : true
             };
 
+            isMuted = !tvSettings.sesAcik;
             localStorage.setItem('tv_settings', JSON.stringify(tvSettings));
             alert('✅ Ayarlar kaydedildi!');
             closeTVSettings();
@@ -647,8 +873,14 @@
 
                 const simdi = Date.now();
 
+                // Backend'den gelen çağrıları zaman sırasına göre işle
+                // API genelde en yeni → en eski döndüğü için,
+                // burada ters çevirip en eskiden yeniye doğru unshift ediyoruz
+                // Böylece dizinin başında her zaman EN YENİ çağrı olur.
+                const orderedData = data.slice().reverse();
+
                 // Backend'den gelen yeni çağrıları displayedCalls'a ekle
-                data.forEach(cagri => {
+                orderedData.forEach(cagri => {
                     if (!seenIds[cagri.id]) {
                         seenIds[cagri.id] = simdi;
                         const exists = displayedCalls.find(c => c.id === cagri.id);
@@ -684,18 +916,24 @@
                     if (!isFirstLoad && !isMuted && audioContext) {
                         if (audioContext.state === 'suspended') audioContext.resume();
                         playDingDong();
+                        setTimeout(() => announceSira(latest.numara), 2700);
                     }
                     lastCagriId = latest.id;
                 }
                 isFirstLoad = false;
 
+                const servisLabel = (c) => {
+                    const servis = c.servis_ad || c.servis;
+                    const kuyruk = c.kuyruk_ad || c.kuyruk;
+                    return servis && kuyruk ? `${servis} — ${kuyruk}` : (servis || kuyruk || '—');
+                };
                 const needsAnimation = gecenSure < 5000;
                 spotlightContainer.innerHTML = `
                     <div class="spotlight-item" style="${needsAnimation ? 'animation: heartbeat 1.5s ease-in-out infinite;' : 'animation: none; box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);'}">
                         <div class="spotlight-numara">${latest.numara}</div>
                         <div class="spotlight-detay">
-                            <div class="spotlight-servis">${latest.servis}</div>
-                            ${latest.konum ? `<div class="spotlight-oda">📍 ${latest.konum}</div>` : ''}
+                            <div class="spotlight-servis">${servisLabel(latest)}</div>
+                            ${latest.konum ? `<div class="spotlight-oda"><svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> ${latest.konum}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -723,8 +961,8 @@
                         ">
                             <div class="cagri-numara" style="font-size: ${40 - (i * 4)}px;">${cagri.numara}</div>
                             <div class="cagri-detay">
-                                <div class="cagri-departman" style="font-size: ${20 - (i * 2)}px;">${cagri.servis}</div>
-                                ${cagri.konum ? `<div class="cagri-oda" style="font-size: ${28 - (i * 3)}px;">📍 ${cagri.konum}</div>` : ''}
+                                <div class="cagri-departman" style="font-size: ${20 - (i * 2)}px;">${servisLabel(cagri)}</div>
+                                ${cagri.konum ? `<div class="cagri-oda" style="font-size: ${28 - (i * 3)}px;"><svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> ${cagri.konum}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -836,12 +1074,17 @@
             const latest = sira;
             const needsAnimation = true;
 
+            const servisLabel = (c) => {
+                const servis = c.servis_ad || c.servis;
+                const kuyruk = c.kuyruk_ad || c.kuyruk;
+                return servis && kuyruk ? `${servis} — ${kuyruk}` : (servis || kuyruk || '—');
+            };
             spotlightContainer.innerHTML = `
                 <div class="spotlight-item" style="animation: heartbeat 1.5s ease-in-out infinite;">
                     <div class="spotlight-numara">${latest.numara}</div>
                     <div class="spotlight-detay">
-                        <div class="spotlight-servis">${latest.servis_ad || latest.servis}</div>
-                        ${latest.konum ? `<div class="spotlight-oda">📍 ${latest.konum}</div>` : ''}
+                        <div class="spotlight-servis">${servisLabel(latest)}</div>
+                        ${latest.konum ? `<div class="spotlight-oda"><svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> ${latest.konum}</div>` : ''}
                     </div>
                 </div>
             `;
@@ -870,15 +1113,16 @@
                     ">
                         <div class="cagri-numara" style="font-size: ${40 - (i * 4)}px;">${cagri.numara}</div>
                         <div class="cagri-detay">
-                            <div class="cagri-departman" style="font-size: ${20 - (i * 2)}px;">${cagri.servis_ad || cagri.servis}</div>
-                            ${cagri.konum ? `<div class="cagri-oda" style="font-size: ${28 - (i * 3)}px;">📍 ${cagri.konum}</div>` : ''}
+                            <div class="cagri-departman" style="font-size: ${20 - (i * 2)}px;">${servisLabel(cagri)}</div>
+                            ${cagri.konum ? `<div class="cagri-oda" style="font-size: ${28 - (i * 3)}px;"><svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> ${cagri.konum}</div>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
 
-            // Ses çal
+            // Ses çal, ardından sesli duyuru
             playDingDong();
+            setTimeout(() => announceSira(sira.numara), 2700);
             lastCagriId = sira.id;
         }
 
