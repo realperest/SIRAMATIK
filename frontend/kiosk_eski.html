@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sıra Numarası Al - Sıramatik</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
+    <link rel="stylesheet" href="static/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 10px 20px;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Scroll tamamen engellendi */
+        }
+
+        .header {
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        /* Sağ Üst Geri Dön Butonu */
+        .exit-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(231, 76, 60, 0.9);
+            /* Kırmızı */
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+            /* Başlangıçta gizli */
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            z-index: 1000;
+        }
+
+        .exit-button:hover {
+            background: rgba(192, 57, 43, 1);
+            /* Koyu kırmızı */
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(192, 57, 43, 0.5);
+        }
+
+        .exit-button.show {
+            display: flex;
+            /* Gösterildiğinde flex yap */
+        }
+
+        .exit-button .x-icon {
+            font-size: 24px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .departman-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            flex: 1;
+            /* Mevcut boşluğu doldur */
+            align-content: center;
+            /* Dikeyde ortala */
+            padding: 10px;
+        }
+
+        .departman-card {
+            background: white;
+            color: #667eea;
+            padding: 2vh 20px;
+            /* Ekrana göre padding */
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* Sabit min-height kaldırıldı, içerik sığmak için küçülebilecek */
+            max-height: 40vh;
+            /* Çok büyümesini engelle */
+            overflow: hidden;
+        }
+
+        .departman-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .departman-card h2 {
+            font-size: clamp(18px, 2.5vh, 28px);
+            /* Dinamik font */
+            margin: 10px 0;
+        }
+
+        .departman-card .kod {
+            font-size: clamp(24px, 4vh, 48px);
+            /* Dinamik font */
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        .departman-card .bekleyen {
+            font-size: clamp(12px, 1.5vh, 16px);
+            color: #666;
+            margin-top: 5px;
+        }
+
+        #departman-secimi {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #alt-secenekler-konteynir {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            margin-top: 20px !important;
+            padding: 20px !important;
+            overflow: hidden;
+        }
+
+        #numara-ekrani {
+            display: none;
+            position: fixed;
+            /* Tam ekran kaplayacak */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: fadeInSimple 0.2s ease-in;
+            overflow: hidden;
+        }
+
+        @keyframes fadeInSimple {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .bilet-konteynir {
+            display: grid;
+            grid-template-columns: 450px 320px;
+            /* Sabit genişlikler */
+            gap: 30px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 40px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            align-items: center;
+            width: fit-content;
+        }
+
+        @media (max-width: 992px) {
+            .bilet-konteynir {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #numara-ekrani .numara {
+            font-size: 140px;
+            font-weight: 900;
+            margin: 20px 0;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        .qr-section {
+            background: white;
+            padding: 30px;
+            border-radius: 30px;
+            color: #2c3e50;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .qr-section p {
+            margin: 15px 0 5px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .print-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 25px 40px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+            margin-top: 30px;
+            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
+        }
+
+        .print-btn:hover {
+            transform: scale(1.03);
+            background: #27ae60;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Dijital Fiş Tasarımı */
+        #fis-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .fis-paper {
+            background: white;
+            color: #333;
+            width: 320px;
+            padding: 20px 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            position: relative;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            animation: slideDown 0.5s ease;
+        }
+
+        .fis-paper::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 0;
+            width: 100%;
+            height: 15px;
+            background: linear-gradient(-45deg, white 5px, transparent 0), linear-gradient(45deg, white 5px, transparent 0);
+            background-size: 10px 15px;
+            background-repeat: repeat-x;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .departman-card.active {
+            background: #ffd700;
+            color: #1a1a2e;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px #ffd700;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Sol Alt Ayarlar Butonu */
+        .settings-button {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .settings-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        /* Ayarlar Modal */
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .settings-panel {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 900px;
+            width: 95%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-panel h2 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .settings-panel label {
+            display: block;
+            margin: 15px 0 5px;
+            font-weight: bold;
+        }
+
+        .settings-panel select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .settings-panel button {
+            margin: 10px 5px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #16a34a;
+        }
+
+        .btn-cancel {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #c0392b;
+        }
+
+        .btn-reset {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: #d68910;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sol Alt Ayarlar Butonu -->
+    <button class="settings-button" onclick="openSettings()" title="Kiosk Ayarları">
+        <i class="fas fa-cog"></i>
+    </button>
+
+    <!-- Şifre Sorgulama Modalı -->
+    <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 9999;">
+        <div class="settings-panel" style="max-width: 400px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 20px;"></div>
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
+            <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Ayarlara erişmek için şifreyi giriniz.</p>
+            <input type="password" id="ask-password-input"
+                style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px; font-size: 24px; text-align: center; margin-bottom: 25px; outline: none;"
+                placeholder="****">
+            <div style="display: flex; gap: 10px;">
+                <button id="ask-password-confirm" class="btn-save" style="flex: 2; margin: 0;">GİRİŞ</button>
+                <button id="ask-password-cancel" class="btn-cancel" style="flex: 1; margin: 0;">İPTAL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ayarlar Modal -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-panel">
+            <h2>[DEBUG] Kiosk Ayarları</h2>
+            <p style="color: #666; font-size: 14px;">Bu kiosk'un hangi bölüm ve kuyruklara hizmet vereceğini seçin.</p>
+
+            <label for="servis-filter">Bölümler (Servisler):</label>
+            <select id="servis-filter" multiple size="6" style="height: 150px;">
+                <!-- Dinamik olarak doldurulacak -->
+            </select>
+            <small style="color: #999;">Ctrl/Cmd tuşu ile birden fazla seçim yapabilirsiniz</small>
+
+            <label for="kuyruk-filter" style="margin-top: 20px;">Kuyruklar (Opsiyonel):</label>
+            <select id="kuyruk-filter" multiple size="6" style="height: 150px;">
+                <!-- Dinamik olarak doldurulacak -->
+            </select>
+            <small style="color: #999;">Boş bırakırsanız seçili bölümlerin tüm kuyrukları gösterilir</small>
+
+            <div
+                style="margin-top: 20px; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <label
+                    style="display: flex; align-items: center; cursor: pointer; font-size: 15px; color: #2c3e50; font-weight: 600; margin: 0;">
+                    <input type="checkbox" id="hide-servis-checkbox"
+                        style="width: 22px; height: 22px; margin-right: 12px; cursor: pointer;">
+                    Bölüm Seçimini Atla (Direkt Hizmetleri Göster)
+                </label>
+                <p style="margin: 8px 0 0 34px; font-size: 12px; color: #7f8c8d; line-height: 1.4;">
+                    Aktif edilirse, "Hangi Bölüme Gideceksiniz?" ekranı gösterilmez, seçili bölümlerin tüm hizmetleri
+                    doğrudan listelenir.
+                </p>
+            </div>
+
+            <div style="margin-top: 30px; text-align: center;">
+                <button class="btn-save" onclick="saveSettings()"> Kaydet</button>
+                <button class="btn-reset" onclick="resetSettings()">[SYNC] Sıfırla</button>
+                <button class="btn-cancel" onclick="closeSettings()">[ERR] İptal</button>
+            </div>
+        </div>
+    </div>
+    <!-- Sağ Üst Geri Dön Butonu -->
+    <button class="exit-button" id="exit-btn" onclick="location.reload()" title="Ana sayfaya dön">
+        <span class="x-icon">✕</span>
+        <span>Geri Dön</span>
+    </button>
+
+    <div class="header">
+        <h1 id="hospital-name"> Yükleniyor...</h1>
+        <p id="hospital-subtitle">Sıra Numarası Alma Sistemi</p>
+    </div>
+
+    <!-- Akıllı Takip Uyarısı -->
+    <div
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px 25px; border-radius: 15px; margin: 0 auto 15px; max-width: 900px; box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4); animation: pulse 2s infinite;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+            <div style="font-size: 48px;"></div>
+            <div style="text-align: left;">
+                <div
+                    style="font-size: 24px; font-weight: bold; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    BU CİHAZ AKILLI SIRA TAKİP SİSTEMİ KULLANIR
+                </div>
+                <div style="font-size: 18px; opacity: 0.95;">
+                     Lütfen seçimden önce cep telefonunuzun kamerasını açınız
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+    </style>
+
+    <div id="departman-secimi">
+        <h2 style="font-size: 36px; margin-bottom: 40px;">Hangi Bölüme Gideceksiniz?</h2>
+        <div class="departman-grid" id="departman-listesi"></div>
+    </div>
+
+    <!-- Alt seçenekler alanı -->
+    <div id="alt-secenekler-konteynir"
+        style="display:none; margin-top: 50px; padding: 40px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 2px dashed rgba(255,255,255,0.3);">
+        <h3 id="alt-secenek-baslik" style="font-size: 32px; margin-bottom: 30px; color: #ffd700;">Hizmet Türü
+            Seçiniz</h3>
+        <div id="alt-secenek-listesi" class="departman-grid"></div>
+    </div>
+
+    <div id="fis-modal">
+        <div class="fis-paper">
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;" id="fis-hospital">İRMET HOSPITAL</div>
+            <div style="border-top: 1px dashed #ccc; margin: 8px 0;"></div>
+            <div style="font-size: 12px; margin: 5px 0;">SIRA BİLETİ</div>
+            <div style="font-size: 48px; font-weight: bold; margin: 10px 0;" id="fis-numara">Y004</div>
+            <div style="font-size: 16px; margin-bottom: 8px;" id="fis-kuyruk">YATMA İŞLEMLERİ</div>
+            <div style="border-top: 1px dashed #ccc; margin: 8px 0;"></div>
+            <div id="fis-qrcode"
+                style="margin: 10px auto; display: flex; justify-content: center; align-items: center;"></div>
+            <div style="font-size: 10px; opacity: 0.7; margin-top: 8px;">Sıranızı bu kodu okutarak takip edebilirsiniz.
+            </div>
+            <div style="font-size: 11px; margin-top: 10px; opacity: 0.6;" id="fis-tarih">2026-02-07 18:30</div>
+
+            <button onclick="location.reload()" class="back-btn"
+                style="color: #333; border-color: #333; margin-top: 15px; padding: 10px 20px; font-size: 14px;">
+                ANA SAYFAYA DÖN
+            </button>
+        </div>
+    </div>
+    <div id="numara-ekrani" style="display:none;">
+        <div class="bilet-konteynir">
+            <!-- Sol Panel: Bilet Bilgileri -->
+            <div class="info-section">
+                <h2 style="font-size: 32px; opacity: 0.9;">Sıra Numaranız</h2>
+                <div class="numara" id="numara"></div>
+                <p class="mesaj" id="mesaj" style="font-size: 24px; min-height: 40px;"></p>
+
+                <div class="bekleme-info" id="bekleme-info"
+                    style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; display: inline-block; margin-top: 10px;">
+                </div>
+
+                <button onclick="fisBastir()" class="print-btn">
+                    <i class="fas fa-print"></i>
+                    FİŞ YAZDIR
+                </button>
+            </div>
+
+            <!-- Sağ Panel: QR Kod -->
+            <div class="qr-section" style="width: 320px; flex-shrink: 0;">
+                <div id="qrcode"
+                    style="display: inline-block; padding: 10px; background: white; width: 250px; height: 250px;"></div>
+                <p>Karekod Okut</p>
+                <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">
+                    Sıranızı telefondan canlı takip edin
+                </div>
+                <div id="qr-sayac" style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 20px;">
+                </div>
+
+                <button onclick="location.reload()" class="back-btn">
+                    ANA SAYFAYA DÖN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome ve QR Lib -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="static/app.js"></script>
+    <script>
+        let allQueues = [];
+        let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
+
+        // Kiosk Ayarları Yönetimi
+        let kioskSettings = {
+            servisIds: [],
+            kuyrukIds: [],
+            hideServisSelection: false
+        };
+
+        function loadKioskSettings() {
+            const saved = localStorage.getItem('kiosk_settings');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Eski ayarlarda yeni alan olmayabilir, spread ile güvenli birleştirme yapıyoruz
+                    kioskSettings = { ...kioskSettings, ...parsed };
+                } catch (e) {
+                    console.error('Ayarlar yüklenemedi:', e);
+                }
+            }
+        }
+
+        async function openSettings() {
+            // Modal ile şifre sor
+            const password = await askPasswordModal();
+            if (!password) return;
+
+            try {
+                // Şifreyi doğrula ve hangi firmaya ait olduğunu bul
+                const res = await apiCall('/api/auth/ekran-login', {
+                    method: 'POST',
+                    body: JSON.stringify({ sifre: password })
+                });
+
+                if (res.status === 'authorized') {
+                    // Eğer şifre başka bir firmaya aitse veya ilk defa kuruluyorsa
+                    if (res.firma_id != FIRMA_ID) {
+                        localStorage.setItem('global_firma_id', res.firma_id);
+                        alert(`Cihaz ${res.firma_ad} firmasına bağlandı. Sayfa yenileniyor...`);
+                        location.reload();
+                        return;
+                    }
+
+                    // Şifre doğru ve firma aynıysa ayarları aç
+                    document.getElementById('settings-modal').style.display = 'flex';
+                    loadSettingsData();
+                }
+            } catch (err) {
+                alert('[ERR] Geçersiz müdahale şifresi!');
+            }
+        }
+
+        function askPasswordModal() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('password-ask-modal');
+                const input = document.getElementById('ask-password-input');
+                const confirmBtn = document.getElementById('ask-password-confirm');
+                const cancelBtn = document.getElementById('ask-password-cancel');
+
+                input.value = '';
+                modal.style.display = 'flex';
+                input.focus();
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    input.onkeydown = null;
+                };
+
+                confirmBtn.onclick = () => {
+                    const val = input.value;
+                    cleanup();
+                    resolve(val);
+                };
+
+                cancelBtn.onclick = () => {
+                    cleanup();
+                    resolve(null);
+                };
+
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') confirmBtn.click();
+                    if (e.key === 'Escape') cancelBtn.click();
+                };
+            });
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            const servisSelect = document.getElementById('servis-filter');
+            const kuyrukSelect = document.getElementById('kuyruk-filter');
+
+            const selectedServisIds = Array.from(servisSelect.selectedOptions).map(opt => parseInt(opt.value));
+            const selectedKuyrukIds = Array.from(kuyrukSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+            kioskSettings = {
+                servisIds: selectedServisIds,
+                kuyrukIds: selectedKuyrukIds,
+                hideServisSelection: document.getElementById('hide-servis-checkbox').checked
+            };
+
+            localStorage.setItem('kiosk_settings', JSON.stringify(kioskSettings));
+
+            alert('[OK] Ayarlar kaydedildi! Sayfa yenileniyor...');
+            location.reload();
+        }
+
+        function resetSettings() {
+            if (confirm('[WARN] Tüm kiosk ayarlarını sıfırlamak istediğinizden emin misiniz?')) {
+                localStorage.removeItem('kiosk_settings');
+                alert('[OK] Ayarlar sıfırlandı! Sayfa yenileniyor...');
+                location.reload();
+            }
+        }
+
+        async function loadSettingsData() {
+            try {
+                const [servisler, kuyruklar] = await Promise.all([
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
+                ]);
+
+                // Tüm kuyruğu global'de sakla
+                window.allKuyruklar = kuyruklar;
+
+                // Servis combo'sunu doldur
+                const servisSelect = document.getElementById('servis-filter');
+                servisSelect.innerHTML = servisler.map(s =>
+                    `<option value="${s.id}" ${kioskSettings.servisIds.includes(s.id) ? 'selected' : ''}>${s.kod} - ${s.ad}</option>`
+                ).join('');
+
+                // Servis seçimine göre kuyrukları güncelle
+                servisSelect.addEventListener('change', updateKuyrukList);
+
+                // İlk yüklemede kuyrukları güncelle
+                updateKuyrukList();
+
+                // Checkbox durumunu ayarla
+                const checkbox = document.getElementById('hide-servis-checkbox');
+                if (checkbox) checkbox.checked = kioskSettings.hideServisSelection;
+
+            } catch (error) {
+                console.error('Ayarlar verisi yüklenemedi:', error);
+                alert('[ERR] Veriler yüklenirken hata oluştu!');
+            }
+        }
+
+        function updateKuyrukList() {
+            const servisSelect = document.getElementById('servis-filter');
+            const kuyrukSelect = document.getElementById('kuyruk-filter');
+
+            const selectedServisIds = Array.from(servisSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+            if (selectedServisIds.length === 0) {
+                // Hiçbir bölüm seçilmemişse kuyrukları boşalt
+                kuyrukSelect.innerHTML = '<option disabled>Lütfen önce bölüm seçiniz</option>';
+                return;
+            }
+
+            // Seçili bölümlere ait kuyrukları filtrele
+            const filteredKuyruklar = window.allKuyruklar.filter(k => selectedServisIds.includes(k.servis_id));
+
+            kuyrukSelect.innerHTML = filteredKuyruklar.map(k =>
+                `<option value="${k.id}" ${kioskSettings.kuyrukIds.includes(k.id) ? 'selected' : ''}>${k.kod} - ${k.ad}</option>`
+            ).join('');
+        }
+
+        function applyFilters(servisler, kuyruklar) {
+            // Eğer hiçbir filtre yoksa tümünü döndür
+            if (kioskSettings.servisIds.length === 0 && kioskSettings.kuyrukIds.length === 0) {
+                console.log('[OK] Filtre yok, tüm veriler gösteriliyor');
+                return { servisler, kuyruklar };
+            }
+
+            let filteredServisler = servisler;
+            let filteredKuyruklar = kuyruklar;
+
+            // Servis filtresi varsa uygula
+            if (kioskSettings.servisIds.length > 0) {
+                filteredServisler = servisler.filter(s => kioskSettings.servisIds.includes(s.id));
+                filteredKuyruklar = kuyruklar.filter(k => kioskSettings.servisIds.includes(k.servis_id));
+            }
+
+            // Kuyruk filtresi varsa uygula
+            if (kioskSettings.kuyrukIds.length > 0) {
+                filteredKuyruklar = filteredKuyruklar.filter(k => kioskSettings.kuyrukIds.includes(k.id));
+            }
+
+            console.log(`[SEARCH] Filtre uygulandı: ${filteredServisler.length} servis, ${filteredKuyruklar.length} kuyruk`);
+            return { servisler: filteredServisler, kuyruklar: filteredKuyruklar };
+        }
+
+        // Sayfa yüklendiğinde ayarları yükle
+        loadKioskSettings();
+
+        // Firma bilgilerini yükle
+        // Browser Fingerprint Oluştur
+        async function generateFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(125, 1, 62, 20);
+            ctx.fillStyle = '#069';
+            ctx.fillText('SIRAMATIK', 2, 15);
+            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+            ctx.fillText('DEVICE', 4, 17);
+            
+            const canvasData = canvas.toDataURL();
+            
+            const components = [
+                canvasData,
+                navigator.userAgent,
+                navigator.language,
+                screen.colorDepth,
+                screen.width + 'x' + screen.height,
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency || 0,
+                navigator.deviceMemory || 0
+            ].join('|||');
+            
+            // Simple hash
+            let hash = 0;
+            for (let i = 0; i < components.length; i++) {
+                const char = components.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            return 'fp_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+        }
+
+        // Browser bilgisini tespit et
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Edg')) return 'Edge';
+            if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome';
+            if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+            if (ua.includes('Firefox')) return 'Firefox';
+            if (ua.includes('Opera') || ua.includes('OPR')) return 'Opera';
+            return 'Unknown';
+        }
+
+        // Cihaz heartbeat
+        async function bildirCihaz() {
+            try {
+                // Fingerprint al veya oluştur
+                let fingerprint = localStorage.getItem('kiosk_device_fingerprint');
+                if (!fingerprint) {
+                    fingerprint = await generateFingerprint();
+                    localStorage.setItem('kiosk_device_fingerprint', fingerprint);
+                }
+
+                const deviceInfo = {
+                    firma_id: parseInt(FIRMA_ID),
+                    ad: 'KIOSK-' + fingerprint.substring(3, 10),
+                    tip: 'kiosk',
+                    device_fingerprint: fingerprint,
+                    mac_address: null,
+                    ip: null,
+                    ayarlar: kioskSettings,
+                    metadata: {
+                        browser: detectBrowser(),
+                        browser_version: navigator.userAgent,
+                        screen_resolution: `${screen.width}x${screen.height}`,
+                        platform: navigator.platform,
+                        servis_ids: kioskSettings.servisIds,
+                        kuyruk_ids: kioskSettings.kuyrukIds
+                    }
+                };
+
+                await apiCall('/api/cihaz/kayit', {
+                    method: 'POST',
+                    body: JSON.stringify(deviceInfo)
+                });
+            } catch (err) { 
+                console.error("Heartbeat error", err);
+                // Eğer cihaz bulunamadı/404 hatası ise fingerprint'i yenilemeyi dene (opsiyonel)
+                // Normal kiosk'ta "bildir" (upsert) mantığı kullanıldığı için 404 dönmez, yeni kayıt açar.
+                // O yüzden buraya dokunmaya gerek yok.
+            }
+        }
+
+        async function initFirma() {
+            try {
+                // Heartbeat (en fazla 10 saniyede bir)
+                bildirCihaz();
+                setInterval(bildirCihaz, 10000);
+
+                console.log("Firma bilgileri yükleniyor...");
+                const firma = await apiCall(`/api/firma/${FIRMA_ID}`);
+                if (firma && firma.ad) {
+                    const el = document.getElementById('hospital-name');
+                    if (el) el.textContent = firma.ad;
+                    document.title = firma.ad + " - Sıra Al";
+                }
+            } catch (err) {
+                console.error("Firma bilgisi hatası:", err);
+            }
+        }
+
+        // Tüm verileri yükle
+        async function verileriYukle(silent = false) {
+            console.log("Servis ve kuyruk verileri yükleniyor...");
+            try {
+                if (!silent) showLoading(true);
+                const [servisler, kuyruklar] = await Promise.all([
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
+                ]);
+
+                console.log("Gelen Servisler:", servisler.length);
+                console.log("Gelen Kuyruklar:", kuyruklar.length);
+
+                // Kiosk ayarlarına göre filtrele
+                const filtered = applyFilters(servisler || [], kuyruklar || []);
+                allQueues = filtered.kuyruklar;
+                renderServisler(filtered.servisler);
+
+                if (!silent) showLoading(false);
+            } catch (error) {
+                console.error("Veri yükleme hatası:", error);
+                if (!silent) showLoading(false);
+                showToast('Veriler yüklenemedi: ' + error.message, 'error');
+            }
+        }
+
+        function renderServisler(servisler) {
+            const list = document.getElementById('departman-listesi');
+            const subContainer = document.getElementById('alt-secenekler-konteynir');
+            const exitBtn = document.getElementById('exit-btn');
+            const mainHeader = document.getElementById('departman-secimi');
+            const numEkrani = document.getElementById('numara-ekrani');
+
+            if (!list) return;
+
+            // Bilet ekranı AÇIKSA (display flex ise), arka plan güncellemelerinin onu kapatmasını engelle
+            if (numEkrani && numEkrani.style.display === 'flex') {
+                console.log("Bilet ekranı açık, arka plan güncellemesi bilet ekranını kapatmayacak.");
+                // Sadece verileri güncellemek için devam et ama ekranı bozma
+            } else if (numEkrani) {
+                numEkrani.style.display = 'none';
+            }
+
+            // Bölüm seçimini atlama ayarı aktifse
+            if (kioskSettings.hideServisSelection && allQueues.length > 0) {
+                if (mainHeader) mainHeader.style.display = 'none';
+                renderKuyruklar(allQueues, "Hizmet Türü Seçiniz");
+                return;
+            } else {
+                if (mainHeader) mainHeader.style.display = 'flex';
+            }
+
+            // Alt alanı gizle ve geri dön butonunu gizle (ana ekrandayız)
+            if (subContainer) subContainer.style.display = 'none';
+            if (exitBtn) exitBtn.classList.remove('show');
+
+            if (servisler.length === 0) {
+                list.innerHTML = `<p style="grid-column:1/-1; font-size:24px; opacity:0.7;">Tanımlı servis bulunamadı.</p>`;
+                return;
+            }
+
+            // Eleman sayısına göre grid yapısını kolon sayısına zorla
+            const columnCount = Math.min(servisler.length, 4);
+            list.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`;
+
+            list.innerHTML = servisler.map(s => `
+                <div class="departman-card fade-in" id="servis-card-${s.id}" onclick="servisSecildi(${s.id}, '${s.ad}')" style="flex: 1;">
+                    <div class="kod">${s.kod}</div>
+                    <h2>${s.ad}</h2>
+                    <div class="bekleyen">${s.kuyruk_sayisi > 0 ? ` ${s.kuyruk_sayisi} Seçenek` : (s.id === 2 ? ' 1 Sıra' : 'Sıra Al')}</div>
+                </div>
+            `).join('');
+        }
+
+        function servisSecildi(servisId, servisAd) {
+            console.log("Servis seçildi:", servisAd, servisId);
+
+            document.querySelectorAll('.departman-card').forEach(el => el.classList.remove('active'));
+            const selectedIcon = document.getElementById(`servis-card-${servisId}`);
+            if (selectedIcon) selectedIcon.classList.add('active');
+
+            const uygunKuyruklar = allQueues.filter(k => k.servis_id === servisId);
+
+            if (uygunKuyruklar.length <= 1) {
+                const subContainer = document.getElementById('alt-secenekler-konteynir');
+                if (subContainer) subContainer.style.display = 'none';
+
+                const kuyrukId = uygunKuyruklar.length === 1 ? uygunKuyruklar[0].id : null;
+                if (kuyrukId) siraAl(kuyrukId, servisId);
+                else showToast("Bu servise bağlı kuyruk bulunamadı!", "error");
+            } else {
+                renderKuyruklar(uygunKuyruklar, servisAd);
+            }
+        }
+
+        function renderKuyruklar(kuyruklar, servisAd) {
+            const subContainer = document.getElementById('alt-secenekler-konteynir');
+            const subList = document.getElementById('alt-secenek-listesi');
+            const subTitle = document.getElementById('alt-secenek-baslik');
+            const exitBtn = document.getElementById('exit-btn');
+
+            subTitle.textContent = servisAd;
+            subContainer.style.display = 'flex';
+            // Eğer bölüm seçimi gizliyse "Geri Dön" butonunu gösterme (çünkü dönecek yer yok)
+            if (exitBtn) {
+                if (kioskSettings.hideServisSelection) exitBtn.classList.remove('show');
+                else exitBtn.classList.add('show');
+            }
+
+            // Eleman sayısına göre grid yapısını kolon sayısına zorla
+            const columnCount = Math.min(kuyruklar.length, 3);
+            subList.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`;
+
+            subList.innerHTML = kuyruklar.map(k => `
+                <div class="departman-card fade-in" onclick="siraAl(${k.id}, ${k.servis_id})" style="border-bottom: 8px solid #f0932b; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;">
+                    <div class="kod" style="font-size: clamp(24px, 4vh, 48px);">${k.kod}</div>
+                    <h2 style="font-size: clamp(18px, 2.5vh, 28px);">${k.ad}</h2>
+                </div>
+            `).join('');
+
+            // scrollIntoView kaldırıldı (scroll olmamalı)
+        }
+
+        let lastSiraResponse = null;
+
+        async function siraAl(kuyrukId, servisId) {
+            console.log("Sıra alınıyor: Kuyruk", kuyrukId);
+            try {
+                showLoading(true);
+                const response = await apiCall('/api/sira/al', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kuyruk_id: kuyrukId,
+                        servis_id: servisId,
+                        firma_id: FIRMA_ID,
+                        oncelik: 0
+                    })
+                });
+
+                lastSiraResponse = response;
+                lastSiraResponse.servis_id = servisId;
+                lastSiraResponse.kuyruk_id = kuyrukId;
+
+                const numaraEl = document.getElementById('numara');
+                if (numaraEl) numaraEl.textContent = response.numara;
+                const mesajEl = document.getElementById('mesaj');
+                if (mesajEl) mesajEl.textContent = response.mesaj || (response.numara + " numaralı sıranız alındı.");
+                const beklemeInfoEl = document.getElementById('bekleme-info');
+                if (beklemeInfoEl) beklemeInfoEl.textContent = `Sıranızdan önce ${Math.max(0, response.bekleyen_sayisi - 1)} kişi var.`;
+
+                const depSecimi = document.getElementById('departman-secimi');
+                const numEkrani = document.getElementById('numara-ekrani');
+                const exitBtn = document.getElementById('exit-btn');
+
+                if (depSecimi) depSecimi.style.display = 'none';
+                if (numEkrani) {
+                    numEkrani.style.display = 'flex'; // Overlay olduğu için flex yap
+                }
+                if (exitBtn) exitBtn.classList.add('show');
+
+                // Gecikmeyi kaldırdık, anında gösteriyoruz
+                karekodGoster();
+
+            } catch (error) {
+                console.error("Sıra alma hatası:", error);
+                showLoading(false);
+                showToast('Hata: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        let reloadTimer = null;
+
+        function fisBastir() {
+            if (!lastSiraResponse) return;
+
+            showToast("Fişiniz yazdırılıyor...", "success");
+
+            const hospEl = document.getElementById('hospital-name');
+            document.getElementById('fis-hospital').textContent = hospEl ? hospEl.textContent : "İRMET HOSPITAL";
+            document.getElementById('fis-numara').textContent = lastSiraResponse.numara;
+            document.getElementById('fis-kuyruk').textContent = lastSiraResponse.kuyruk_ad;
+            document.getElementById('fis-tarih').textContent = new Date().toLocaleString('tr-TR');
+
+            const fisQrContainer = document.getElementById('fis-qrcode');
+            fisQrContainer.innerHTML = '';
+            const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}&sira_id=${lastSiraResponse.sira_id}`;
+
+            new QRCode(fisQrContainer, {
+                text: biletUrl,
+                width: 120,
+                height: 120,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            document.getElementById('fis-modal').style.display = 'flex';
+
+            if (reloadTimer) clearInterval(reloadTimer);
+            setTimeout(() => {
+                location.reload();
+            }, 10000);
+        }
+
+        let kioskConfig = { host_ip: 'localhost', port: 3000 };
+
+        async function initConfig() {
+            try {
+                const config = await apiCall('/api/kiosk-config');
+                kioskConfig = config;
+                console.log("Kiosk Yapılandırması:", kioskConfig);
+            } catch (err) {
+                console.error("Config yüklenemedi:", err);
+            }
+        }
+
+        async function karekodGoster() {
+            if (!lastSiraResponse) return;
+
+            try {
+                const qrContainer = document.getElementById('qrcode');
+                if (!qrContainer) return;
+
+                // "Hazırlanıyor" yazısını kaldırdık ki boyut zıplaması olmasın
+
+                const n = lastSiraResponse.numara || '---';
+                const k = lastSiraResponse.kuyruk_ad || 'Sıra';
+                const b = Math.max(0, (lastSiraResponse.bekleyen_sayisi || 1) - 1);
+                const hEl = document.getElementById('hospital-name');
+                const h = hEl ? hEl.textContent.trim() : "İRMET HOSPITAL";
+                const kid = lastSiraResponse.kuyruk_id || 0;
+
+                const safeN = encodeURIComponent(n);
+                const safeH = encodeURIComponent(h);
+                const safeK = encodeURIComponent(k);
+
+                const sid = lastSiraResponse.sira_id || 0;
+                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${safeN}&kuyruk=${safeK}&bekleyen=${b}&firma=${safeH}&kuyruk_id=${kid}&sira_id=${sid}`;
+
+                console.log("QR Kod Telefon Linki:", biletUrl);
+
+                qrContainer.innerHTML = '';
+
+                if (typeof QRCode === 'undefined') {
+                    qrContainer.innerHTML = '<div style="color:red; font-size:12px;">Kütüphane Hatası!</div>';
+                    return;
+                }
+
+                new QRCode(qrContainer, {
+                    text: biletUrl,
+                    width: 250,
+                    height: 250,
+                    colorDark: "#2c3e50",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                let saniye = 15;
+                const sayacEl = document.getElementById('qr-sayac');
+                if (sayacEl) sayacEl.textContent = `${saniye} sn içinde kapanacak`;
+
+                if (reloadTimer) clearInterval(reloadTimer);
+                reloadTimer = setInterval(() => {
+                    saniye--;
+                    if (sayacEl) sayacEl.textContent = `${saniye} sn içinde kapanacak`;
+                    if (saniye <= 0) {
+                        clearInterval(reloadTimer);
+                        location.reload();
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error("QR oluşturma hatası:", err);
+                const qrContainer = document.getElementById('qrcode');
+                if (qrContainer) qrContainer.innerHTML = '<div style="color:red; font-size:12px;">QR Oluşturulamadı</div>';
+            }
+        }
+
+        // Başlat
+        async function baslat() {
+            // Başlangaçta tüm verileri TEK BİR PAKET (init) olarak çekerek hızı maksimuma çıkarıyoruz
+            try {
+                showLoading(true);
+                const initData = await apiCall(`/api/kiosk/init/${FIRMA_ID}`);
+
+                // 1. Firma Bilgileri
+                if (initData.firma && initData.firma.ad) {
+                    const el = document.getElementById('hospital-name');
+                    if (el) el.textContent = initData.firma.ad;
+                    document.title = initData.firma.ad + " - Sıra Al";
+                }
+
+                // 2. Config IP/Port
+                kioskConfig = initData.config || kioskConfig;
+
+                // 3. Servis ve Kuyruklar (Filtreleri uygula ve render et)
+                const filtered = applyFilters(initData.servisler || [], initData.kuyruklar || []);
+                allQueues = filtered.kuyruklar;
+                renderServisler(filtered.servisler);
+
+                // 4. Heartbeat Başlat (en fazla 10 saniyede bir)
+                bildirCihaz();
+                setInterval(bildirCihaz, 10000);
+
+            } catch (err) {
+                console.error("Kiosk başlatma hatası:", err);
+                // Eğer init patlarsa eski yöntemle tek tek denemesi için (fallback)
+                await initFirma();
+                await initConfig();
+                await verileriYukle(true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        baslat();
+        // WebSocket Dinleyici
+        initWebSocket((data) => {
+            if (['new_ticket', 'call_ticket', 'complete_ticket', 'delete_ticket'].includes(data.type)) {
+                // Sessiz güncelleme (loader göstermeden)
+                verileriYukle(true);
+            }
+        });
+
+
+    </script>
+</body>
+
+</html>
