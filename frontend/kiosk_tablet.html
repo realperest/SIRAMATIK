@@ -370,13 +370,45 @@
         .settings-panel {
             background: white;
             color: #333;
-            padding: 30px;
+            padding: 40px;
             border-radius: 20px;
-            max-width: 900px;
+            max-width: 1200px;
             width: 95%;
-            max-height: 80vh;
+            max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .settings-section {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .settings-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        .settings-section-full {
+            grid-column: 1 / -1;
         }
 
         .settings-panel h2 {
@@ -468,45 +500,45 @@
     <!-- Ayarlar / İlk Kurulum Modal -->
     <div class="settings-modal" id="settings-modal">
         <div class="settings-panel">
-            <h2>[DEBUG] Kiosk Ayarları</h2>
-            <p style="color: #666; font-size: 14px;">Bu kiosk'un hangi bölüm ve kuyruklara hizmet vereceğini seçin.</p>
+            <h2 style="margin-bottom: 10px; color: #667eea;">Kiosk Ayarları</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Bu kiosk'un hangi bölüm ve kuyruklara hizmet vereceğini seçin.</p>
 
-            <!-- CİHAZ BİLGİLERİ -->
-            <div style="margin-top: 10px; margin-bottom: 20px; padding: 15px; border-radius: 12px; background:#f8fafc; border:1px solid #e2e8f0;">
-                <h3 style="margin-top:0; margin-bottom:10px; font-size:16px; color:#1e293b;">Cihaz Bilgileri</h3>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="device-name-input" style="display:block; margin-bottom:6px; font-size:14px; color:#475569;">Tablet Adı</label>
-                    <input id="device-name-input" type="text" class="admin-input"
-                        style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;"
-                        placeholder="Örn: LABORATUVAR GİRİŞ TABLETİ">
+            <div class="settings-grid">
+                <!-- CİHAZ BİLGİLERİ -->
+                <div class="settings-section">
+                    <h3>Cihaz Bilgileri</h3>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label for="device-name-input" style="display:block; margin-bottom:6px; font-size:14px; color:#475569; font-weight:500;">Tablet Adı</label>
+                        <input id="device-name-input" type="text" class="admin-input"
+                            style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;"
+                            placeholder="Örn: LABORATUVAR GİRİŞ TABLETİ">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="device-fingerprint-display" style="display:block; margin-bottom:6px; font-size:14px; color:#475569; font-weight:500;">Tablet Kodu (Parmak İzi)</label>
+                        <input id="device-fingerprint-display" type="text"
+                            style="width:100%; padding:8px 10px; border-radius:8px; border:1px dashed #cbd5e1; font-size:12px; font-family:monospace; background:#f1f5f9; color:#64748b;"
+                            readonly>
+                        <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
+                            Bu kod veritabanında cihazı benzersiz tanımlamak için kullanılır. Otomatik oluşturulur ve değiştirilemez.
+                        </small>
+                    </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label for="device-fingerprint-display" style="display:block; margin-bottom:6px; font-size:14px; color:#475569;">Tablet Kodu (Parmak İzi)</label>
-                    <input id="device-fingerprint-display" type="text"
-                        style="width:100%; padding:6px 10px; border-radius:8px; border:1px dashed #cbd5e1; font-size:12px; font-family:monospace; background:#f1f5f9;"
-                        readonly>
-                    <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
-                        Bu kod veritabanında cihazı benzersiz tanımlamak için kullanılır. Otomatik oluşturulur ve değiştirilemez.
-                    </small>
-                </div>
-            </div>
 
-            <!-- EKRAN AYARLARI -->
-            <div style="margin-bottom: 20px; padding: 15px; border-radius: 12px; background:#f1f5f9; border:1px solid #e2e8f0;">
-                <h3 style="margin-top:0; margin-bottom:10px; font-size:16px; color:#1e293b;">Ekran Ayarları</h3>
-                <div style="display:flex; flex-wrap:wrap; gap:15px;">
-                    <div style="flex:1 1 160px; min-width:150px;">
-                        <label for="fullscreen-checkbox" style="display:flex; align-items:center; gap:8px; font-size:14px; color:#475569; cursor:pointer;">
+                <!-- EKRAN AYARLARI -->
+                <div class="settings-section">
+                    <h3>Ekran Ayarları</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label for="fullscreen-checkbox" style="display:flex; align-items:center; gap:8px; font-size:14px; color:#475569; cursor:pointer; font-weight:500;">
                             <input type="checkbox" id="fullscreen-checkbox" style="width:18px; height:18px;">
                             Tam ekran çalışsın
                         </label>
-                        <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
+                        <small style="display:block; margin-top:4px; margin-left:26px; font-size:11px; color:#64748b;">
                             Aktifse sayfa açıldığında mümkün olduğunda tam ekrana geçmeye çalışır.
                         </small>
                     </div>
-                    <div style="flex:1 1 160px; min-width:150px;">
-                        <label for="orientation-select" style="display:block; margin-bottom:6px; font-size:14px; color:#475569;">Ekran Yönü</label>
-                        <select id="orientation-select" class="admin-input" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;">
+                    <div>
+                        <label for="orientation-select" style="display:block; margin-bottom:6px; font-size:14px; color:#475569; font-weight:500;">Ekran Yönü</label>
+                        <select id="orientation-select" class="admin-input" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;">
                             <option value="auto">Otomatik (Cihazın yönüne göre)</option>
                             <option value="portrait">Dikey odaklı</option>
                             <option value="landscape">Yatay odaklı</option>
@@ -516,39 +548,64 @@
                         </small>
                     </div>
                 </div>
+
+                <!-- BÖLÜM SEÇİMİ -->
+                <div class="settings-section">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 style="margin:0;">Bölümler (Servisler)</h3>
+                        <button onclick="clearServisSelection()" style="background:#6b7280; color:white; padding:6px 12px; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:500;">
+                            <i class="fas fa-times"></i> Temizle
+                        </button>
+                    </div>
+                    <select id="servis-filter" multiple size="8" style="width:100%; padding:8px; border:2px solid #cbd5e1; border-radius:8px; font-size:14px; height:180px;">
+                        <!-- Dinamik olarak doldurulacak -->
+                    </select>
+                    <small style="display:block; margin-top:6px; font-size:11px; color:#64748b;">
+                        Ctrl/Cmd tuşu ile birden fazla seçim yapabilirsiniz
+                    </small>
+                </div>
+
+                <!-- KUYRUK SEÇİMİ -->
+                <div class="settings-section">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 style="margin:0;">Kuyruklar (Opsiyonel)</h3>
+                        <button onclick="clearKuyrukSelection()" style="background:#6b7280; color:white; padding:6px 12px; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:500;">
+                            <i class="fas fa-times"></i> Temizle
+                        </button>
+                    </div>
+                    <select id="kuyruk-filter" multiple size="8" style="width:100%; padding:8px; border:2px solid #cbd5e1; border-radius:8px; font-size:14px; height:180px;">
+                        <!-- Dinamik olarak doldurulacak -->
+                    </select>
+                    <small style="display:block; margin-top:6px; font-size:11px; color:#64748b;">
+                        Boş bırakırsanız seçili bölümlerin tüm kuyrukları gösterilir
+                    </small>
+                </div>
+
+                <!-- BÖLÜM SEÇİMİNİ ATLA -->
+                <div class="settings-section settings-section-full">
+                    <label
+                        style="display: flex; align-items: center; cursor: pointer; font-size: 15px; color: #2c3e50; font-weight: 600; margin: 0;">
+                        <input type="checkbox" id="hide-servis-checkbox"
+                            style="width: 22px; height: 22px; margin-right: 12px; cursor: pointer;">
+                        Bölüm Seçimini Atla (Direkt Hizmetleri Göster)
+                    </label>
+                    <p style="margin: 8px 0 0 34px; font-size: 12px; color: #64748b; line-height: 1.4;">
+                        Aktif edilirse, "Hangi Bölüme Gideceksiniz?" ekranı gösterilmez, seçili bölümlerin tüm hizmetleri
+                        doğrudan listelenir.
+                    </p>
+                </div>
             </div>
 
-            <!-- BÖLÜM / KUYRUK SEÇİMİ -->
-            <label for="servis-filter">Bölümler (Servisler):</label>
-            <select id="servis-filter" multiple size="6" style="height: 150px;">
-                <!-- Dinamik olarak doldurulacak -->
-            </select>
-            <small style="color: #999;">Ctrl/Cmd tuşu ile birden fazla seçim yapabilirsiniz</small>
-
-            <label for="kuyruk-filter" style="margin-top: 20px;">Kuyruklar (Opsiyonel):</label>
-            <select id="kuyruk-filter" multiple size="6" style="height: 150px;">
-                <!-- Dinamik olarak doldurulacak -->
-            </select>
-            <small style="color: #999;">Boş bırakırsanız seçili bölümlerin tüm kuyrukları gösterilir</small>
-
-            <div
-                style="margin-top: 20px; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                <label
-                    style="display: flex; align-items: center; cursor: pointer; font-size: 15px; color: #2c3e50; font-weight: 600; margin: 0;">
-                    <input type="checkbox" id="hide-servis-checkbox"
-                        style="width: 22px; height: 22px; margin-right: 12px; cursor: pointer;">
-                    Bölüm Seçimini Atla (Direkt Hizmetleri Göster)
-                </label>
-                <p style="margin: 8px 0 0 34px; font-size: 12px; color: #7f8c8d; line-height: 1.4;">
-                    Aktif edilirse, "Hangi Bölüme Gideceksiniz?" ekranı gösterilmez, seçili bölümlerin tüm hizmetleri
-                    doğrudan listelenir.
-                </p>
-            </div>
-
-            <div style="margin-top: 30px; text-align: center;">
-                <button class="btn-save" onclick="saveSettings()"> Kaydet</button>
-                <button class="btn-reset" onclick="resetSettings()">KIOSK SIFIRLA</button>
-                <button class="btn-cancel" onclick="closeSettings()">[ERR] İptal</button>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn-save" onclick="saveSettings()" style="min-width:120px;">
+                    <i class="fas fa-save"></i> Kaydet
+                </button>
+                <button class="btn-reset" onclick="resetSettings()" style="min-width:140px;">
+                    <i class="fas fa-power-off"></i> KIOSK SIFIRLA
+                </button>
+                <button class="btn-cancel" onclick="closeSettings()" style="min-width:120px;">
+                    <i class="fas fa-times"></i> İptal
+                </button>
             </div>
         </div>
     </div>
@@ -1100,6 +1157,19 @@
 
         function closeSettings() {
             document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function clearServisSelection() {
+            const servisSelect = document.getElementById('servis-filter');
+            Array.from(servisSelect.options).forEach(opt => opt.selected = false);
+            // Kuyrukları da temizle çünkü bölüm seçimi yoksa kuyruk seçimi anlamsız
+            const kuyrukSelect = document.getElementById('kuyruk-filter');
+            Array.from(kuyrukSelect.options).forEach(opt => opt.selected = false);
+        }
+
+        function clearKuyrukSelection() {
+            const kuyrukSelect = document.getElementById('kuyruk-filter');
+            Array.from(kuyrukSelect.options).forEach(opt => opt.selected = false);
         }
 
         async function saveSettings() {

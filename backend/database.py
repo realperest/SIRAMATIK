@@ -1716,12 +1716,28 @@ class Database:
         with Session(self.engine) as session:
             try:
                 local_now = self.get_local_now()
+                # Ayarlar içinden özet bölüm/kuyruk bilgisini çek (ilk seçilenler)
+                servis_id = None
+                kuyruk_id = None
+                try:
+                    if isinstance(ayarlar, dict):
+                        servis_list = ayarlar.get("servisIds") or ayarlar.get("servis_ids")
+                        kuyruk_list = ayarlar.get("kuyrukIds") or ayarlar.get("kuyruk_ids")
+                        if isinstance(servis_list, list) and len(servis_list) > 0:
+                            servis_id = int(servis_list[0])
+                        if isinstance(kuyruk_list, list) and len(kuyruk_list) > 0:
+                            kuyruk_id = int(kuyruk_list[0])
+                except Exception:
+                    # Sessizce geç, sadece özet kolonlar için
+                    pass
                 # setup_tamamlandi sadece explicit gelirse güncelle
                 if setup_completed is None:
                     query = text(f"""
                         UPDATE siramatik.cihazlar
                         SET ayarlar = :ayarlar,
                             ad = COALESCE(:device_name, ad),
+                            servis_id = COALESCE(:servis_id, servis_id),
+                            kuyruk_id = COALESCE(:kuyruk_id, kuyruk_id),
                             guncelleme = {local_now}
                         WHERE id = :device_id
                         RETURNING id
@@ -1729,13 +1745,17 @@ class Database:
                     params = {
                         "device_id": device_id,
                         "ayarlar": json.dumps(ayarlar),
-                        "device_name": device_name
+                        "device_name": device_name,
+                        "servis_id": servis_id,
+                        "kuyruk_id": kuyruk_id,
                     }
                 else:
                     query = text(f"""
                         UPDATE siramatik.cihazlar
                         SET ayarlar = :ayarlar,
                             ad = COALESCE(:device_name, ad),
+                            servis_id = COALESCE(:servis_id, servis_id),
+                            kuyruk_id = COALESCE(:kuyruk_id, kuyruk_id),
                             setup_tamamlandi = :setup_tamamlandi,
                             guncelleme = {local_now}
                         WHERE id = :device_id
@@ -1745,6 +1765,8 @@ class Database:
                         "device_id": device_id,
                         "ayarlar": json.dumps(ayarlar),
                         "device_name": device_name,
+                        "servis_id": servis_id,
+                        "kuyruk_id": kuyruk_id,
                         "setup_tamamlandi": setup_completed
                     }
 

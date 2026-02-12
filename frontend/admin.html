@@ -511,6 +511,115 @@
                 transform: scale(1.05);
             }
         }
+        
+        /* Cihaz listesi butonları ve filtre comboları */
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.6);
+            background: rgba(15,23,42,0.85);
+            color: #e5e7eb;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-icon i {
+            font-size: 12px;
+        }
+
+        .btn-icon:hover {
+            border-color: var(--accent-primary);
+            background: rgba(79,70,229,0.18);
+            color: #ffffff;
+            box-shadow: 0 0 0 1px rgba(79,70,229,0.5);
+        }
+
+        .btn-icon.danger {
+            border-color: rgba(248,113,113,0.8);
+            color: #fecaca;
+        }
+
+        .btn-icon.danger:hover {
+            background: rgba(239,68,68,0.18);
+            box-shadow: 0 0 0 1px rgba(239,68,68,0.6);
+        }
+
+        .th-with-filter {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            white-space: normal;
+        }
+
+        .th-with-filter span {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.1;
+        }
+
+        thead select {
+            background: rgba(15,23,42,0.9);
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.4);
+            color: #e5e7eb;
+            padding: 3px 8px;
+            font-size: 10px;
+            max-width: 120px;
+        }
+
+        thead select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 1px rgba(79,70,229,0.5);
+        }
+
+        .setup-checkbox {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid #4b5563;
+            background: transparent;
+            cursor: default;
+            position: relative;
+        }
+
+        .setup-checkbox:checked {
+            border-color: #22c55e;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+
+        .setup-checkbox:checked::after {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -58%);
+            font-size: 12px;
+            color: #022c22;
+            font-weight: 700;
+        }
+
+        .th-small {
+            font-size: 11px;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+
+        /* Cihaz listesi başlık satırı için farklı arka plan */
+        .table thead tr:first-child {
+            background: linear-gradient(90deg, rgba(30,64,175,0.28), rgba(79,70,229,0.22));
+        }
+
+        .table thead th {
+            border-bottom-color: rgba(148,163,184,0.25);
+        }
     </style>
 </head>
 
@@ -686,25 +795,21 @@
 
         <!-- CİHAZLAR VIEW -->
         <div id="view-cihazlar" style="display: none;">
-            <h2 style="margin-bottom: 20px;">
-                <i class="fas fa-tablet-alt"></i> Cihaz Yönetimi
-            </h2>
-
             <!-- Cihaz İstatistikleri -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
-                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="stat-card" style="background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);">
                     <h3 id="stat-toplam-cihaz">0</h3>
                     <p>Toplam Cihaz</p>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);">
+                <div class="stat-card" style="background: linear-gradient(135deg, #065f46 0%, #047857 100%);">
                     <h3 id="stat-online-cihaz">0</h3>
                     <p>Online</p>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stat-card" style="background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);">
                     <h3 id="stat-offline-cihaz">0</h3>
                     <p>Offline</p>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                <div class="stat-card" style="background: linear-gradient(135deg, #92400e 0%, #b45309 100%);">
                     <h3 id="stat-tablet-cihaz">0</h3>
                     <p>Tablet</p>
                 </div>
@@ -718,46 +823,48 @@
                             <th>Durum</th>
                             <th>Ad</th>
                             <th>Tip</th>
-                            <th>Bölüm</th>
-                            <th>Kuyruk</th>
+                            <th>
+                                <div class="th-with-filter">
+                                    <span>Bölüm</span>
+                                    <select id="filter-servis">
+                                        <option value="">Tüm Bölümler</option>
+                                    </select>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-with-filter">
+                                    <span>Kuyruk</span>
+                                    <select id="filter-kuyruk">
+                                        <option value="">Tüm Kuyruklar</option>
+                                    </select>
+                                </div>
+                            </th>
                             <th>IP Adresi</th>
-                            <th>Tarayıcı</th>
+                            <th>
+                                <div class="th-with-filter">
+                                    <span>Tarayıcı</span>
+                                    <select id="filter-browser">
+                                        <option value="">Tüm Tarayıcılar</option>
+                                    </select>
+                                </div>
+                            </th>
                             <th>Parmak İzi</th>
-                            <th>Son Görülme</th>
-                            <th>Setup</th>
+                            <th class="th-small">
+                                <span>Son</span><br/>
+                                <span>Görülme</span>
+                            </th>
+                            <th>
+                                <div class="th-with-filter">
+                                    <span>Setup</span>
+                                    <select id="filter-setup">
+                                        <option value="">Tümü</option>
+                                        <option value="done">Tamamlandı</option>
+                                        <option value="not_done">Yapılmadı</option>
+                                    </select>
+                                </div>
+                            </th>
                             <th>Ayarlar</th>
                             <th>İşlemler</th>
-                        </tr>
-                        <tr>
-                            <th></th>
-                            <th></th>
-                            <th></th>
-                            <th>
-                                <select id="filter-servis" style="width: 100%; font-size: 11px;">
-                                    <option value="">Tüm Bölümler</option>
-                                </select>
-                            </th>
-                            <th>
-                                <select id="filter-kuyruk" style="width: 100%; font-size: 11px;">
-                                    <option value="">Tüm Kuyruklar</option>
-                                </select>
-                            </th>
-                            <th></th>
-                            <th>
-                                <select id="filter-browser" style="width: 100%; font-size: 11px;">
-                                    <option value="">Tüm Tarayıcılar</option>
-                                </select>
-                            </th>
-                            <th></th>
-                            <th></th>
-                            <th>
-                                <select id="filter-setup" style="width: 100%; font-size: 11px;">
-                                    <option value="">Tümü</option>
-                                    <option value="done">Tamamlandı</option>
-                                    <option value="not_done">Yapılmadı</option>
-                                </select>
-                            </th>
-                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="cihaz-listesi">
@@ -1312,6 +1419,9 @@
                 <!-- Alt Kısım - Butonlar (Full Width) -->
                 <div class="cihaz-detail-actions">
                     <button type="button" class="secondary-btn" onclick="closeModal('cihaz-detail-modal')">İptal</button>
+                    <button type="button" class="secondary-btn" onclick="showCihazAdvancedSettings()">
+                        <i class="fas fa-sliders-h"></i> Gelişmiş Ayarlar
+                    </button>
                     <button type="button" class="secondary-btn" style="background:#7f1d1d;border:1px solid #b91c1c;" onclick="resetCihazFromModal()">
                         <i class="fas fa-power-off"></i> Cihazı Sıfırla
                     </button>
@@ -1352,6 +1462,7 @@
         let services = [];
         let queues = [];
         let users = [];
+        let currentDeviceAdvancedSettings = null;
 
         function showView(viewId) {
             // Menü aktifliği
@@ -2627,17 +2738,43 @@
                     ? device.ayarlar.deviceName
                     : device.ad;
 
-                // Bölüm ve Kuyruk bilgileri
-                const servisAd = device.servis_ad ? `${device.servis_kod || ''} - ${device.servis_ad}`.trim() : '-';
-                const kuyrukAd = device.kuyruk_ad ? `${device.kuyruk_kod || ''} - ${device.kuyruk_ad}`.trim() : '-';
+                // Bölüm ve Kuyruk bilgileri (önce DB kolonları, yoksa ayarlar JSON'dan türet)
+                let servisAd = '-';
+                let kuyrukAd = '-';
+
+                if (device.servis_ad) {
+                    servisAd = `${device.servis_kod || ''} - ${device.servis_ad}`.trim();
+                } else if (device.ayarlar && Array.isArray(device.ayarlar.servisIds) && device.ayarlar.servisIds.length > 0) {
+                    const sid = device.ayarlar.servisIds[0];
+                    const serv = services.find(s => s.id === sid);
+                    if (serv) {
+                        servisAd = `${serv.kod || ''} - ${serv.ad}`.trim();
+                    }
+                } else if (device.ayarlar && Array.isArray(device.ayarlar.servisIds) && device.ayarlar.servisIds.length === 0) {
+                    // Hiç bölüm seçilmemişse "Tüm Bölümler" anlamına gelsin
+                    servisAd = 'Tüm Bölümler';
+                }
+
+                if (device.kuyruk_ad) {
+                    kuyrukAd = `${device.kuyruk_kod || ''} - ${device.kuyruk_ad}`.trim();
+                } else if (device.ayarlar && Array.isArray(device.ayarlar.kuyrukIds) && device.ayarlar.kuyrukIds.length > 0) {
+                    const qid = device.ayarlar.kuyrukIds[0];
+                    const q = queues.find(k => k.id === qid);
+                    if (q) {
+                        kuyrukAd = `${q.kod || ''} - ${q.ad}`.trim();
+                    }
+                } else if (device.ayarlar && Array.isArray(device.ayarlar.kuyrukIds) && device.ayarlar.kuyrukIds.length === 0) {
+                    // Hiç kuyruk seçilmemişse "Tüm Kuyruklar" anlamına gelsin
+                    kuyrukAd = 'Tüm Kuyruklar';
+                }
                 
                 // Parmak izi gösterimi (kısa versiyon)
                 const fingerprint = device.device_fingerprint || '-';
                 const fingerprintShort = fingerprint.length > 20 ? fingerprint.substring(0, 17) + '...' : fingerprint;
 
-                // Setup durumu
-                const setupText = device.setup_tamamlandi ? 'Tamamlandı' : 'Yapılmadı';
-                
+                // Setup durumu (read-only checkbox)
+                const setupChecked = device.setup_tamamlandi ? 'checked' : '';
+
                 return `
                     <tr>
                         <td>${statusBadge}</td>
@@ -2649,17 +2786,19 @@
                         <td>${browserName}</td>
                         <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);" title="${fingerprint}">${fingerprintShort}</td>
                         <td title="${sonGorulenStr}">${gecenSure}</td>
-                        <td>${setupText}</td>
+                        <td style="text-align:center;">
+                            <input type="checkbox" class="setup-checkbox" disabled ${setupChecked}>
+                        </td>
                         <td>
-                            <button onclick="viewCihazAyarlar(${device.id})" class="btn-view" style="font-size: 12px;">
-                                <i class="fas fa-cog"></i> ${ayarlarCount} Ayar
+                            <button onclick="openCihazDetay(${device.id})" class="btn-icon" title="Cihaz ayarlarını düzenle">
+                                <i class="fas fa-sliders-h"></i>
                             </button>
                         </td>
                         <td>
-                            <button onclick="openCihazDetay(${device.id})" class="btn-view" style="font-size: 12px; margin-right: 5px;">
-                                <i class="fas fa-edit"></i> Düzenle
+                            <button onclick="openDeviceScreen(${device.id})" class="btn-icon" title="Bu ekranı yeni pencerede aç">
+                                <i class="fas fa-external-link-alt"></i>
                             </button>
-                            <button onclick="deleteCihaz(${device.id}, '${device.ad}')" class="btn-delete" style="font-size: 12px;">
+                            <button onclick="deleteCihaz(${device.id}, '${device.ad}')" class="btn-icon danger" title="Cihazı sil">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -2676,6 +2815,7 @@
                 if (response.status === 'success') {
                     const device = response.cihaz;
                     const stats = response.istatistikler || {};
+                    currentDeviceAdvancedSettings = device.ayarlar || {};
                     
                     // Form alanlarını doldur
                     document.getElementById('detail-cihaz-id').value = device.id;
@@ -2802,22 +2942,39 @@
             }
         }
 
-        async function viewCihazAyarlar(deviceId) {
-            try {
-                const response = await apiCall(`/api/cihaz/${deviceId}/ayarlar`);
-                
-                if (response.status === 'success') {
-                    const device = response.device;
-                    const ayarlar = device.ayarlar || {};
-                    
-                    const ayarlarStr = JSON.stringify(ayarlar, null, 2);
-                    
-                    alert(` ${device.ad}\n\nTip: ${device.tip}\nDurum: ${device.durum}\n\nAyarlar:\n${ayarlarStr}`);
-                }
-            } catch (error) {
-                console.error('Ayar görüntüleme hatası:', error);
-                showToast('Ayarlar görüntülenemedi', 'error');
+        function showCihazAdvancedSettings() {
+            if (!currentDeviceAdvancedSettings || Object.keys(currentDeviceAdvancedSettings).length === 0) {
+                alert('Bu cihaz için ek ayar bulunamadı.');
+                return;
             }
+            alert('Ayarlar:\n\n' + JSON.stringify(currentDeviceAdvancedSettings, null, 2));
+        }
+
+        function openDeviceScreen(deviceId) {
+            const dev = allDevices.find(d => d.id === deviceId);
+            if (!dev) {
+                alert('Cihaz bilgisi bulunamadı');
+                return;
+            }
+
+            let path = null;
+            const tip = (dev.tip || '').toLowerCase();
+
+            if (tip === 'tablet') {
+                path = 'kiosk_tablet.html';
+            } else if (tip === 'kiosk') {
+                path = 'kiosk.html';
+            } else if (tip === 'ekran' || tip === 'screen1' || tip === 'screen2' || tip === 'tv') {
+                path = 'tv.html';
+            }
+
+            if (!path) {
+                alert('Bu cihaz tipi için açılacak bir ekran tanımlı değil.');
+                return;
+            }
+
+            // Aynı origin altında ilgili ekranı yeni sekmede aç
+            window.open(path, '_blank');
         }
 
         // Filtre comboları eventleri
