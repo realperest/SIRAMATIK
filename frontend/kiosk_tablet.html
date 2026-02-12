@@ -449,8 +449,8 @@
         <i class="fas fa-cog"></i>
     </button>
 
-    <!-- Şifre Sorgulama Modalı -->
-    <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 9999;">
+    <!-- Şifre Sorgulama Modalı (Her zaman en üstte olacak şekilde daha yüksek z-index) -->
+    <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 11000;">
         <div class="settings-panel" style="max-width: 400px; text-align: center;">
             <div style="font-size: 40px; margin-bottom: 20px;"></div>
             <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
@@ -465,12 +465,60 @@
         </div>
     </div>
 
-    <!-- Ayarlar Modal -->
+    <!-- Ayarlar / İlk Kurulum Modal -->
     <div class="settings-modal" id="settings-modal">
         <div class="settings-panel">
             <h2>[DEBUG] Kiosk Ayarları</h2>
             <p style="color: #666; font-size: 14px;">Bu kiosk'un hangi bölüm ve kuyruklara hizmet vereceğini seçin.</p>
 
+            <!-- CİHAZ BİLGİLERİ -->
+            <div style="margin-top: 10px; margin-bottom: 20px; padding: 15px; border-radius: 12px; background:#f8fafc; border:1px solid #e2e8f0;">
+                <h3 style="margin-top:0; margin-bottom:10px; font-size:16px; color:#1e293b;">Cihaz Bilgileri</h3>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label for="device-name-input" style="display:block; margin-bottom:6px; font-size:14px; color:#475569;">Tablet Adı</label>
+                    <input id="device-name-input" type="text" class="admin-input"
+                        style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;"
+                        placeholder="Örn: LABORATUVAR GİRİŞ TABLETİ">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="device-fingerprint-display" style="display:block; margin-bottom:6px; font-size:14px; color:#475569;">Tablet Kodu (Parmak İzi)</label>
+                    <input id="device-fingerprint-display" type="text"
+                        style="width:100%; padding:6px 10px; border-radius:8px; border:1px dashed #cbd5e1; font-size:12px; font-family:monospace; background:#f1f5f9;"
+                        readonly>
+                    <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
+                        Bu kod veritabanında cihazı benzersiz tanımlamak için kullanılır. Otomatik oluşturulur ve değiştirilemez.
+                    </small>
+                </div>
+            </div>
+
+            <!-- EKRAN AYARLARI -->
+            <div style="margin-bottom: 20px; padding: 15px; border-radius: 12px; background:#f1f5f9; border:1px solid #e2e8f0;">
+                <h3 style="margin-top:0; margin-bottom:10px; font-size:16px; color:#1e293b;">Ekran Ayarları</h3>
+                <div style="display:flex; flex-wrap:wrap; gap:15px;">
+                    <div style="flex:1 1 160px; min-width:150px;">
+                        <label for="fullscreen-checkbox" style="display:flex; align-items:center; gap:8px; font-size:14px; color:#475569; cursor:pointer;">
+                            <input type="checkbox" id="fullscreen-checkbox" style="width:18px; height:18px;">
+                            Tam ekran çalışsın
+                        </label>
+                        <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
+                            Aktifse sayfa açıldığında mümkün olduğunda tam ekrana geçmeye çalışır.
+                        </small>
+                    </div>
+                    <div style="flex:1 1 160px; min-width:150px;">
+                        <label for="orientation-select" style="display:block; margin-bottom:6px; font-size:14px; color:#475569;">Ekran Yönü</label>
+                        <select id="orientation-select" class="admin-input" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;">
+                            <option value="auto">Otomatik (Cihazın yönüne göre)</option>
+                            <option value="portrait">Dikey odaklı</option>
+                            <option value="landscape">Yatay odaklı</option>
+                        </select>
+                        <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
+                            Tarayıcı donanım kısıtları nedeniyle yön kilidi garanti edilemez; bu ayar daha çok tasarım/düzen için kullanılır.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BÖLÜM / KUYRUK SEÇİMİ -->
             <label for="servis-filter">Bölümler (Servisler):</label>
             <select id="servis-filter" multiple size="6" style="height: 150px;">
                 <!-- Dinamik olarak doldurulacak -->
@@ -499,7 +547,7 @@
 
             <div style="margin-top: 30px; text-align: center;">
                 <button class="btn-save" onclick="saveSettings()"> Kaydet</button>
-                <button class="btn-reset" onclick="resetSettings()">[SYNC] Sıfırla</button>
+                <button class="btn-reset" onclick="resetSettings()">KIOSK SIFIRLA</button>
                 <button class="btn-cancel" onclick="closeSettings()">[ERR] İptal</button>
             </div>
         </div>
@@ -542,6 +590,57 @@
 
             50% {
                 transform: scale(1.02);
+            }
+        }
+
+        /* Ekran yönü için basit yardımcı sınıflar (ileride genişletilebilir) */
+        body.orientation-portrait .bilet-konteynir {
+            max-width: 520px;
+            margin: 0 auto;
+            flex-direction: column;
+        }
+
+        body.orientation-landscape .bilet-konteynir {
+            max-width: 1200px;
+        }
+
+        /* Küçük ekranlar için responsive düzen */
+        @media (max-width: 768px) {
+            .bilet-konteynir {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+
+            .info-section h2 {
+                font-size: 24px !important;
+            }
+
+            .numara {
+                font-size: 48px !important;
+            }
+
+            .mesaj {
+                font-size: 18px !important;
+            }
+
+            .bekleme-info {
+                padding: 10px !important;
+                font-size: 13px !important;
+            }
+
+            .print-btn {
+                padding: 10px 16px !important;
+                font-size: 14px !important;
+            }
+
+            .qr-section {
+                width: 220px !important;
+            }
+
+            #qrcode {
+                width: 180px !important;
+                height: 180px !important;
             }
         }
     </style>
@@ -598,17 +697,17 @@
             </div>
 
             <!-- Sağ Panel: QR Kod -->
-            <div class="qr-section" style="width: 320px; flex-shrink: 0;">
+            <div class="qr-section" style="width: 260px; flex-shrink: 0;">
                 <div id="qrcode"
-                    style="display: inline-block; padding: 10px; background: white; width: 250px; height: 250px;"></div>
-                <p>Karekod Okut</p>
-                <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 20px;">
+                    style="display: inline-block; padding: 6px; background: white;"></div>
+                <p style="margin-top:10px; font-size:14px;">Karekod Okut</p>
+                <div style="font-size: 13px; color: #7f8c8d; margin-bottom: 12px; text-align:center;">
                     Sıranızı telefondan canlı takip edin
                 </div>
-                <div id="qr-sayac" style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 20px;">
+                <div id="qr-sayac" style="color: #e74c3c; font-size: 16px; font-weight: bold; margin-bottom: 12px;">
                 </div>
 
-                <button onclick="location.reload()" class="back-btn">
+                <button onclick="location.reload()" class="back-btn" style="padding:8px 14px; font-size:13px;">
                     ANA SAYFAYA DÖN
                 </button>
             </div>
@@ -680,12 +779,18 @@
         let allQueues = [];
         let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
         let DEVICE_ID = localStorage.getItem('tablet_device_id') || null;
+        let DEVICE_FINGERPRINT = localStorage.getItem('device_fingerprint') || null;
 
         // Kiosk Ayarları Yönetimi
+        // Not: initialSetupDone, ilk kurulum sihirbazının tamamlanıp tamamlanmadığını tutar
         let kioskSettings = {
             servisIds: [],
             kuyrukIds: [],
-            hideServisSelection: false
+            hideServisSelection: false,
+            initialSetupDone: false,
+            deviceName: null,
+            fullscreen: true,
+            orientation: 'auto' // 'auto' | 'portrait' | 'landscape'
         };
 
         // ============================================
@@ -746,6 +851,7 @@
                     localStorage.setItem('device_fingerprint', fingerprint);
                     console.log('[OK] Yeni fingerprint oluşturuldu:', fingerprint);
                 }
+                DEVICE_FINGERPRINT = fingerprint;
                 
                 // Browser bilgisini tespit et (okunabilir format)
                 function detectBrowser() {
@@ -789,6 +895,21 @@
                     console.log('[OK] Cihaz kaydedildi. Device ID:', DEVICE_ID);
                     console.log('[OK] Device bilgileri:', JSON.stringify(response.device));
                     updateConnectionStatus('online');
+
+                    // Eğer bu cihaz backend'de ilk kez oluşturulmuşsa, local ayarları sıfırlayalım
+                    if (response.device.is_new) {
+                        console.log('[SETUP] Yeni cihaz kaydı tespit edildi, local kiosk ayarları sıfırlanıyor...');
+                        localStorage.removeItem('kiosk_settings');
+                        kioskSettings = {
+                            servisIds: [],
+                            kuyrukIds: [],
+                            hideServisSelection: false,
+                            initialSetupDone: false,
+                            deviceName: null,
+                            fullscreen: true,
+                            orientation: 'auto'
+                        };
+                    }
                     
                     // Backend'den ayarları çek
                     await syncSettingsFromBackend();
@@ -988,10 +1109,19 @@
             const selectedServisIds = Array.from(servisSelect.selectedOptions).map(opt => parseInt(opt.value));
             const selectedKuyrukIds = Array.from(kuyrukSelect.selectedOptions).map(opt => parseInt(opt.value));
 
+            const deviceNameInput = document.getElementById('device-name-input');
+            const deviceName = deviceNameInput ? deviceNameInput.value.trim() : '';
+            const fullscreenCheckbox = document.getElementById('fullscreen-checkbox');
+            const orientationSelect = document.getElementById('orientation-select');
+
             kioskSettings = {
                 servisIds: selectedServisIds,
                 kuyrukIds: selectedKuyrukIds,
-                hideServisSelection: document.getElementById('hide-servis-checkbox').checked
+                hideServisSelection: document.getElementById('hide-servis-checkbox').checked,
+                deviceName: deviceName || kioskSettings.deviceName || `TABLET-${(DEVICE_FINGERPRINT || 'XXXXXXX').substring(3, 10)}`,
+                fullscreen: fullscreenCheckbox ? fullscreenCheckbox.checked : kioskSettings.fullscreen,
+                orientation: orientationSelect ? orientationSelect.value : kioskSettings.orientation,
+                initialSetupDone: true // Bu fonksiyon çağrıldığında kurulum tamamlandı kabul ediyoruz
             };
 
             // LocalStorage'a kaydet
@@ -1006,11 +1136,38 @@
             location.reload();
         }
 
-        function resetSettings() {
-            if (confirm('[WARN] Tüm kiosk ayarlarını sıfırlamak istediğinizden emin misiniz?')) {
+        async function resetSettings() {
+            if (!confirm('[WARN] Bu tarayıcıdaki KIOSK ayarlarını sıfırlamak istediğinize emin misiniz?\\n\\nTüm kiosk ayarları, cihaz adı ve kimlik bilgileri (bu tarayıcıya ait) silinecek ve sayfa yeniden açıldığında ilk kurulum sihirbazı çalışacaktır.\\n\\nTablet veya bilgisayarın kendi fabrika ayarları DEĞİŞMEZ.')) {
+                return;
+            }
+
+            // Fabrika ayarları için tekrar müdahale şifresi iste
+            const password = await askPasswordModal();
+            if (!password) return;
+
+            try {
+                // Önce backend'de cihaz kaydını sil (varsa)
+                if (DEVICE_ID) {
+                    const resetRes = await apiCall(`/api/cihaz/${DEVICE_ID}/self-reset`, {
+                        method: 'POST',
+                        body: JSON.stringify({ sifre: password })
+                    });
+
+                    if (!resetRes || resetRes.status !== 'success') {
+                        alert('[ERR] Sunucuda cihaz kaydı silinemedi. Lütfen admin panelden kontrol edin.');
+                    }
+                }
+
+                // Tüm lokal kimlik ve ayarları temizle
                 localStorage.removeItem('kiosk_settings');
-                alert('[OK] Ayarlar sıfırlandı! Sayfa yenileniyor...');
+                localStorage.removeItem('tablet_device_id');
+                localStorage.removeItem('device_fingerprint');
+
+                alert('[OK] Cihaz fabrika ayarlarına döndürüldü. Sayfa yeniden açıldığında ilk kurulum sihirbazı çalışacak.');
                 location.reload();
+            } catch (err) {
+                console.error('[ERR] Fabrika ayarlarına döndürme hatası:', err);
+                alert('[ERR] Fabrika ayarlarına döndürme sırasında bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
             }
         }
 
@@ -1039,6 +1196,25 @@
                 // Checkbox durumunu ayarla
                 const checkbox = document.getElementById('hide-servis-checkbox');
                 if (checkbox) checkbox.checked = kioskSettings.hideServisSelection;
+
+                // Cihaz adı ve fingerprint alanlarını doldur
+                const nameInput = document.getElementById('device-name-input');
+                const fpInput = document.getElementById('device-fingerprint-display');
+                if (fpInput) {
+                    fpInput.value = DEVICE_FINGERPRINT || localStorage.getItem('device_fingerprint') || 'Parmak izi oluşturuluyor...';
+                }
+                if (nameInput) {
+                    const defaultName = `TABLET-${(DEVICE_FINGERPRINT || localStorage.getItem('device_fingerprint') || 'XXXXXXX').substring(3, 10)}`;
+                    nameInput.value = kioskSettings.deviceName || defaultName;
+                }
+
+                // Ekran ayarlarını doldur
+                const fullscreenCheckbox = document.getElementById('fullscreen-checkbox');
+                const orientationSelect = document.getElementById('orientation-select');
+                if (fullscreenCheckbox) fullscreenCheckbox.checked = kioskSettings.fullscreen !== false;
+                if (orientationSelect && kioskSettings.orientation) {
+                    orientationSelect.value = kioskSettings.orientation;
+                }
 
             } catch (error) {
                 console.error('Ayarlar verisi yüklenemedi:', error);
@@ -1091,8 +1267,65 @@
             return { servisler: filteredServisler, kuyruklar: filteredKuyruklar };
         }
 
-        // Sayfa yüklendiğinde ayarları yükle
+        // --- İLK KURULUM SİHİRBAZI YARDIMCI FONKSİYONLARI ---
+
+        function isInitialSetupRequired() {
+            // Eğer daha önce kurulum tamamlandıysa bir daha zorunlu açma
+            if (kioskSettings && kioskSettings.initialSetupDone) {
+                return false;
+            }
+
+            // Ayarlar yoksa veya servis seçilmemişse ilk kurulum gerektiğini varsay
+            if (!kioskSettings) return true;
+            if (!Array.isArray(kioskSettings.servisIds)) return true;
+            if (kioskSettings.servisIds.length === 0) return true;
+            // İstersen ileride kuyrukIds veya başka alanları da zorunlu yapabiliriz
+            return false;
+        }
+
+        async function openInitialSetupWizard() {
+            try {
+                console.log('[SETUP] İlk kurulum sihirbazı başlatılıyor...');
+                // Firma / servis / kuyruk verilerini yükle
+                await loadSettingsData();
+
+                // Başlık ve açıklamayı ilk kurulum için güncelle
+                const modal = document.getElementById('settings-modal');
+                const titleEl = modal.querySelector('.settings-panel h2');
+                const descEl = modal.querySelector('.settings-panel p');
+                if (titleEl) titleEl.textContent = 'İlk Kurulum - Kiosk Ayarları';
+                if (descEl) descEl.textContent = 'Bu tabletin çalışacağı bölümleri ve kuyrukları seçin. Bu ayarlar kaydedildikten sonra istenildiğinde hem bu cihazdan hem de admin panelden değiştirilebilir.';
+
+                modal.style.display = 'flex';
+            } catch (e) {
+                console.error('[SETUP] İlk kurulum sihirbazı açılamadı:', e);
+            }
+        }
+
+        // Sayfa yüklendiğinde local ayarları yükle
         loadKioskSettings();
+
+        // EKRAN AYARLARINI UYGULA
+        function applyDisplaySettings() {
+            try {
+                // Tam ekran
+                if (kioskSettings.fullscreen && document.fullscreenEnabled && !document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(e => {
+                        console.warn('[DISPLAY] Tam ekran başlatılamadı:', e);
+                    });
+                }
+
+                // Yön sınıfları
+                document.body.classList.remove('orientation-portrait', 'orientation-landscape');
+                if (kioskSettings.orientation === 'portrait') {
+                    document.body.classList.add('orientation-portrait');
+                } else if (kioskSettings.orientation === 'landscape') {
+                    document.body.classList.add('orientation-landscape');
+                }
+            } catch (e) {
+                console.warn('[DISPLAY] Ekran ayarları uygulanamadı:', e);
+            }
+        }
 
 
         async function initFirma() {
@@ -1333,7 +1566,7 @@
             if (reloadTimer) clearInterval(reloadTimer);
             setTimeout(() => {
                 location.reload();
-            }, 15000);
+            }, 10000);
         }
 
         let kioskConfig = { host_ip: 'localhost', port: 3000 };
@@ -1382,8 +1615,8 @@
 
                 new QRCode(qrContainer, {
                     text: biletUrl,
-                    width: 250,
-                    height: 250,
+                    width: 200,
+                    height: 200,
                     colorDark: "#2c3e50",
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.M
@@ -1421,16 +1654,25 @@
                 
                 // 2. Firma bilgilerini yükle
                 await initFirma();
-                
-                // 3. Servis ve Kuyruklar yükle
-                await verileriYukle(false);
 
-                // 4. Heartbeat Başlat (30 saniyede bir)
+                // 3. İlk kurulum gerekiyor mu kontrol et
+                if (isInitialSetupRequired()) {
+                    console.log('[SETUP] Bu cihaz için ilk kurulum gerekli, sihirbaz açılıyor.');
+                    await openInitialSetupWizard(); // loadSettingsData içinden servis/kuyruk verilerini alıyor
+                } else {
+                    // 3b. Normal mod: Servis ve Kuyruklar yükle
+                    await verileriYukle(false);
+                }
+                
+                // 4. Ekran ayarlarını uygula
+                applyDisplaySettings();
+
+                // 5. Heartbeat Başlat (10 saniyede bir)
                 console.log('[OK] Heartbeat sistemi başlatılıyor...');
                 sendHeartbeat(); // İlk heartbeat hemen gönder
                 setInterval(() => {
                     sendHeartbeat();
-                }, 30000);
+                }, 10000);
 
             } catch (err) {
                 console.error("[ERR] Kiosk başlatma hatası:", err);

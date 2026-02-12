@@ -28,6 +28,7 @@ from models import (
     SiraTransferRequest, SiraNotlarRequest, MemnuniyetAnketRequest,
     CihazKayitRequest, CihazAyarlarUpdateRequest, CihazHeartbeatRequest, CihazResponse
 )
+from pydantic import BaseModel
 
 # --- WEBSOCKET MANAGER ---
 class ConnectionManager:
@@ -1005,7 +1006,21 @@ async def update_cihaz_ayarlari(
 ):
     """Cihaz ayarlarını güncelle"""
     try:
-        success = db.update_device_settings(device_id, request.ayarlar)
+        # Ayarlar içinden opsiyonel cihaz adı (deviceName) ve setup bilgisi alanlarını çıkar
+        device_name = None
+        setup_completed = None
+        try:
+            if request.ayarlar and isinstance(request.ayarlar, dict):
+                raw_name = request.ayarlar.get("deviceName") or request.ayarlar.get("device_name")
+                if raw_name:
+                    device_name = str(raw_name)
+                # Setup bilgisi: initialSetupDone true ise setup_tamamlandi = True
+                if "initialSetupDone" in request.ayarlar:
+                    setup_completed = bool(request.ayarlar.get("initialSetupDone"))
+        except Exception as parse_err:
+            logging.warning(f"Cihaz ayarlarından deviceName okunamadı: {parse_err}")
+
+        success = db.update_device_settings(device_id, request.ayarlar, device_name, setup_completed)
         if success:
             return {
                 "status": "success",
@@ -1127,12 +1142,147 @@ async def delete_cihaz(
 ):
     """Cihazı sil (Admin)"""
     try:
+        # Önce cihazı bul (firma_id için)
+        cihaz = db.get_cihaz(device_id)
+        if not cihaz:
+            raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+
         success = db.delete_device(device_id)
         if success:
+            # WebSocket ile tüm panellere "device_deleted" bildir
+            try:
+                await manager.broadcast({
+                    "type": "device_deleted",
+                    "device_id": device_id,
+                    "firma_id": cihaz.get("firma_id")
+                })
+            except Exception as ws_err:
+                logging.warning(f"WebSocket broadcast hatası (device_deleted): {ws_err}")
+
             return {"status": "success", "message": "Cihaz silindi"}
         raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Cihaz silme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# SİSTEM AYARLARI ENDPOINTS
+# ============================================
+
+class SistemAyarUpdateRequest(BaseModel):
+    deger: str
+
+@app.get("/api/admin/sistem-ayarlari")
+async def get_sistem_ayarlari(
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Sistem ayarlarını getir"""
+    try:
+        # Sadece admin ve superadmin erişebilir
+        if current_user['rol'] not in ['admin', 'superadmin']:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        result = db.execute_query(
+            "SELECT anahtar, deger, aciklama FROM siramatik.sistem_ayarlari ORDER BY anahtar"
+        )
+        ayarlar = {row['anahtar']: {'deger': row['deger'], 'aciklama': row.get('aciklama')} for row in result}
+        return {"status": "success", "ayarlar": ayarlar}
+    except Exception as e:
+        logging.error(f"Sistem ayarları getirme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/admin/sistem-ayarlari/{anahtar}")
+async def update_sistem_ayari(
+    anahtar: str,
+    request: SistemAyarUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Sistem ayarını güncelle"""
+    try:
+        # Sadece admin ve superadmin erişebilir
+        if current_user['rol'] not in ['admin', 'superadmin']:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        # Timezone offset için validasyon
+        if anahtar == 'timezone_offset':
+            try:
+                offset = int(request.deger)
+                if offset < -12 or offset > 14:
+                    raise HTTPException(status_code=400, detail="Timezone offset -12 ile 14 arasında olmalıdır")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Timezone offset sayı olmalıdır")
+        
+        local_now = db.get_local_now()
+        result = db.execute_query(f"""
+            INSERT INTO siramatik.sistem_ayarlari (anahtar, deger, guncelleme)
+            VALUES (:anahtar, :deger, {local_now})
+            ON CONFLICT (anahtar) DO UPDATE 
+            SET deger = :deger, guncelleme = {local_now}
+            RETURNING anahtar, deger, aciklama
+        """, {"anahtar": anahtar, "deger": request.deger})
+        
+        if result:
+            return {"status": "success", "ayar": result[0]}
+        raise HTTPException(status_code=500, detail="Ayar güncellenemedi")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Sistem ayarı güncelleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class CihazSelfResetRequest(BaseModel):
+    sifre: str
+
+
+@app.post("/api/cihaz/{device_id}/self-reset")
+async def cihaz_self_reset(
+    device_id: int,
+    request: CihazSelfResetRequest
+):
+    """
+    Kiosk / tablet ekranından, müdahale şifresi ile kendi kaydını silebilen endpoint.
+    - Ekran şifresi doğrulanır
+    - Cihazın firma_id'si ile şifreden gelen firma_id eşleşirse cihaz silinir
+    """
+    try:
+        # 1) Müdahale şifresi ile firmayı doğrula
+        firma = db.get_firma_by_ekran_sifre(request.sifre)
+        if not firma:
+            raise HTTPException(status_code=401, detail="Geçersiz müdahale şifresi")
+
+        # 2) Cihazı bul ve firmaya ait mi kontrol et
+        cihaz = db.get_cihaz(device_id)
+        if not cihaz:
+            raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+
+        if int(cihaz.get("firma_id", 0)) != int(firma.get("id", 0)):
+            raise HTTPException(status_code=403, detail="Bu cihaza yetkiniz yok")
+
+        # 3) Cihaz kaydını sil
+        success = db.delete_device(device_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Cihaz silinemedi")
+
+        # 4) WebSocket ile panellere bildir (özellikle admin cihaz listesi için)
+        try:
+            await manager.broadcast({
+                "type": "device_deleted",
+                "device_id": device_id,
+                "firma_id": cihaz.get("firma_id")
+            })
+        except Exception as ws_err:
+            logging.warning(f"WebSocket broadcast hatası (self-reset device_deleted): {ws_err}")
+
+        return {"status": "success", "message": "Cihaz kaydı silindi"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Cihaz self-reset hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

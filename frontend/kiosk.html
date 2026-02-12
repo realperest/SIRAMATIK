@@ -905,9 +905,9 @@
 
         async function initFirma() {
             try {
-                // Heartbeat
+                // Heartbeat (en fazla 10 saniyede bir)
                 bildirCihaz();
-                setInterval(bildirCihaz, 30000);
+                setInterval(bildirCihaz, 10000);
 
                 console.log("Firma bilgileri yükleniyor...");
                 const firma = await apiCall(`/api/firma/${FIRMA_ID}`);
@@ -1124,7 +1124,7 @@
             if (reloadTimer) clearInterval(reloadTimer);
             setTimeout(() => {
                 location.reload();
-            }, 15000);
+            }, 10000);
         }
 
         let kioskConfig = { host_ip: 'localhost', port: 3000 };
@@ -1223,9 +1223,9 @@
                 allQueues = filtered.kuyruklar;
                 renderServisler(filtered.servisler);
 
-                // 4. Heartbeat Başlat
+                // 4. Heartbeat Başlat (en fazla 10 saniyede bir)
                 bildirCihaz();
-                setInterval(bildirCihaz, 30000);
+                setInterval(bildirCihaz, 10000);
 
             } catch (err) {
                 console.error("Kiosk başlatma hatası:", err);

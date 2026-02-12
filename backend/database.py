@@ -52,6 +52,8 @@ class Database:
             self._create_memnuniyet_table(session)
             # Tablet/Cihaz yönetim tablosunu oluştur
             self._create_cihazlar_table(session)
+            # Sistem ayarları tablosunu oluştur
+            self._create_sistem_ayarlari_table(session)
             # 1. Ana Tabloları Oluştur
             session.execute(text("""
                 CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
@@ -112,6 +114,89 @@ class Database:
             
             session.commit()
             return []
+    
+    # --- SİSTEM AYARLARI VE TIMEZONE YÖNETİMİ ---
+    
+    def _create_sistem_ayarlari_table(self, session):
+        """Sistem ayarları tablosunu oluştur"""
+        try:
+            check_query = text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'siramatik' 
+                    AND table_name = 'sistem_ayarlari'
+                );
+            """)
+            result = session.execute(check_query).scalar()
+            
+            if result:
+                print("[OK] sistem_ayarlari tablosu zaten var")
+                # Varsayılan değeri kontrol et ve yoksa ekle
+                try:
+                    session.execute(text("""
+                        DO $$ 
+                        BEGIN
+                            -- timezone_offset ayarı yoksa ekle (default +3)
+                            IF NOT EXISTS (
+                                SELECT 1 FROM siramatik.sistem_ayarlari 
+                                WHERE anahtar = 'timezone_offset'
+                            ) THEN
+                                INSERT INTO siramatik.sistem_ayarlari (anahtar, deger, aciklama)
+                                VALUES ('timezone_offset', '3', 'Saat dilimi offset (UTC+X, default: +3 Türkiye)');
+                            END IF;
+                        END $$;
+                    """))
+                    session.commit()
+                except Exception as e:
+                    print(f"[WARN] Sistem ayarları kontrol hatası: {e}")
+                    session.rollback()
+                return
+            
+            # Yeni tabloyu oluştur
+            create_table_query = text("""
+                CREATE TABLE IF NOT EXISTS siramatik.sistem_ayarlari (
+                    id SERIAL PRIMARY KEY,
+                    anahtar VARCHAR(100) UNIQUE NOT NULL,
+                    deger TEXT NOT NULL,
+                    aciklama TEXT,
+                    olusturulma TIMESTAMP DEFAULT NOW(),
+                    guncelleme TIMESTAMP DEFAULT NOW()
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_sistem_ayarlari_anahtar ON siramatik.sistem_ayarlari(anahtar);
+                
+                -- Varsayılan timezone_offset değerini ekle
+                INSERT INTO siramatik.sistem_ayarlari (anahtar, deger, aciklama)
+                VALUES ('timezone_offset', '3', 'Saat dilimi offset (UTC+X, default: +3 Türkiye)')
+                ON CONFLICT (anahtar) DO NOTHING;
+                
+                COMMENT ON TABLE siramatik.sistem_ayarlari IS 'Sistem genel ayarları (timezone, vb.)';
+            """)
+            
+            session.execute(create_table_query)
+            session.commit()
+            print("[OK] sistem_ayarlari tablosu olusturuldu!")
+            
+        except Exception as e:
+            print(f"[WARN] Sistem ayarları tablosu olusturma hatasi: {e}")
+            session.rollback()
+    
+    def get_timezone_offset(self) -> int:
+        """Sistem saat dilimi offset'ini getir (default: +3)"""
+        try:
+            result = self.execute_query(
+                "SELECT deger FROM siramatik.sistem_ayarlari WHERE anahtar = 'timezone_offset'"
+            )
+            if result and len(result) > 0:
+                return int(result[0]['deger'])
+        except Exception as e:
+            print(f"[WARN] Timezone offset okunamadı, default +3 kullanılıyor: {e}")
+        return 3  # Default: Türkiye (UTC+3)
+    
+    def get_local_now(self) -> str:
+        """Yerel saat dilimine göre şu anki zamanı döndür (SQL için)"""
+        offset = self.get_timezone_offset()
+        return f"NOW() + INTERVAL '{offset} hours'"
     
     # --- FİRMALAR ---
     
@@ -320,10 +405,11 @@ class Database:
     def create_sira(self, kuyruk_id: int, servis_id: int, firma_id: int, 
                     oncelik: int = 0, notlar: str = None) -> Dict:
         """Yeni sıra oluştur"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
             VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, 
-                    siramatik.yeni_sira_numarasi(:kuyruk_id, :oncelik), NOW())
+                    siramatik.yeni_sira_numarasi(:kuyruk_id, :oncelik), {local_now})
             RETURNING *
         """, {
             "kuyruk_id": kuyruk_id,
@@ -337,9 +423,10 @@ class Database:
     def create_manuel_sira(self, kuyruk_id: int, servis_id: int, firma_id: int, 
                            numara: str, oncelik: int = 0, notlar: str = None) -> Dict:
         """Manuel sıra oluştur (Özel numara ile)"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
-            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara, NOW())
+            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara, {local_now})
             RETURNING *
         """, {
             "kuyruk_id": kuyruk_id,
@@ -363,12 +450,13 @@ class Database:
     
     def cagir_sira(self, sira_id: int, kullanici_id: int, konum: str = None) -> Dict:
         """Sırayı çağır"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             UPDATE siramatik.siralar 
             SET durum = 'calling', 
                 cagiran_kullanici_id = :kullanici_id,
                 konum = :konum,
-                cagirilma = NOW()
+                cagirilma = {local_now}
             WHERE id = :sira_id
             RETURNING *
         """, {
@@ -380,9 +468,10 @@ class Database:
     
     def tamamla_sira(self, sira_id: int) -> Dict:
         """Sırayı tamamla"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             UPDATE siramatik.siralar 
-            SET durum = 'completed', tamamlanma = NOW()
+            SET durum = 'completed', tamamlanma = {local_now}
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
@@ -404,9 +493,10 @@ class Database:
 
     def islem_baslat(self, sira_id: int) -> Dict:
         """Sıra işlemini başlat (Müşteri geldi)"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             UPDATE siramatik.siralar 
-            SET durum = 'serving', islem_baslangic = NOW()
+            SET durum = 'serving', islem_baslangic = {local_now}
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
@@ -414,9 +504,10 @@ class Database:
 
     def tekrar_cagir(self, sira_id: int) -> Dict:
         """Sırayı tekrar çağır (TV'de flaşlat)"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             UPDATE siramatik.siralar 
-            SET cagirilma = NOW(), cagirilma_sayisi = cagirilma_sayisi + 1
+            SET cagirilma = {local_now}, cagirilma_sayisi = cagirilma_sayisi + 1
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
@@ -424,9 +515,10 @@ class Database:
 
     def gelmedi_sira(self, sira_id: int) -> Dict:
         """Sırayı gelmedi olarak işaretle"""
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             UPDATE siramatik.siralar 
-            SET durum = 'skipped', tamamlanma = NOW()
+            SET durum = 'skipped', tamamlanma = {local_now}
             WHERE id = :sira_id
             RETURNING *
         """, {"sira_id": sira_id})
@@ -724,10 +816,10 @@ class Database:
     def get_cihaz(self, cihaz_id: int) -> Optional[Dict]:
         """Cihaz bilgisini getir"""
         result = self.execute_query("""
-            SELECT 
+                SELECT 
                 id, firma_id, ad, tip, device_fingerprint, mac_address, ip,
                 durum, son_gorulen, ayarlar, metadata, olusturulma, guncelleme,
-                servis_id, kuyruk_id
+                servis_id, kuyruk_id, setup_tamamlandi
             FROM siramatik.cihazlar 
             WHERE id = :cihaz_id
         """, {"cihaz_id": cihaz_id})
@@ -755,11 +847,12 @@ class Database:
         # MAC adresi yoksa Ad üzerinden eşle
         # NOT: Bu fonksiyon eski endpoint için, device_fingerprint yok
         # Yeni kayıtlar için /api/cihaz/kayit endpoint'i kullanılmalı
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, durum, son_gorulen, metadata)
-            VALUES (:firma_id, :ad, :tip, :mac, 'active', NOW(), :metadata::jsonb)
+            VALUES (:firma_id, :ad, :tip, :mac, 'active', {local_now}, :metadata::jsonb)
             ON CONFLICT (device_fingerprint) DO UPDATE 
-            SET durum = 'active', son_gorulen = NOW(), tip = :tip, metadata = :metadata::jsonb
+            SET durum = 'active', son_gorulen = {local_now}, tip = :tip, metadata = :metadata::jsonb
             RETURNING *
         """, {"firma_id": firma_id, "ad": ad, "tip": tip, "mac": mac or ad, "metadata": json.dumps(metadata)})
         return result[0] if result else None
@@ -1129,9 +1222,10 @@ class Database:
              if existing_list: existing = existing_list[0]
 
         if existing:
-            updated = self.execute_query("""
+            local_now = self.get_local_now()
+            updated = self.execute_query(f"""
                 UPDATE siramatik.cihazlar 
-                SET son_gorulen = NOW(), metadata = :metadata, ad = :ad, tip = :tip
+                SET son_gorulen = {local_now}, metadata = :metadata, ad = :ad, tip = :tip
                 WHERE id = :id
                 RETURNING *
             """, {
@@ -1143,9 +1237,10 @@ class Database:
             return updated[0]
 
         # Yeni kayıt oluştur
-        result = self.execute_query("""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
             INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, metadata, son_gorulen)
-            VALUES (:firma_id, :ad, :tip, :mac_address, :metadata, NOW())
+            VALUES (:firma_id, :ad, :tip, :mac_address, :metadata, {local_now})
             RETURNING *
         """, {
             "firma_id": firma_id,
@@ -1348,6 +1443,17 @@ class Database:
                                 ALTER TABLE siramatik.cihazlar 
                                 ADD COLUMN ip VARCHAR(50);
                             END IF;
+
+                            -- setup_tamamlandi kolonu yoksa ekle
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_schema = 'siramatik' 
+                                AND table_name = 'cihazlar' 
+                                AND column_name = 'setup_tamamlandi'
+                            ) THEN
+                                ALTER TABLE siramatik.cihazlar 
+                                ADD COLUMN setup_tamamlandi BOOLEAN NOT NULL DEFAULT FALSE;
+                            END IF;
                         END $$;
                     """))
                     session.commit()
@@ -1372,7 +1478,8 @@ class Database:
                     ayarlar JSONB DEFAULT '{}'::jsonb,
                     metadata JSONB DEFAULT '{}'::jsonb,
                     olusturulma TIMESTAMP DEFAULT NOW(),
-                    guncelleme TIMESTAMP DEFAULT NOW()
+                    guncelleme TIMESTAMP DEFAULT NOW(),
+                    setup_tamamlandi BOOLEAN NOT NULL DEFAULT FALSE
                 );
                 
                 CREATE INDEX IF NOT EXISTS idx_cihazlar_firma_id ON siramatik.cihazlar(firma_id);
@@ -1497,24 +1604,25 @@ class Database:
                     device_id = result[0]
                     existing_firma_id = result[1]
                     
+                    local_now = self.get_local_now()
                     # Firma farklıysa güncelle
                     if existing_firma_id != firma_id:
-                        update_query = text("""
+                        update_query = text(f"""
                             UPDATE siramatik.cihazlar
                             SET firma_id = :firma_id,
                                 ad = :ad,
                                 tip = :tip,
                                 ip = :ip,
-                                son_gorulen = NOW(),
+                                son_gorulen = {local_now},
                                 durum = 'active'
                             WHERE id = :device_id
                             RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
                         """)
                     else:
                         # Sadece heartbeat güncelle
-                        update_query = text("""
+                        update_query = text(f"""
                             UPDATE siramatik.cihazlar
-                            SET son_gorulen = NOW(),
+                            SET son_gorulen = {local_now},
                                 durum = 'active',
                                 ip = COALESCE(:ip, ip)
                             WHERE id = :device_id
@@ -1543,10 +1651,11 @@ class Database:
                     }
                 
                 # Yeni cihaz kaydı
-                insert_query = text("""
+                local_now = self.get_local_now()
+                insert_query = text(f"""
                     INSERT INTO siramatik.cihazlar 
                     (firma_id, ad, tip, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen)
-                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', NOW())
+                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', {local_now})
                     RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
                 """)
                 
@@ -1602,21 +1711,44 @@ class Database:
                 "son_gorulen": result[7]
             }
     
-    def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any]) -> bool:
-        """Cihaz ayarlarını güncelle"""
+    def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any], device_name: Optional[str] = None, setup_completed: Optional[bool] = None) -> bool:
+        """Cihaz ayarlarını güncelle (ayarlar JSON + opsiyonel cihaz adı + setup flag)"""
         with Session(self.engine) as session:
             try:
-                query = text("""
-                    UPDATE siramatik.cihazlar
-                    SET ayarlar = :ayarlar,
-                        guncelleme = NOW()
-                    WHERE id = :device_id
-                    RETURNING id
-                """)
-                result = session.execute(query, {
-                    "device_id": device_id,
-                    "ayarlar": json.dumps(ayarlar)
-                }).first()
+                local_now = self.get_local_now()
+                # setup_tamamlandi sadece explicit gelirse güncelle
+                if setup_completed is None:
+                    query = text(f"""
+                        UPDATE siramatik.cihazlar
+                        SET ayarlar = :ayarlar,
+                            ad = COALESCE(:device_name, ad),
+                            guncelleme = {local_now}
+                        WHERE id = :device_id
+                        RETURNING id
+                    """)
+                    params = {
+                        "device_id": device_id,
+                        "ayarlar": json.dumps(ayarlar),
+                        "device_name": device_name
+                    }
+                else:
+                    query = text(f"""
+                        UPDATE siramatik.cihazlar
+                        SET ayarlar = :ayarlar,
+                            ad = COALESCE(:device_name, ad),
+                            setup_tamamlandi = :setup_tamamlandi,
+                            guncelleme = {local_now}
+                        WHERE id = :device_id
+                        RETURNING id
+                    """)
+                    params = {
+                        "device_id": device_id,
+                        "ayarlar": json.dumps(ayarlar),
+                        "device_name": device_name,
+                        "setup_tamamlandi": setup_completed
+                    }
+
+                result = session.execute(query, params).first()
                 
                 session.commit()
                 return result is not None
@@ -1627,12 +1759,13 @@ class Database:
     
     def device_heartbeat(self, device_id: int, ip: Optional[str] = None,
                         metadata: Optional[Dict[str, Any]] = None) -> bool:
-        """Cihaz heartbeat güncelle"""
+        """Cihaz heartbeat güncelle (son_gorulen)"""
+        local_now = self.get_local_now()
         with Session(self.engine) as session:
             try:
-                query = text("""
+                query = text(f"""
                     UPDATE siramatik.cihazlar
-                    SET son_gorulen = NOW(),
+                    SET son_gorulen = {local_now},
                         ip = COALESCE(:ip, ip),
                         metadata = COALESCE(:metadata, metadata),
                         durum = 'active'
@@ -1672,12 +1805,13 @@ class Database:
                     c.guncelleme AT TIME ZONE 'UTC' as guncelleme,
                     c.servis_id,
                     c.kuyruk_id,
+                    c.setup_tamamlandi,
                     s.ad as servis_ad,
                     s.kod as servis_kod,
                     k.ad as kuyruk_ad,
                     k.kod as kuyruk_kod,
                     CASE 
-                        WHEN c.son_gorulen > (NOW() - INTERVAL '3 minutes') THEN 'online'
+                        WHEN c.son_gorulen > (NOW() - INTERVAL '30 seconds') THEN 'online'
                         ELSE 'offline'
                     END as online_status
                 FROM siramatik.cihazlar c
@@ -1706,11 +1840,12 @@ class Database:
                     "guncelleme": row[12],
                     "servis_id": row[13],
                     "kuyruk_id": row[14],
-                    "servis_ad": row[15],
-                    "servis_kod": row[16],
-                    "kuyruk_ad": row[17],
-                    "kuyruk_kod": row[18],
-                    "online_status": row[19]
+                    "setup_tamamlandi": row[15],
+                    "servis_ad": row[16],
+                    "servis_kod": row[17],
+                    "kuyruk_ad": row[18],
+                    "kuyruk_kod": row[19],
+                    "online_status": row[20]
                 })
             
             return devices

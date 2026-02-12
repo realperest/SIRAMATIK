@@ -705,6 +705,19 @@
 
         // WebSocket mesajlarını işle
         function handleWebSocketMessage(data) {
+            // ÖNCE: call_ticket mesajını kontrol et (içeriden çağrıldığında)
+            if (data.type === 'call_ticket' && data.sira) {
+                const calledSiraId = data.sira.id || data.sira.sira_id;
+                if (calledSiraId && String(calledSiraId) === String(sira_id)) {
+                    console.log('🎯 Biletimiz çağrıldı (içeriden):', data.sira);
+                    // Her çağrıldığında ses çalması için notificationPlayed'i reset et
+                    notificationPlayed = false;
+                    // Direkt olarak "Sıra Sizde" durumuna geç
+                    showCallingStatus(data.sira);
+                    return; // Diğer kontrollere gerek yok
+                }
+            }
+            
             // Eğer bu biletimizle ilgili bir güncelleme ise
             if (data.sira_id && data.sira_id == sira_id) {
                 console.log('🎯 Biletimiz için güncelleme:', data);
@@ -714,6 +727,57 @@
             else if (data.kuyruk_id && data.kuyruk_id == kuyruk_id) {
                 console.log(' Kuyruk güncellendi:', data);
                 updateStatus(); // Durumu güncelle
+            }
+        }
+        
+        // "Sıra Sizde" durumunu göster (içeriden çağrıldığında veya normal çağrıldığında)
+        function showCallingStatus(siraData) {
+            const statusEl = document.getElementById('wait-info');
+            const numEl = document.getElementById('ticket-number');
+            
+            // Durumu "Sıra Sizde" olarak ayarla
+            statusEl.textContent = "SIRA SİZDE!";
+            statusEl.classList.add('calling-status');
+            document.body.classList.add('calling-active-body');
+            numEl.style.color = "#22c55e";
+            
+            // Bildirim oynat (her çağrıldığında - notificationPlayed WebSocket'te reset edildi)
+            if (!notificationPlayed) {
+                notificationPlayed = true;
+                
+                // 3x alarm çalma (1 saniye aralıkla)
+                let playCount = 0;
+                alertSound.volume = 1.0;
+                
+                const playAlert = () => {
+                    if (playCount < 3) {
+                        console.log(`📢 SIRA SİZDE! Alarm ${playCount + 1}/3`);
+                        
+                        // Sesi sıfırdan başlat
+                        alertSound.pause();
+                        alertSound.currentTime = 0;
+                        
+                        // Sesi çal
+                        alertSound.play().catch(e => {
+                            console.error("Alarm çalma hatası:", e);
+                        });
+                        
+                        playCount++;
+                        
+                        // 1 saniye sonra tekrar (son ses değilse)
+                        if (playCount < 3) {
+                            setTimeout(playAlert, 1000);
+                        }
+                    }
+                };
+                
+                // İlk sesi hemen çal
+                playAlert();
+                
+                // Güçlü titreşim (3 kez tekrarlı)
+                if (navigator.vibrate) {
+                    navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 1000]);
+                }
             }
         }
 
@@ -890,48 +954,10 @@
 
                 // Durum kontrolü
                 if (me.durum === 'calling') {
-                    statusEl.textContent = "SIRA SİZDE!";
-                    statusEl.classList.add('calling-status');
-                    document.body.classList.add('calling-active-body');
-                    numEl.style.color = "#22c55e";
-
-                    if (!notificationPlayed) {
-                        notificationPlayed = true;
-
-                        // 3x alarm çalma (1 saniye aralıkla)
-                        let playCount = 0;
-                        alertSound.volume = 1.0;
-
-                        const playAlert = () => {
-                            if (playCount < 3) {
-                                console.log(`📢 SIRA SİZDE! Alarm ${playCount + 1}/3`);
-
-                                // Sesi sıfırdan başlat
-                                alertSound.pause();
-                                alertSound.currentTime = 0;
-
-                                // Sesi çal
-                                alertSound.play().catch(e => {
-                                    console.error("Alarm çalma hatası:", e);
-                                });
-
-                                playCount++;
-
-                                // 1 saniye sonra tekrar (son ses değilse)
-                                if (playCount < 3) {
-                                    setTimeout(playAlert, 1000);
-                                }
-                            }
-                        };
-
-                        // İlk sesi hemen çal
-                        playAlert();
-
-                        // Güçlü titreşim (3 kez tekrarlı)
-                        if (navigator.vibrate) {
-                            navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 1000]);
-                        }
-                    }
+                    // Her çağrıldığında ses çalması için notificationPlayed'i reset et
+                    notificationPlayed = false;
+                    // "Sıra Sizde" durumunu göster (ortak fonksiyon kullan)
+                    showCallingStatus({ id: sid });
                     return;
                 } else if (me.durum === 'completed') {
                     statusEl.textContent = "İŞLEM TAMAMLANDI";
