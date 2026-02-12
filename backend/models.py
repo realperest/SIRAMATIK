@@ -216,7 +216,7 @@ class CihazKayitRequest(BaseModel):
     tip: str  # kiosk, ekran, tablet, pc
     device_fingerprint: str  # Benzersiz browser fingerprint
     mac_address: Optional[str] = None
-    ip_address: Optional[str] = None
+    ip: Optional[str] = None  # Supabase'de 'ip' kolonu
     ayarlar: Optional[Dict[str, Any]] = {}
     metadata: Optional[Dict[str, Any]] = {}
 
@@ -227,7 +227,7 @@ class CihazAyarlarUpdateRequest(BaseModel):
 
 class CihazHeartbeatRequest(BaseModel):
     device_id: int
-    ip_address: Optional[str] = None
+    ip: Optional[str] = None  # Supabase'de 'ip' kolonu
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -238,7 +238,7 @@ class CihazResponse(BaseModel):
     tip: str
     device_fingerprint: Optional[str] = None
     mac_address: Optional[str] = None
-    ip_address: Optional[str] = None
+    ip: Optional[str] = None  # Supabase'de 'ip' kolonu
     durum: str
     son_gorulen: datetime
     ayarlar: Dict[str, Any]

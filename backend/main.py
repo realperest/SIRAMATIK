@@ -971,7 +971,7 @@ async def cihaz_kayit(request: CihazKayitRequest):
             tip=request.tip,
             device_fingerprint=request.device_fingerprint,
             mac_address=request.mac_address,
-            ip_address=request.ip_address,
+            ip=request.ip,
             ayarlar=request.ayarlar,
             metadata=request.metadata
         )
@@ -1026,10 +1026,24 @@ async def cihaz_heartbeat(
     try:
         success = db.device_heartbeat(
             device_id=request.device_id,
-            ip_address=request.ip_address,
+            ip=request.ip,
             metadata=request.metadata
         )
         if success:
+            # WebSocket ile cihaz durumu güncellemesi gönder
+            try:
+                cihaz = db.get_cihaz(device_id)
+                if cihaz:
+                    await manager.broadcast({
+                        "type": "device_status_update",
+                        "device_id": device_id,
+                        "firma_id": cihaz.get("firma_id"),
+                        "online_status": "online",
+                        "son_gorulen": cihaz.get("son_gorulen").isoformat() if cihaz.get("son_gorulen") else None
+                    })
+            except Exception as ws_err:
+                logging.warning(f"WebSocket broadcast hatası (heartbeat): {ws_err}")
+            
             return {"status": "success"}
         raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
     except Exception as e:
@@ -1045,12 +1059,64 @@ async def get_firmaya_ait_cihazlar(
     """Firmaya ait tüm cihazları listele (Admin)"""
     try:
         devices = db.get_devices_by_firma(firma_id)
+        
+        # DEBUG: Response'u kontrol et
+        print(f"\n[DEBUG] Admin cihazlar response:")
+        print(f"  Total devices: {len(devices)}")
+        for dev in devices:
+            print(f"  - {dev['ad']}: online={dev['online_status']}, son_gorulen={dev['son_gorulen']}")
+            print(f"    metadata: {dev.get('metadata', {})}")
+        
         return {
             "status": "success",
             "devices": devices
         }
     except Exception as e:
         logging.error(f"Cihaz listeleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/cihaz/{device_id}/detay")
+async def get_cihaz_detay(
+    device_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Cihaz detay bilgilerini getir (İstatistikler dahil)"""
+    try:
+        cihaz = db.get_cihaz(device_id)
+        if not cihaz:
+            raise HTTPException(status_code=404, detail="Cihaz bulunamadı")
+        
+        # Verdiği sıralar istatistiği (metadata'dan veya ayarlardan)
+        # Şimdilik basit bir sorgu ile kontrol edelim
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            # Bu cihazın fingerprint'ini kullanarak sıraları sayalım
+            # (Eğer sıralar tablosunda cihaz_id yoksa, metadata'dan kontrol ederiz)
+            stats_query = text("""
+                SELECT 
+                    COUNT(*) as toplam_sira,
+                    COUNT(CASE WHEN durum = 'completed' THEN 1 END) as tamamlanan,
+                    COUNT(CASE WHEN durum = 'calling' THEN 1 END) as cagirilan,
+                    COUNT(CASE WHEN durum = 'waiting' THEN 1 END) as bekleyen
+                FROM siramatik.siralar
+                WHERE firma_id = :firma_id
+                AND olusturulma > NOW() - INTERVAL '30 days'
+            """)
+            stats = conn.execute(stats_query, {"firma_id": cihaz.get("firma_id")}).fetchone()
+        
+        return {
+            "status": "success",
+            "cihaz": cihaz,
+            "istatistikler": {
+                "toplam_sira": stats[0] if stats else 0,
+                "tamamlanan": stats[1] if stats else 0,
+                "cagirilan": stats[2] if stats else 0,
+                "bekleyen": stats[3] if stats else 0
+            }
+        }
+    except Exception as e:
+        logging.error(f"Cihaz detay hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

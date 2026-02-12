@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hizmet Veren Paneli - Sıramatik</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
     <link rel="stylesheet" href="static/style.css">
     <style>
         body {
@@ -755,7 +756,7 @@
 
         async function loadFirmaInfo() {
             try {
-                const firma = await apiCall(`/firma/${FIRMA_ID}`);
+                const firma = await apiCall(`/api/firma/${FIRMA_ID}`);
                 if (firma && firma.ad) {
                     document.getElementById('login-title').textContent = firma.ad;
                     document.title = firma.ad + " - Personel";
@@ -768,7 +769,7 @@
         async function initApp() {
             // Kullanıcı bilgisini güncelle (Varsayılan ayarlar için)
             try {
-                const u = await apiCall('/auth/me');
+                const u = await apiCall('/api/auth/me');
                 if (u) {
                     currentUser = u;
                     localStorage.setItem('user', JSON.stringify(u));
@@ -790,37 +791,52 @@
             }
 
             await loadServicesAndQueues();
-            loadLocalSettings();
+            
+            // ÖNCE: localStorage'dan konum gibi ekstra ayarları yükle (eğer varsa)
+            const saved = localStorage.getItem('personel_settings_v2');
+            if (saved) {
+                try {
+                    const savedSettings = JSON.parse(saved);
+                    // Sadece aynı kullanıcıysa ve konum ayarlarını koru
+                    if (savedSettings.userId === currentUser.id) {
+                        activeSettings.konumId = savedSettings.konumId || null;
+                        activeSettings.konumAdi = savedSettings.konumAdi || null;
+                        activeSettings.konumGerekli = savedSettings.konumGerekli || false;
+                    }
+                } catch (e) {
+                    console.warn('localStorage ayarları okunamadı:', e);
+                }
+            }
 
-            // Eğer ayar yoksa ve kullanıcıda varsayılan varsa uygula
-            // Eğer ayar yoksa veya eksikse varsayılanları uygula
+            // HER ZAMAN: Kullanıcının varsayılan bölüm ve kuyruk ayarlarını uygula
+            // (Oturum her yeniden açıldığında mutlaka varsayılanlar gelsin)
             let settingsChanged = false;
 
-            // 1. Kullanıcı değiştiyse veya hiç ayar yoksa -> Varsayılanları Uygula
-            const isUserChanged = !activeSettings.userId || activeSettings.userId != currentUser.id;
-            const hasNoSettings = !activeSettings.servisIds || activeSettings.servisIds.length === 0;
+            // Öncelik yeni çoklu seçim kolonlarında, yoksa eskileri kullan
+            const defaultServisIds = (currentUser.servis_ids && currentUser.servis_ids.length > 0)
+                ? currentUser.servis_ids
+                : (currentUser.servis_id ? [currentUser.servis_id] : []);
 
-            if (isUserChanged || hasNoSettings) {
-                // Öncelik yeni çoklu seçim kolonlarında, yoksa eskileri kullan
-                const defaultServisIds = (currentUser.servis_ids && currentUser.servis_ids.length > 0)
-                    ? currentUser.servis_ids
-                    : (currentUser.servis_id ? [currentUser.servis_id] : []);
+            const defaultKuyrukIds = (currentUser.kuyruk_ids && currentUser.kuyruk_ids.length > 0)
+                ? currentUser.kuyruk_ids
+                : (currentUser.varsayilan_kuyruk_id ? [currentUser.varsayilan_kuyruk_id] : []);
 
-                const defaultKuyrukIds = (currentUser.kuyruk_ids && currentUser.kuyruk_ids.length > 0)
-                    ? currentUser.kuyruk_ids
-                    : (currentUser.varsayilan_kuyruk_id ? [currentUser.varsayilan_kuyruk_id] : []);
-
-                activeSettings = {
-                    userId: currentUser.id,
-                    servisIds: defaultServisIds,
-                    kuyrukIds: defaultKuyrukIds,
-                    konumId: currentUser.varsayilan_konum_id || null,
-                    konumAdi: null,
-                    konumGerekli: !!currentUser.varsayilan_konum_id
-                };
-                settingsChanged = true;
-                if (isUserChanged) console.log("User changed, resetting to defaults.");
+            // Servis ve kuyruk ayarlarını her zaman varsayılanlardan al
+            activeSettings.userId = currentUser.id;
+            activeSettings.servisIds = defaultServisIds;
+            activeSettings.kuyrukIds = defaultKuyrukIds;
+            
+            // Konum ayarları yoksa varsayılanlardan al
+            if (!activeSettings.konumId) {
+                activeSettings.konumId = currentUser.varsayilan_konum_id || null;
+                activeSettings.konumGerekli = !!currentUser.varsayilan_konum_id;
             }
+            
+            settingsChanged = true;
+            console.log("Varsayılan ayarlar uygulandı:", {
+                servisIds: activeSettings.servisIds,
+                kuyrukIds: activeSettings.kuyrukIds
+            });
 
             // Konum Adını güncelle (ID var ama Ad yoksa veya değiştiyse)
             if (activeSettings.konumId && allQueues.length > 0) {
@@ -849,10 +865,8 @@
 
         // --- AYARLAR ---
         function loadLocalSettings() {
-            const saved = localStorage.getItem('personel_settings_v2');
-            if (saved) {
-                activeSettings = JSON.parse(saved);
-            }
+            // Bu fonksiyon artık kullanılmıyor - initApp() içinde direkt yükleniyor
+            // Sadece geriye dönük uyumluluk için bırakıldı
             updateActiveSettingsDisplay();
         }
 
@@ -905,32 +919,59 @@
 
         async function loadServicesAndQueues() {
             try {
+                console.log('[PERSONEL] Servisler ve kuyruklar yükleniyor, FIRMA_ID:', FIRMA_ID);
                 // Paralel yükle
                 const [services, queues] = await Promise.all([
-                    apiCall(`/servisler/${FIRMA_ID}`),
-                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
                 ]);
 
-                allServices = services;
-                allQueues = queues;
+                console.log('[PERSONEL] Servisler geldi:', services);
+                console.log('[PERSONEL] Kuyruklar geldi:', queues);
+
+                allServices = services || [];
+                allQueues = queues || [];
+
+                console.log('[PERSONEL] Servis sayısı:', allServices.length);
+                console.log('[PERSONEL] Kuyruk sayısı:', allQueues.length);
 
                 renderSettingsModal();
 
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error('[PERSONEL] Servis/Kuyruk yükleme hatası:', e);
+                showToast('Bölüm ve kuyruklar yüklenemedi: ' + (e.message || 'Bilinmeyen hata'), 'error');
+            }
         }
 
         function renderSettingsModal() {
+            console.log('[PERSONEL] renderSettingsModal çağrıldı');
+            console.log('[PERSONEL] allServices:', allServices);
+            console.log('[PERSONEL] allQueues:', allQueues);
+            
             // Servisleri doldur
             const sSelect = document.getElementById('setting-servis-ids');
+            if (!sSelect) {
+                console.error('[PERSONEL] setting-servis-ids elementi bulunamadı!');
+                return;
+            }
+            
             sSelect.innerHTML = '';
 
-            allServices.forEach(s => {
+            if (!allServices || allServices.length === 0) {
+                console.warn('[PERSONEL] Servis listesi boş!');
                 const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = `${s.kod} - ${s.ad}`;
-                if (activeSettings.servisIds.includes(s.id)) opt.selected = true;
+                opt.value = '';
+                opt.textContent = 'Servis bulunamadı';
                 sSelect.appendChild(opt);
-            });
+            } else {
+                allServices.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = `${s.kod || ''} - ${s.ad}`.trim();
+                    if (activeSettings.servisIds && Array.isArray(activeSettings.servisIds) && activeSettings.servisIds.includes(s.id)) opt.selected = true;
+                    sSelect.appendChild(opt);
+                });
+            }
 
             // Switch durumunu ayarla
             const switchEl = document.getElementById('setting-konum-gerekli');
@@ -957,24 +998,54 @@
         }
 
         function updateQueueOptions() {
+            console.log('[PERSONEL] updateQueueOptions çağrıldı');
+            console.log('[PERSONEL] allQueues:', allQueues);
+            
             // Seçili servis ID'lerini al
             const sSelect = document.getElementById('setting-servis-ids');
+            if (!sSelect) {
+                console.error('[PERSONEL] setting-servis-ids elementi bulunamadı!');
+                return;
+            }
+            
             const selectedServiceIds = Array.from(sSelect.selectedOptions).map(opt => parseInt(opt.value));
+            console.log('[PERSONEL] Seçili servis ID\'leri:', selectedServiceIds);
 
             const qSelect = document.getElementById('setting-kuyruk-ids');
+            if (!qSelect) {
+                console.error('[PERSONEL] setting-kuyruk-ids elementi bulunamadı!');
+                return;
+            }
 
             qSelect.innerHTML = '';
 
+            if (!allQueues || allQueues.length === 0) {
+                console.warn('[PERSONEL] Kuyruk listesi boş!');
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Önce bölüm seçin';
+                qSelect.appendChild(opt);
+                return;
+            }
+
             // Seçili servislere ait kuyrukları filtrele
             const filteredQueues = allQueues.filter(q => selectedServiceIds.includes(q.servis_id));
+            console.log('[PERSONEL] Filtrelenmiş kuyruklar:', filteredQueues);
 
-            filteredQueues.forEach(q => {
+            if (filteredQueues.length === 0) {
                 const opt = document.createElement('option');
-                opt.value = q.id;
-                opt.textContent = `${q.kod} - ${q.ad}`;
-                if (activeSettings.kuyrukIds.includes(q.id)) opt.selected = true;
+                opt.value = '';
+                opt.textContent = 'Seçili bölümlerde kuyruk bulunamadı';
                 qSelect.appendChild(opt);
-            });
+            } else {
+                filteredQueues.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = `${q.kod || ''} - ${q.ad}`.trim();
+                    if (activeSettings.kuyrukIds && activeSettings.kuyrukIds.includes(q.id)) opt.selected = true;
+                    qSelect.appendChild(opt);
+                });
+            }
 
             // Konumları güncelle (Sadece seçili kuyruklar)
             const currentlySelectedQIds = Array.from(qSelect.selectedOptions).map(opt => parseInt(opt.value));
@@ -1011,9 +1082,22 @@
             });
         }
 
-        function openSettingsModal() {
+        async function openSettingsModal() {
             document.getElementById('settings-modal').style.display = 'flex';
-            if (currentUser) renderSettingsModal(); // Modal açıldığında seçenekleri yeniden render et
+            
+            // Eğer veriler henüz yüklenmemişse yükle
+            if (!allServices || allServices.length === 0 || !allQueues || allQueues.length === 0) {
+                console.log('[PERSONEL] Modal açıldı, veriler yükleniyor...');
+                try {
+                    await loadServicesAndQueues();
+                } catch (e) {
+                    console.error('[PERSONEL] Veri yükleme hatası:', e);
+                    showToast('Bölüm ve kuyruklar yüklenemedi: ' + (e.message || 'Bilinmeyen hata'), 'error');
+                }
+            } else {
+                // Veriler yüklüyse sadece render et
+                if (currentUser) renderSettingsModal();
+            }
         }
 
         function closeSettingsModal() {
@@ -1166,7 +1250,7 @@
 
             try {
                 // 1. Verileri Çek
-                const rawData = await apiCall(`/sira/bekleyen/${currentUser.firma_id}`);
+                const rawData = await apiCall(`/api/sira/bekleyen/${currentUser.firma_id}`);
 
                 if (!rawData) {
                     bekleyenSiralar = [];
@@ -1268,7 +1352,7 @@
                 updateActiveSettingsDisplay();
 
                 try {
-                    const stats = await apiCall(`/sira/istatistik/gunluk/${currentUser.firma_id}`);
+                    const stats = await apiCall(`/api/sira/istatistik/gunluk/${currentUser.firma_id}`);
                     document.getElementById('stat-bugun').textContent = stats.toplam;
 
                     if (stats.ort_islem_dk) {
@@ -1309,7 +1393,7 @@
                 }
 
                 showLoading(true);
-                await apiCall(`/sira/cagir/${siraId}`, {
+                await apiCall(`/api/sira/cagir/${siraId}`, {
                     method: 'POST',
                     body: JSON.stringify({
                         kullanici_id: currentUser.id,
@@ -1428,7 +1512,7 @@
 
             try {
                 showLoading(true);
-                await apiCall(`/sira/cagir/${siraId}`, {
+                await apiCall(`/api/sira/cagir/${siraId}`, {
                     method: 'POST',
                     body: JSON.stringify({
                         kullanici_id: currentUser.id,
@@ -1529,7 +1613,7 @@
         async function activeTicketRecall() {
             if (!activeTicket) return;
             try {
-                await apiCall(`/sira/tekrar-cagir/${activeTicket.id}`, { method: 'POST' });
+                await apiCall(`/api/sira/tekrar-cagir/${activeTicket.id}`, { method: 'POST' });
                 showToast("Tekrar çağrıldı", "info");
             } catch (e) { showToast("Hata oluştu", "error"); }
         }
@@ -1537,7 +1621,7 @@
         async function activeTicketStart() {
             if (!activeTicket) return;
             try {
-                await apiCall(`/sira/baslat/${activeTicket.id}`, { method: 'POST' });
+                await apiCall(`/api/sira/baslat/${activeTicket.id}`, { method: 'POST' });
                 document.getElementById('active-actions-initial').style.display = 'none';
                 document.getElementById('active-actions-serving').style.display = 'grid';
                 activeTicket.durum = 'serving';
@@ -1549,7 +1633,7 @@
             if (!activeTicket) return;
             if (!confirm("Müşteri gelmedi olarak işaretlensin mi?")) return;
             try {
-                await apiCall(`/sira/gelmedi/${activeTicket.id}`, { method: 'POST' });
+                await apiCall(`/api/sira/gelmedi/${activeTicket.id}`, { method: 'POST' });
                 closeActiveTicketUI();
                 siralariYukle();
                 showToast("Gelmedi olarak işaretlendi", "info");
@@ -1559,7 +1643,7 @@
         async function activeTicketFinish() {
             if (!activeTicket) return;
             try {
-                await apiCall(`/sira/tamamla/${activeTicket.id}`, { method: 'POST' });
+                await apiCall(`/api/sira/tamamla/${activeTicket.id}`, { method: 'POST' });
                 closeActiveTicketUI();
                 siralariYukle();
                 showToast("İşlem başarıyla tamamlandı", "success");
@@ -1569,7 +1653,7 @@
         async function activeTicketFinishAndNext() {
             if (!activeTicket) return;
             try {
-                await apiCall(`/sira/tamamla/${activeTicket.id}`, { method: 'POST' });
+                await apiCall(`/api/sira/tamamla/${activeTicket.id}`, { method: 'POST' });
                 showToast("İşlem tamamlandı, sıradaki çağrılıyor...", "success");
                 closeActiveTicketUI();
                 siralariYukle();
@@ -1586,7 +1670,7 @@
             if (!targetQId) return;
 
             try {
-                await apiCall(`/sira/transfer/${activeTicket.id}`, {
+                await apiCall(`/api/sira/transfer/${activeTicket.id}`, {
                     method: 'POST',
                     body: JSON.stringify({ yeni_kuyruk_id: parseInt(targetQId) })
                 });
@@ -1639,7 +1723,7 @@
             clearTimeout(autoSaveTimeout);
             autoSaveTimeout = setTimeout(async () => {
                 try {
-                    await apiCall(`/sira/notlar/${activeTicket.id}`, {
+                    await apiCall(`/api/sira/notlar/${activeTicket.id}`, {
                         method: 'POST',
                         body: JSON.stringify({ notlar: notes })
                     });
@@ -1789,11 +1873,11 @@
             }
         });
 
-        // Sayfa yüklendiğinde benim aktif işlemim var mı kontrol et
+        // Sayfa yüklendiğinde benim aktif işlemim var mı kontrol et (SADECE BİLGİ - UI AÇMA)
         async function checkActiveTicketOnLoad() {
             try {
                 // YENİ: Doğrudan "/api/sira/active-ticket" endpointini kullan
-                const activeRes = await apiCall('/sira/active-ticket');
+                const activeRes = await apiCall('/api/sira/active-ticket');
                 if (activeRes && activeRes.active && activeRes.sira) {
                     const myActive = activeRes.sira;
 
@@ -1807,24 +1891,10 @@
                         if (s) myActive.servis_ad = s.ad;
                     }
 
-                    openActiveTicketUI(myActive);
-
-                    if (myActive.durum === 'serving') {
-                        document.getElementById('active-actions-initial').style.display = 'none';
-                        document.getElementById('active-actions-serving').style.display = 'grid';
-                        // Sayacı "islem_baslangic" tarihinden devam ettir
-                        if (myActive.islem_baslangic) {
-                            const start = new Date(myActive.islem_baslangic).getTime();
-                            const now = new Date().getTime();
-                            const diff = Math.floor((now - start) / 1000);
-                            activeSeconds = (diff > 0) ? diff : 0;
-                        }
-                    } else if (myActive.durum === 'calling' && myActive.cagirilma) {
-                        const start = new Date(myActive.cagirilma).getTime();
-                        const now = new Date().getTime();
-                        const diff = Math.floor((now - start) / 1000);
-                        activeSeconds = (diff > 0) ? diff : 0;
-                    }
+                    // SADECE BİLGİ VER - UI AÇMA (Kullanıcı manuel olarak "Çağır" veya "Sıradakini Çağır" demeli)
+                    console.log('[PERSONEL] Aktif işlem bulundu:', myActive.numara, 'Durum:', myActive.durum);
+                    // openActiveTicketUI(myActive); // KALDIRILDI - Otomatik açma yok
+                    // Kullanıcı manuel olarak "Çağır" veya "Sıradakini Çağır" butonuna tıklamalı
                 }
             } catch (e) {
                 console.error("Active check fail", e);
@@ -1870,7 +1940,7 @@
             }
 
             // SONRA API'yi arka planda gönder (await YOK)
-            apiCall(`/sira/cagir/${siraId}`, {
+            apiCall(`/api/sira/cagir/${siraId}`, {
                 method: 'POST',
                 body: JSON.stringify({
                     kullanici_id: currentUser.id,

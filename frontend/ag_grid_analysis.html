@@ -314,6 +314,28 @@
                 enableValue: true,
                 valueFormatter: numberFormatter,
                 type: 'rightAligned'
+            },
+            {
+                headerName: "PUANLAMA ORANI (%)",
+                field: "Puanlama Oranı",
+                aggFunc: 'avg',
+                enableValue: true,
+                enableRowGroup: true,
+                enablePivot: true,
+                filter: 'agNumberColumnFilter',
+                valueFormatter: numberFormatter,
+                type: 'rightAligned'
+            },
+            {
+                headerName: "ORTALAMA PUAN",
+                field: "Ortalama Puan",
+                aggFunc: 'avg',
+                enableValue: true,
+                enableRowGroup: true,
+                enablePivot: true,
+                filter: 'agNumberColumnFilter',
+                valueFormatter: numberFormatter,
+                type: 'rightAligned'
             }
         ];
 
@@ -786,7 +808,9 @@
                         "Durum": r.durum === 'completed' ? 'Bitti' : r.durum === 'calling' ? 'Çağrıda' : 'Beklemede',
                         "Bekleme (dk)": parseFloat(r.bekleme) || 0,
                         "İşlem (dk)": parseFloat(r.islem) || 0,
-                        "Bilet Adet": 1
+                        "Bilet Adet": 1,
+                        "Puanlama Oranı": parseFloat(r.puanlama_orani) || 0,
+                        "Ortalama Puan": parseFloat(r.ortalama_puan) || 0
                     };
                 });
 

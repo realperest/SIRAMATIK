@@ -117,6 +117,9 @@ let ws = null;
 let wsListeners = [];
 const wsReconnectDelay = 3000;
 
+// WebSocket'i global olarak erişilebilir yap (admin paneli için)
+window.ws = ws;
+
 function initWebSocket(callback) {
     if (callback && typeof callback === 'function') {
         wsListeners.push(callback);
@@ -129,23 +132,19 @@ function initWebSocket(callback) {
 
     // API_URL global olarak app.js başında tanımlı
     // WS URL'sini buradan türetelim: ws://localhost:8000/ws
-    let wsUrl = API_URL.replace('http', 'ws').replace('/api', '/ws');
-
-    // Eğer replacement başarısız olursa manuel oluştur (Fallback)
-    if (!wsUrl.includes('ws')) {
-        // wss:// or ws://
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname || 'localhost';
-        wsUrl = `${protocol}//${host}:8000/ws`;
-    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname || 'localhost';
+    const wsUrl = `${protocol}//${host}:8000/ws`;
 
     console.log('🔗 WebSocket Bağlanıyor:', wsUrl);
 
     function connect() {
         ws = new WebSocket(wsUrl);
+        window.ws = ws; // Global erişim için
 
         ws.onopen = () => {
             console.log('[OK] WebSocket Bağlandı!');
+            window.ws = ws; // Bağlantı açıldığında güncelle
         };
 
         ws.onmessage = (event) => {
@@ -161,6 +160,7 @@ function initWebSocket(callback) {
         ws.onclose = () => {
             console.warn('[WARN] WebSocket koptu. Yeniden bağlanılıyor...');
             ws = null;
+            window.ws = null; // Global referansı da temizle
             setTimeout(connect, wsReconnectDelay);
         };
 

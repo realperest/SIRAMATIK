@@ -290,7 +290,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 15px;
+            padding: 20px;
             overflow-y: auto;
             box-sizing: border-box;
         }
@@ -298,19 +298,23 @@
         .survey-card {
             background: white;
             border-radius: 18px;
-            padding: 18px 12px;
+            padding: 20px 16px;
             box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
             text-align: center;
             width: 100%;
-            max-width: 340px;
+            max-width: 420px;
             box-sizing: border-box;
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .rating-faces {
             display: flex;
             justify-content: space-between;
-            gap: 1px;
-            margin: 10px 0;
+            gap: 2px;
+            margin: 8px 0 12px 0;
+            flex-shrink: 0;
         }
 
         .face-option {
@@ -334,8 +338,8 @@
         }
 
         .face {
-            font-size: 22px;
-            margin-bottom: 1px;
+            font-size: 24px;
+            margin-bottom: 2px;
             transition: all 0.3s ease;
         }
 
@@ -344,10 +348,10 @@
         }
 
         .face-label {
-            font-size: 6.5px;
+            font-size: 7px;
             color: #7f8c8d;
             font-weight: 600;
-            line-height: 1;
+            line-height: 1.2;
         }
 
         .face-option.selected .face-label {
@@ -356,18 +360,18 @@
 
         .survey-submit-btn {
             width: 100%;
-            padding: 11px;
+            padding: 12px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            font-size: 14px;
-            border-radius: 50px;
             font-size: 16px;
+            border-radius: 50px;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 20px;
+            margin-top: 12px;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            flex-shrink: 0;
         }
 
         .survey-submit-btn:hover:not(:disabled) {
@@ -425,8 +429,8 @@
     <!-- Memnuniyet Anketi -->
     <div id="survey-container" class="survey-container" style="display: none;">
         <div class="survey-card">
-            <h3 style="color: #764ba2; margin-bottom: 6px; font-size: 16px; font-weight: 700;">🎯 Aldığınız Hizmeti Puanlayın</h3>
-            <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 10px;">
+            <h3 style="color: #764ba2; margin-bottom: 4px; font-size: 17px; font-weight: 700; flex-shrink: 0;">🎯 Aldığınız Hizmeti Puanlayın</h3>
+            <p style="font-size: 11px; color: #7f8c8d; margin-bottom: 8px; flex-shrink: 0;">
                 Görüşünüz bizim için değerli!
             </p>
 
@@ -455,12 +459,12 @@
             </div>
 
             <!-- Yorum Alanı -->
-            <div style="margin-top: 12px;">
-                <label style="display: block; font-size: 11px; color: #7f8c8d; margin-bottom: 5px; text-align: center;">
+            <div style="margin-top: 8px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <label style="display: block; font-size: 11px; color: #7f8c8d; margin-bottom: 5px; text-align: center; flex-shrink: 0;">
                     Bize iletmek istediğiniz bir şey var mı?
                 </label>
-                <textarea id="survey-comment" placeholder="İsteğe bağlı..." rows="2"
-                    style="width: 100%; padding: 8px; border: 2px solid #eee; border-radius: 8px; font-size: 12px; font-family: inherit; resize: vertical; text-align: center; box-sizing: border-box;"></textarea>
+                <textarea id="survey-comment" placeholder="İsteğe bağlı..." rows="4"
+                    style="width: 100%; padding: 10px; border: 2px solid #eee; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; text-align: left; box-sizing: border-box; min-height: 80px;"></textarea>
             </div>
 
             <!-- Gönder Butonu -->
@@ -1094,6 +1098,147 @@
         let selectedRating = 0;
         let surveyShown = false;
 
+        // Ses efektleri fonksiyonları
+        let audioContextInstance = null;
+        let audioContextInitialized = false;
+        
+        // AudioContext'i kullanıcı etkileşimi ile başlat (tarayıcı kısıtlaması için)
+        function initAudioContext() {
+            if (!audioContextInstance) {
+                try {
+                    audioContextInstance = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log('[AUDIO] AudioContext oluşturuldu, durum:', audioContextInstance.state);
+                } catch (e) {
+                    console.warn('AudioContext oluşturulamadı:', e);
+                    return null;
+                }
+            }
+            
+            // Eğer suspended durumundaysa resume et
+            if (audioContextInstance.state === 'suspended') {
+                audioContextInstance.resume().then(() => {
+                    console.log('[AUDIO] AudioContext resume edildi');
+                    audioContextInitialized = true;
+                }).catch(e => {
+                    console.warn('[AUDIO] AudioContext resume edilemedi:', e);
+                });
+            } else {
+                audioContextInitialized = true;
+            }
+            
+            return audioContextInstance;
+        }
+        
+        // Sayfa yüklendiğinde kullanıcı etkileşimi bekle (AudioContext için)
+        document.addEventListener('click', function initAudioOnInteraction() {
+            if (!audioContextInitialized) {
+                initAudioContext();
+                // İlk etkileşimden sonra listener'ı kaldır
+                document.removeEventListener('click', initAudioOnInteraction);
+            }
+        }, { once: true });
+        
+        // Touch event için de ekle (mobil cihazlar)
+        document.addEventListener('touchstart', function initAudioOnTouch() {
+            if (!audioContextInitialized) {
+                initAudioContext();
+                document.removeEventListener('touchstart', initAudioOnTouch);
+            }
+        }, { once: true });
+
+        function playHappySound() {
+            try {
+                const audioContext = initAudioContext();
+                if (!audioContext) return;
+                
+                // AudioContext suspended ise resume et
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        playHappySoundInternal(audioContext);
+                    }).catch(e => {
+                        console.warn('AudioContext resume edilemedi:', e);
+                    });
+                } else {
+                    playHappySoundInternal(audioContext);
+                }
+            } catch (e) {
+                console.warn('Ses çalınamadı:', e);
+            }
+        }
+        
+        function playHappySoundInternal(audioContext) {
+            // Neşeli ve dinamik melodi: Do-Mi-Sol-Do (yüksek oktav)
+            const notes = [
+                { freq: 523.25, duration: 150 }, // Do (C5)
+                { freq: 659.25, duration: 150 }, // Mi (E5)
+                { freq: 783.99, duration: 150 }, // Sol (G5)
+                { freq: 1046.50, duration: 300 }  // Do (C6) - daha uzun
+            ];
+            
+            let currentTime = audioContext.currentTime;
+            
+            notes.forEach((note, index) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = note.freq;
+                oscillator.type = 'sine';
+                
+                // Yumuşak başlangıç ve bitiş (fade in/out)
+                gainNode.gain.setValueAtTime(0, currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, currentTime + 0.01);
+                gainNode.gain.linearRampToValueAtTime(0, currentTime + note.duration / 1000);
+                
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + note.duration / 1000);
+                
+                currentTime += note.duration / 1000;
+            });
+        }
+
+        function playThankYouSound() {
+            try {
+                const audioContext = initAudioContext();
+                if (!audioContext) return;
+                
+                // AudioContext suspended ise resume et
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        playThankYouSoundInternal(audioContext);
+                    }).catch(e => {
+                        console.warn('AudioContext resume edilemedi:', e);
+                    });
+                } else {
+                    playThankYouSoundInternal(audioContext);
+                }
+            } catch (e) {
+                console.warn('Ses çalınamadı:', e);
+            }
+        }
+        
+        function playThankYouSoundInternal(audioContext) {
+            // Ufak, yumuşak "ding" sesi
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800; // Orta-yüksek frekans
+            oscillator.type = 'sine';
+            
+            // Çok yumuşak ve kısa
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.01);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
         function showSurvey() {
             // Sadece bir kez göster
             if (surveyShown) return;
@@ -1107,6 +1252,12 @@
 
             surveyShown = true;
             document.getElementById('survey-container').style.display = 'block';
+
+            // Neşeli ve dinamik ses çal (anket açılırken)
+            // Kısa bir gecikme ile çal ki AudioContext hazır olsun
+            setTimeout(() => {
+                playHappySound();
+            }, 100);
 
             // Anket gösterilince sayfayı yumuşakça kaydır
             setTimeout(() => {
@@ -1193,6 +1344,11 @@
                     el.style.display = 'none';
                 });
                 document.getElementById('survey-thanks').style.display = 'block';
+
+                // Ufak teşekkür sesi çal (kısa gecikme ile)
+                setTimeout(() => {
+                    playThankYouSound();
+                }, 200);
 
                 // Teşekkür ekranında kalsın - bilete dönmesin (iş bitti)
 

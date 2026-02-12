@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sıra Numarası Al - Sıramatik</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
     <link rel="stylesheet" href="static/style.css">
     <style>
         body {
@@ -438,13 +439,13 @@
 <body>
     <!-- Sol Alt Ayarlar Butonu -->
     <button class="settings-button" onclick="openSettings()" title="Kiosk Ayarları">
-        ⚙️
+        <i class="fas fa-cog"></i>
     </button>
 
     <!-- Şifre Sorgulama Modalı -->
     <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 9999;">
         <div class="settings-panel" style="max-width: 400px; text-align: center;">
-            <div style="font-size: 40px; margin-bottom: 20px;">🔒</div>
+            <div style="font-size: 40px; margin-bottom: 20px;"></div>
             <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
             <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Ayarlara erişmek için şifreyi giriniz.</p>
             <input type="password" id="ask-password-input"
@@ -503,7 +504,7 @@
     </button>
 
     <div class="header">
-        <h1 id="hospital-name">🏥 Yükleniyor...</h1>
+        <h1 id="hospital-name"> Yükleniyor...</h1>
         <p id="hospital-subtitle">Sıra Numarası Alma Sistemi</p>
     </div>
 
@@ -518,7 +519,7 @@
                     BU CİHAZ AKILLI SIRA TAKİP SİSTEMİ KULLANIR
                 </div>
                 <div style="font-size: 18px; opacity: 0.95;">
-                    📸 Lütfen seçimden önce cep telefonunuzun kamerasını açınız
+                     Lütfen seçimden önce cep telefonunuzun kamerasını açınız
                 </div>
             </div>
         </div>
@@ -642,7 +643,7 @@
 
             try {
                 // Şifreyi doğrula ve hangi firmaya ait olduğunu bul
-                const res = await apiCall('/auth/ekran-login', {
+                const res = await apiCall('/api/auth/ekran-login', {
                     method: 'POST',
                     body: JSON.stringify({ sifre: password })
                 });
@@ -735,8 +736,8 @@
         async function loadSettingsData() {
             try {
                 const [servisler, kuyruklar] = await Promise.all([
-                    apiCall(`/servisler/${FIRMA_ID}`),
-                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
                 ]);
 
                 // Tüm kuyruğu global'de sakla
@@ -862,6 +863,7 @@
             return 'Unknown';
         }
 
+        // Cihaz heartbeat
         async function bildirCihaz() {
             try {
                 // Fingerprint al veya oluştur
@@ -871,24 +873,34 @@
                     localStorage.setItem('kiosk_device_fingerprint', fingerprint);
                 }
 
-                await apiCall('/admin/cihaz/bildir', {
+                const deviceInfo = {
+                    firma_id: parseInt(FIRMA_ID),
+                    ad: 'KIOSK-' + fingerprint.substring(3, 10),
+                    tip: 'kiosk',
+                    device_fingerprint: fingerprint,
+                    mac_address: null,
+                    ip: null,
+                    ayarlar: kioskSettings,
+                    metadata: {
+                        browser: detectBrowser(),
+                        browser_version: navigator.userAgent,
+                        screen_resolution: `${screen.width}x${screen.height}`,
+                        platform: navigator.platform,
+                        servis_ids: kioskSettings.servisIds,
+                        kuyruk_ids: kioskSettings.kuyrukIds
+                    }
+                };
+
+                await apiCall('/api/cihaz/kayit', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        firma_id: parseInt(FIRMA_ID),
-                        ad: 'KIOSK-' + fingerprint.substring(3, 10),
-                        tip: 'kiosk',
-                        mac: fingerprint,
-                        metadata: {
-                            browser: detectBrowser(),
-                            browser_version: navigator.userAgent,
-                            screen_resolution: `${screen.width}x${screen.height}`,
-                            platform: navigator.platform,
-                            servis_ids: kioskSettings.servisIds,
-                            kuyruk_ids: kioskSettings.kuyrukIds
-                        }
-                    })
+                    body: JSON.stringify(deviceInfo)
                 });
-            } catch (err) { console.error("Heartbeat error", err); }
+            } catch (err) { 
+                console.error("Heartbeat error", err);
+                // Eğer cihaz bulunamadı/404 hatası ise fingerprint'i yenilemeyi dene (opsiyonel)
+                // Normal kiosk'ta "bildir" (upsert) mantığı kullanıldığı için 404 dönmez, yeni kayıt açar.
+                // O yüzden buraya dokunmaya gerek yok.
+            }
         }
 
         async function initFirma() {
@@ -898,7 +910,7 @@
                 setInterval(bildirCihaz, 30000);
 
                 console.log("Firma bilgileri yükleniyor...");
-                const firma = await apiCall(`/firma/${FIRMA_ID}`);
+                const firma = await apiCall(`/api/firma/${FIRMA_ID}`);
                 if (firma && firma.ad) {
                     const el = document.getElementById('hospital-name');
                     if (el) el.textContent = firma.ad;
@@ -915,8 +927,8 @@
             try {
                 if (!silent) showLoading(true);
                 const [servisler, kuyruklar] = await Promise.all([
-                    apiCall(`/servisler/${FIRMA_ID}`),
-                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
                 ]);
 
                 console.log("Gelen Servisler:", servisler.length);
@@ -1038,7 +1050,7 @@
             console.log("Sıra alınıyor: Kuyruk", kuyrukId);
             try {
                 showLoading(true);
-                const response = await apiCall('/sira/al', {
+                const response = await apiCall('/api/sira/al', {
                     method: 'POST',
                     body: JSON.stringify({
                         kuyruk_id: kuyrukId,
@@ -1119,7 +1131,7 @@
 
         async function initConfig() {
             try {
-                const config = await apiCall('/kiosk-config');
+                const config = await apiCall('/api/kiosk-config');
                 kioskConfig = config;
                 console.log("Kiosk Yapılandırması:", kioskConfig);
             } catch (err) {
@@ -1194,7 +1206,7 @@
             // Başlangaçta tüm verileri TEK BİR PAKET (init) olarak çekerek hızı maksimuma çıkarıyoruz
             try {
                 showLoading(true);
-                const initData = await apiCall(`/kiosk/init/${FIRMA_ID}`);
+                const initData = await apiCall(`/api/kiosk/init/${FIRMA_ID}`);
 
                 // 1. Firma Bilgileri
                 if (initData.firma && initData.firma.ad) {

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sıra Numarası Al - Sıramatik</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
     <link rel="stylesheet" href="static/style.css">
     <style>
         body {
@@ -328,9 +329,9 @@
             position: fixed;
             bottom: 20px;
             left: 20px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
             color: white;
             width: 50px;
             height: 50px;
@@ -342,7 +343,9 @@
             justify-content: center;
             font-size: 24px;
             z-index: 1000;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            min-width: 50px;
+            min-height: 50px;
         }
 
         .settings-button:hover {
@@ -436,15 +439,20 @@
 </head>
 
 <body>
+    <!-- Bağlantı Durum Badge (Küçük, Sağ Üst Köşe) -->
+    <div id="connection-status" style="position:fixed; top:15px; right:15px; background:#f39c12; color:white; text-align:center; padding:8px 12px; z-index:99999; font-weight:bold; font-size: 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display:none; min-width: 120px; transition: all 0.3s ease;">
+        <i class="fas fa-sync fa-spin"></i> <span id="connection-text">Kontrol ediliyor...</span>
+    </div>
+
     <!-- Sol Alt Ayarlar Butonu -->
     <button class="settings-button" onclick="openSettings()" title="Kiosk Ayarları">
-        ⚙️
+        <i class="fas fa-cog"></i>
     </button>
 
     <!-- Şifre Sorgulama Modalı -->
     <div id="password-ask-modal" class="settings-modal" style="display:none; z-index: 9999;">
         <div class="settings-panel" style="max-width: 400px; text-align: center;">
-            <div style="font-size: 40px; margin-bottom: 20px;">🔒</div>
+            <div style="font-size: 40px; margin-bottom: 20px;"></div>
             <h3 style="margin-bottom: 15px; color: #2c3e50;">Müdahale Şifresi</h3>
             <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">Ayarlara erişmek için şifreyi giriniz.</p>
             <input type="password" id="ask-password-input"
@@ -503,7 +511,7 @@
     </button>
 
     <div class="header">
-        <h1 id="hospital-name">🏥 Yükleniyor...</h1>
+        <h1 id="hospital-name"> Yükleniyor...</h1>
         <p id="hospital-subtitle">Sıra Numarası Alma Sistemi</p>
     </div>
 
@@ -518,7 +526,7 @@
                     BU CİHAZ AKILLI SIRA TAKİP SİSTEMİ KULLANIR
                 </div>
                 <div style="font-size: 18px; opacity: 0.95;">
-                    📸 Lütfen seçimden önce cep telefonunuzun kamerasını açınız
+                     Lütfen seçimden önce cep telefonunuzun kamerasını açınız
                 </div>
             </div>
         </div>
@@ -616,6 +624,49 @@
     
     <script>
         
+        // Durum Badge Güncelleme (Küçük, Sağ Üst Köşe)
+        let connectionStatusShown = false;
+        let isFirstLoad = !localStorage.getItem('kiosk_first_load_done');
+        
+        function updateConnectionStatus(status, message) {
+            const el = document.getElementById('connection-status');
+            const textEl = document.getElementById('connection-text');
+            if (!el || !textEl) return;
+            
+            // İlk yüklemede göster, sonraki yüklemelerde sadece offline durumunda göster
+            if (!isFirstLoad && status === 'online') {
+                // İlk yükleme değilse ve online ise gösterme
+                el.style.display = 'none';
+                return;
+            }
+            
+            // Badge'i göster
+            el.style.display = 'block';
+            connectionStatusShown = true;
+            
+            if (status === 'online') {
+                el.style.background = '#2ecc71';
+                textEl.innerHTML = '<i class="fas fa-check-circle"></i> Online';
+                // İlk yüklemede 3 saniye sonra gizle, sonraki yüklemelerde hemen gizle
+                setTimeout(() => { 
+                    el.style.display = 'none';
+                    connectionStatusShown = false;
+                }, isFirstLoad ? 3000 : 1000);
+                // İlk yükleme işaretini koy
+                if (isFirstLoad) {
+                    localStorage.setItem('kiosk_first_load_done', 'true');
+                    isFirstLoad = false;
+                }
+            } else if (status === 'offline') {
+                el.style.background = '#e74c3c';
+                textEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message || 'Bağlantı Yok'}`;
+                // Offline durumunda göster (kullanıcı bilgilendirilmeli)
+            } else {
+                el.style.background = '#f39c12';
+                textEl.innerHTML = `<i class="fas fa-sync fa-spin"></i> ${message || 'Kontrol...'}`;
+            }
+        }
+
         // Toast, Loading, vs. yardımcı fonksiyonlar
         function showLoading(show) {
             const loader = document.getElementById('loading');
@@ -714,7 +765,7 @@
                     tip: 'tablet',
                     device_fingerprint: fingerprint,
                     mac_address: null,
-                    ip_address: null,
+                    ip: null,
                     ayarlar: kioskSettings,
                     metadata: {
                         browser: detectBrowser(),
@@ -735,18 +786,22 @@
                 if (response.status === 'success' && response.device) {
                     DEVICE_ID = response.device.id;
                     localStorage.setItem('tablet_device_id', DEVICE_ID);
-                    console.log('[OK] Cihaz kaydedildi:', DEVICE_ID);
+                    console.log('[OK] Cihaz kaydedildi. Device ID:', DEVICE_ID);
+                    console.log('[OK] Device bilgileri:', JSON.stringify(response.device));
+                    updateConnectionStatus('online');
                     
                     // Backend'den ayarları çek
                     await syncSettingsFromBackend();
                     return true;
                 }
                 
-                console.warn('[WARN] Cihaz kaydedilemedi');
+                console.warn('[WARN] Cihaz kaydedilemedi, response:', response);
+                updateConnectionStatus('offline', 'Cihaz kayıt yanıtı geçersiz');
                 return false;
                 
             } catch (error) {
                 console.error('[ERR] Cihaz kayıt hatası:', error);
+                updateConnectionStatus('offline', 'Cihaz kaydedilemedi: ' + (error.message || 'Bilinmeyen hata'));
                 // Hata durumunda local ayarlarla devam et
                 return false;
             }
@@ -811,19 +866,35 @@
          * Heartbeat Gönder
          */
         async function sendHeartbeat() {
-            if (!DEVICE_ID) return;
+            if (!DEVICE_ID) {
+                console.warn('[WARN] Heartbeat atlaması: DEVICE_ID yok');
+                return;
+            }
             
+            console.log(`[HEARTBEAT] Gönderiliyor... Device ID: ${DEVICE_ID}`);
             try {
                 await apiCall(`/api/cihaz/${DEVICE_ID}/heartbeat`, {
                     method: 'POST',
                     body: JSON.stringify({
                         device_id: DEVICE_ID,
-                        ip_address: null,
-                        metadata: {}
+                        ip: null,
+                        metadata: null 
                     })
                 });
+                updateConnectionStatus('online');
             } catch (error) {
                 console.warn('[WARN] Heartbeat hatası:', error);
+                updateConnectionStatus('offline', 'Sunucu ile iletişim kurulamıyor');
+                
+                // Eğer cihaz bulunamadı hatası alırsak (404), ID geçersizdir.
+                if (error.message && (error.message.includes('bulunamadı') || error.message.includes('404'))) {
+                    console.log('[RESET] Cihaz ID geçersiz, sıfırlanıyor...');
+                    updateConnectionStatus('offline', 'Kimlik yenileniyor...');
+                    localStorage.removeItem('tablet_device_id');
+                    DEVICE_ID = null;
+                    // Yeniden kayıt olmayı dene
+                    await registerOrUpdateDevice();
+                }
             }
         }
 
@@ -847,7 +918,7 @@
 
             try {
                 // Şifreyi doğrula ve hangi firmaya ait olduğunu bul
-                const res = await apiCall('/auth/ekran-login', {
+                const res = await apiCall('/api/auth/ekran-login', {
                     method: 'POST',
                     body: JSON.stringify({ sifre: password })
                 });
@@ -946,8 +1017,8 @@
         async function loadSettingsData() {
             try {
                 const [servisler, kuyruklar] = await Promise.all([
-                    apiCall(`/servisler/${FIRMA_ID}`),
-                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
                 ]);
 
                 // Tüm kuyruğu global'de sakla
@@ -1023,21 +1094,12 @@
         // Sayfa yüklendiğinde ayarları yükle
         loadKioskSettings();
 
-        // Cihaz heartbeat (tablet kayıtlı ise güncelle)
-        async function bildirCihaz() {
-            if (DEVICE_ID) {
-                await sendHeartbeat();
-            }
-        }
 
         async function initFirma() {
             try {
-                // Heartbeat
-                bildirCihaz();
-                setInterval(bildirCihaz, 30000);
-
                 console.log("Firma bilgileri yükleniyor...");
-                const firma = await apiCall(`/firma/${FIRMA_ID}`);
+                // Public firma bilgisi endpoint'i: /api/firma/{firma_id}
+                const firma = await apiCall(`/api/firma/${FIRMA_ID}`);
                 if (firma && firma.ad) {
                     const el = document.getElementById('hospital-name');
                     if (el) el.textContent = firma.ad;
@@ -1058,11 +1120,13 @@
                 if (!silent) showLoading(true);
                 
                 console.log('[SEARCH] Servisler çağrılıyor...');
-                const servisler = await apiCall(`/servisler/${FIRMA_ID}`);
+                // Public servis listesi endpoint'i: /api/servisler/{firma_id}
+                const servisler = await apiCall(`/api/servisler/${FIRMA_ID}`);
                 console.log('[OK] Servisler geldi:', servisler);
                 
                 console.log('[SEARCH] Kuyruklar çağrılıyor...');
-                const kuyruklar = await apiCall(`/kuyruklar/firma/${FIRMA_ID}`);
+                // Public kuyruk listesi endpoint'i: /api/kuyruklar/firma/{firma_id}
+                const kuyruklar = await apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`);
                 console.log('[OK] Kuyruklar geldi:', kuyruklar);
 
                 console.log("Gelen Servisler:", servisler.length);
@@ -1195,7 +1259,7 @@
             console.log("Sıra alınıyor: Kuyruk", kuyrukId);
             try {
                 showLoading(true);
-                const response = await apiCall('/sira/al', {
+                const response = await apiCall('/api/sira/al', {
                     method: 'POST',
                     body: JSON.stringify({
                         kuyruk_id: kuyrukId,
@@ -1361,11 +1425,10 @@
                 // 3. Servis ve Kuyruklar yükle
                 await verileriYukle(false);
 
-                // 4. Heartbeat Başlat
-                bildirCihaz();
-                sendHeartbeat();
+                // 4. Heartbeat Başlat (30 saniyede bir)
+                console.log('[OK] Heartbeat sistemi başlatılıyor...');
+                sendHeartbeat(); // İlk heartbeat hemen gönder
                 setInterval(() => {
-                    bildirCihaz();
                     sendHeartbeat();
                 }, 30000);
 

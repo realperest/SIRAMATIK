@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Sıramatik Yönetim Paneli</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
     <link rel="stylesheet" href="static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -280,7 +284,75 @@
         }
 
         .modal-lg {
-            width: 900px;
+            width: 1400px;
+            max-height: 90vh;
+        }
+        
+        .modal-xl {
+            width: 1600px;
+            max-width: 95vw;
+            max-height: 95vh;
+        }
+        
+        #cihaz-detail-form {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 30px !important;
+            max-height: calc(95vh - 200px) !important;
+            overflow-y: auto !important;
+            padding-right: 15px !important;
+        }
+        
+        .cihaz-detail-column {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 20px !important;
+        }
+        
+        .readonly-input {
+            background: rgba(245, 245, 245, 0.1) !important;
+            cursor: not-allowed !important;
+            font-family: monospace !important;
+            font-size: 12px !important;
+            color: var(--text-muted) !important;
+        }
+        
+        #detail-fingerprint {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+            padding: 12px !important;
+            background: rgba(245, 245, 245, 0.1) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 8px !important;
+            color: var(--text-muted) !important;
+            font-family: monospace !important;
+            font-size: 12px !important;
+            cursor: not-allowed !important;
+        }
+        
+        .stats-container {
+            background: rgba(255, 255, 255, 0.05) !important;
+            padding: 15px !important;
+            border-radius: 8px !important;
+            border: 1px solid var(--glass-border) !important;
+        }
+        
+        .stats-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+        }
+        
+        .cihaz-detail-actions {
+            grid-column: 1 / -1 !important;
+            display: flex !important;
+            justify-content: flex-end !important;
+            gap: 15px !important;
+            margin-top: 20px !important;
+            padding-top: 20px !important;
+            border-top: 1px solid var(--glass-border) !important;
         }
 
         .form-grid {
@@ -289,12 +361,28 @@
             gap: 20px;
         }
 
+        @media (max-width: 1600px) {
+            .modal-xl {
+                width: 95%;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            #cihaz-detail-form {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
             }
 
             .modal-lg {
+                width: 100%;
+            }
+            
+            .modal-xl {
                 width: 100%;
             }
         }
@@ -399,6 +487,28 @@
         @keyframes spin {
             to {
                 transform: rotate(360deg);
+            }
+        }
+        
+        @keyframes pulse-green {
+            0%, 100% { 
+                box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+                transform: scale(1.05);
+            }
+        }
+        
+        @keyframes pulse-red {
+            0%, 100% { 
+                box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+                transform: scale(1.05);
             }
         }
     </style>
@@ -608,7 +718,11 @@
                             <th>Durum</th>
                             <th>Ad</th>
                             <th>Tip</th>
+                            <th>Bölüm</th>
+                            <th>Kuyruk</th>
                             <th>IP Adresi</th>
+                            <th>Tarayıcı</th>
+                            <th>Parmak İzi</th>
                             <th>Son Görülme</th>
                             <th>Ayarlar</th>
                             <th>İşlemler</th>
@@ -616,7 +730,7 @@
                     </thead>
                     <tbody id="cihaz-listesi">
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 40px;">
+                            <td colspan="11" style="text-align: center; padding: 40px;">
                                 <i class="fas fa-spinner fa-spin"></i> Yükleniyor...
                             </td>
                         </tr>
@@ -978,7 +1092,7 @@
                         </div>
                         <button type="button" class="primary-btn" style="width:100%; padding:6px; font-size:12px;"
                             onclick="generateBulkLocations()">
-                            ⚡ Oluştur
+                             Oluştur
                         </button>
                     </div>
 
@@ -1077,7 +1191,88 @@
         </div>
     </div>
 
-    <script src="static/app.js"></script>
+    <!-- CİHAZ DETAY MODAL -->
+    <div id="cihaz-detail-modal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <h2>Cihaz Detayları</h2>
+            <form id="cihaz-detail-form">
+                <input type="hidden" id="detail-cihaz-id">
+                
+                <!-- Sol Sütun -->
+                <div class="cihaz-detail-column">
+                    <div class="form-group">
+                        <label>Cihaz / Ekran Adı</label>
+                        <input type="text" id="detail-ad" required placeholder="Örn: LABORATUVAR GİRİŞ">
+                        <small style="color:var(--text-muted)">Kullanıcının göreceği isim (özgürce yazabilirsiniz)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cihaz Parmak İzi (Otomatik Kod)</label>
+                        <input type="text" id="detail-fingerprint" readonly class="readonly-input">
+                        <small style="color:var(--text-muted)">Tablodaki benzersiz kimlik; sistem tarafından otomatik oluşturulur ve sadece okunur</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Çalıştığı Bölüm</label>
+                        <select id="detail-servis-id">
+                            <option value="">Tüm Bölümler (Genel)</option>
+                        </select>
+                        <small style="color:var(--text-muted)">Bu cihazın hizmet vereceği bölüm</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Çalıştığı Kuyruk</label>
+                        <select id="detail-kuyruk-id">
+                            <option value="">Önce Bölüm Seçin</option>
+                        </select>
+                        <small style="color:var(--text-muted)">Seçili bölüme ait kuyruk</small>
+                    </div>
+                </div>
+
+                <!-- Sağ Sütun -->
+                <div class="cihaz-detail-column">
+                    <div class="form-group">
+                        <label>Tip</label>
+                        <input type="text" id="detail-tip" readonly class="readonly-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Durum</label>
+                        <select id="detail-durum">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                            <option value="maintenance">Bakımda</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Son Görülme</label>
+                        <input type="text" id="detail-son-gorulen" readonly class="readonly-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Verdiği Sıralar (Son 30 Gün)</label>
+                        <div id="detail-istatistikler" class="stats-container">
+                            <div class="stats-grid">
+                                <div><strong>Toplam:</strong> <span id="stat-toplam">-</span></div>
+                                <div><strong>Tamamlanan:</strong> <span id="stat-tamamlanan">-</span></div>
+                                <div><strong>Çağrılan:</strong> <span id="stat-cagirilan">-</span></div>
+                                <div><strong>Bekleyen:</strong> <span id="stat-bekleyen">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alt Kısım - Butonlar (Full Width) -->
+                <div class="cihaz-detail-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('cihaz-detail-modal')">İptal</button>
+                    <button type="submit" class="primary-btn">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="static/app.js?v=3"></script>
 
     <script>
         // GÜVENLİK KONTROLÜ - Sadece admin rolü erişebilir
@@ -1139,12 +1334,24 @@
 
             if (viewId === 'dashboard' || viewId === 'istatistik') loadStats();
             if (viewId === 'ayarlar') loadFirmaSettings();
-            if (viewId === 'cihazlar') loadCihazlar();
+            if (viewId === 'cihazlar') {
+                loadCihazlar();
+                // WebSocket durumunu izlemeye başla
+                startWebSocketMonitoring();
+                // İlk kontrolü yap
+                setTimeout(() => {
+                    lastWsState = isWebSocketConnected();
+                    checkAndManagePolling();
+                }, 1000); // 1 saniye sonra kontrol et (WebSocket bağlantısı için zaman tanı)
+            } else {
+                stopCihazlarPolling(); // Diğer view'larda polling'i durdur
+                stopWebSocketMonitoring(); // WebSocket izlemeyi de durdur
+            }
         }
 
         async function loadFirmaSettings() {
             try {
-                const firma = await apiCall(`/firma/${currentUser.firma_id}`);
+                const firma = await apiCall(`/api/firma/${currentUser.firma_id}`);
                 if (firma) {
                     document.getElementById('setting-firma-ad').value = firma.ad || '';
                     document.getElementById('setting-firma-sektor').value = firma.sektor || '';
@@ -1175,7 +1382,7 @@
                 ekran_sifre: document.getElementById('setting-firma-ekran-sifre').value
             };
             try {
-                await apiCall(`/admin/firma/${currentUser.firma_id}`, {
+                await apiCall(`/api/admin/firma/${currentUser.firma_id}`, {
                     method: 'PUT',
                     body: JSON.stringify(data)
                 });
@@ -1224,7 +1431,7 @@
 
         async function loadFirmaInfo() {
             try {
-                const firma = await apiCall(`/firma/${currentUser.firma_id}`);
+                const firma = await apiCall(`/api/firma/${currentUser.firma_id}`);
                 if (firma && firma.ad) {
                     document.getElementById('firma-name-display').textContent = firma.ad;
                     document.title = firma.ad + " - Yönetim Paneli";
@@ -1236,17 +1443,53 @@
             } catch (err) { }
         }
 
+        // Browser bilgisini tespit et
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Edg')) return 'Edge';
+            if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome';
+            if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+            if (ua.includes('Firefox')) return 'Firefox';
+            if (ua.includes('Opera') || ua.includes('OPR')) return 'Opera';
+            return 'Unknown';
+        }
+
         async function bildirCihaz() {
             try {
-                await apiCall('/admin/cihaz/bildir', {
+                if (!currentUser) return;
+
+                // Admin ekranı için stabil bir fingerprint üret
+                let fingerprint = localStorage.getItem('admin_device_fingerprint');
+                if (!fingerprint) {
+                    // Kullanıcı ID + tarayıcı bilgisine dayalı basit ama stabil bir kod
+                    const uid = currentUser.id || currentUser.kullanici_id || 0;
+                    fingerprint = `admin_${uid}_${window.location.hostname}`;
+                    localStorage.setItem('admin_device_fingerprint', fingerprint);
+                }
+
+                const deviceInfo = {
+                    firma_id: parseInt(currentUser.firma_id),
+                    ad: 'ADMIN-' + currentUser.ad_soyad,
+                    tip: 'pc',
+                    device_fingerprint: fingerprint,
+                    mac_address: null,
+                    ip: null,
+                    ayarlar: {},
+                    metadata: {
+                        browser: detectBrowser(),
+                        browser_version: navigator.userAgent,
+                        screen_resolution: `${screen.width}x${screen.height}`,
+                        platform: navigator.platform
+                    }
+                };
+
+                await apiCall('/api/cihaz/kayit', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        firma_id: parseInt(currentUser.firma_id),
-                        ad: 'ADMIN-' + currentUser.ad_soyad,
-                        tip: 'pc'
-                    })
+                    body: JSON.stringify(deviceInfo)
                 });
-            } catch (err) { }
+            } catch (err) {
+                console.error('Admin cihaz bildirimi hatası:', err);
+            }
         }
 
         function handleTimeRangeChange(suffix) {
@@ -1309,7 +1552,7 @@
                 const start = document.getElementById(`start-date-${suffix}`)?.value;
                 const end = document.getElementById(`end-date-${suffix}`)?.value;
 
-                let url = `/admin/stats/${currentUser.firma_id}?period_type=${period}&time_range=${range}`;
+                let url = `/api/admin/stats/${currentUser.firma_id}?period_type=${period}&time_range=${range}`;
                 if (selectedServis) url += `&servis_id=${selectedServis}`;
                 if (selectedKuyruk) url += `&kuyruk_id=${selectedKuyruk}`; // YENİ
                 if (selectedUser) url += `&kullanici_id=${selectedUser}`;
@@ -1476,7 +1719,7 @@
 
         async function loadServices() {
             try {
-                services = await apiCall(`/servisler/${currentUser.firma_id}`);
+                services = await apiCall(`/api/servisler/${currentUser.firma_id}`);
                 renderServiceTable();
                 renderUserTable(); // Kullanıcı tablosundaki bölüm isimlerini güncelle
 
@@ -1503,7 +1746,7 @@
 
         async function loadQueues() {
             try {
-                queues = await apiCall(`/kuyruklar/firma/${currentUser.firma_id}`);
+                queues = await apiCall(`/api/kuyruklar/firma/${currentUser.firma_id}`);
                 renderQueueTable();
                 renderUserTable(); // Kullanıcı tablosundaki kuyruk isimlerini güncelle
             } catch (err) { }
@@ -1511,14 +1754,23 @@
 
         async function loadDevices() {
             try {
-                devices = await apiCall(`/admin/cihazlar/${currentUser.firma_id}`);
+                const response = await apiCall(`/api/admin/cihazlar/${currentUser.firma_id}`);
+                if (response.status === 'success') {
+                    devices = response.devices || [];
+                } else {
+                    devices = [];
+                }
                 renderDeviceTable();
-            } catch (err) { }
+            } catch (err) {
+                console.error('Cihaz yükleme hatası (loadDevices):', err);
+                devices = [];
+                renderDeviceTable();
+            }
         }
 
         async function loadUsers() {
             try {
-                users = await apiCall(`/admin/users/${currentUser.firma_id}`);
+                users = await apiCall(`/api/admin/users/${currentUser.firma_id}`);
                 renderUserTable();
 
                 const uDash = document.getElementById('filter-user-dashboard');
@@ -1617,6 +1869,13 @@
 
         function renderDeviceTable() {
             const tbody = document.getElementById('device-table-body');
+
+            // Eski tablo yapısı kaldırıldığı için güvenlik kontrolü:
+            // Eğer bu tbody yoksa fonksiyonu sessizce bitir (aksi halde null.innerHTML hatası verir)
+            if (!tbody) {
+                console.warn('[ADMIN] renderDeviceTable: device-table-body bulunamadı, fonksiyon atlandı.');
+                return;
+            }
 
             // Tablo başlığını güncelle (Anlık Ayar ekle)
             const thead = document.querySelector('#view-cihazlar table thead tr');
@@ -1928,7 +2187,7 @@
         document.getElementById('edit-device-form').onsubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('edit-id').value;
-            await apiCall(`/admin/cihaz/${id}`, {
+            await apiCall(`/api/admin/cihaz/${id}`, {
                 method: 'PUT', body: JSON.stringify({
                     ad: document.getElementById('edit-ad').value,
                     servis_id: document.getElementById('edit-servis').value ? parseInt(document.getElementById('edit-servis').value) : null,
@@ -1947,7 +2206,7 @@
                 kod: document.getElementById('service-kod').value.toUpperCase(),
                 aciklama: document.getElementById('service-aciklama').value
             };
-            if (id) await apiCall(`/admin/servis/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            if (id) await apiCall(`/api/admin/servis/${id}`, { method: 'PUT', body: JSON.stringify(data) });
             else await apiCall('/admin/servis', { method: 'POST', body: JSON.stringify(data) });
             closeModal('service-modal'); loadServices();
         };
@@ -1971,7 +2230,7 @@
                     data.konumlar.push({ ad, aciklama });
                 }
             });
-            if (id) await apiCall(`/admin/kuyruk/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            if (id) await apiCall(`/api/admin/kuyruk/${id}`, { method: 'PUT', body: JSON.stringify(data) });
             else await apiCall('/admin/kuyruk', { method: 'POST', body: JSON.stringify(data) });
             closeModal('queue-modal'); loadQueues();
         };
@@ -2006,7 +2265,7 @@
                     await apiCall('/admin/user', { method: 'POST', body: JSON.stringify(data) });
                     showToast("Personel başarıyla eklendi");
                 } else {
-                    await apiCall(`/admin/user/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                    await apiCall(`/api/admin/user/${id}`, { method: 'PUT', body: JSON.stringify(data) });
                     showToast("Personel bilgileri güncellendi");
                 }
                 closeModal('user-modal');
@@ -2017,12 +2276,12 @@
             }
         };
 
-        async function deleteService(id) { if (confirm('Bu bölümü ve bağlı tüm kuyrukları silmek istediğinize emin misiniz?')) { await apiCall(`/admin/servis/${id}`, { method: 'DELETE' }); loadServices(); loadQueues(); } }
-        async function deleteQueue(id) { if (confirm('Bu kuyruğu silmek istediğinize emin misiniz?')) { await apiCall(`/admin/kuyruk/${id}`, { method: 'DELETE' }); loadQueues(); } }
+        async function deleteService(id) { if (confirm('Bu bölümü ve bağlı tüm kuyrukları silmek istediğinize emin misiniz?')) { await apiCall(`/api/admin/servis/${id}`, { method: 'DELETE' }); loadServices(); loadQueues(); } }
+        async function deleteQueue(id) { if (confirm('Bu kuyruğu silmek istediğinize emin misiniz?')) { await apiCall(`/api/admin/kuyruk/${id}`, { method: 'DELETE' }); loadQueues(); } }
         async function deleteUser(id) {
             if (id === currentUser.id) { alert("Kendi hesabınızı silemezsiniz!"); return; }
             if (confirm('Bu personeli silmek istediğinize emin misiniz?')) {
-                await apiCall(`/admin/user/${id}`, { method: 'DELETE' });
+                await apiCall(`/api/admin/user/${id}`, { method: 'DELETE' });
                 loadUsers();
             }
         }
@@ -2055,13 +2314,63 @@
         // ============================================
         // CİHAZ YÖNETİM FONKSİYONLARI
         // ============================================
+        
+        // Cihaz durum değişikliklerini takip et (son 1 dakika içinde)
+        let deviceStatusHistory = {}; // {device_id: {status: 'online'|'offline', timestamp: Date}}
+        
+        function checkStatusChange(device) {
+            const deviceId = device.id;
+            const currentStatus = device.online_status;
+            const now = Date.now();
+            
+            // 1 dakikadan eski kayıtları temizle
+            Object.keys(deviceStatusHistory).forEach(id => {
+                if (now - deviceStatusHistory[id].timestamp > 60000) {
+                    delete deviceStatusHistory[id];
+                }
+            });
+            
+            // Önceki durumu kontrol et
+            if (deviceStatusHistory[deviceId]) {
+                const previous = deviceStatusHistory[deviceId];
+                const timeDiff = now - previous.timestamp;
+                
+                // Son 1 dakika içinde durum değişmişse
+                if (timeDiff <= 60000 && previous.status !== currentStatus) {
+                    console.log(`[ADMIN] Cihaz ${deviceId} durum değişti: ${previous.status} → ${currentStatus} (${Math.floor(timeDiff / 1000)} saniye önce)`);
+                    return {
+                        changed: true,
+                        from: previous.status,
+                        to: currentStatus,
+                        timeAgo: Math.floor(timeDiff / 1000) // saniye cinsinden
+                    };
+                }
+            }
+            
+            // Durumu güncelle
+            deviceStatusHistory[deviceId] = {
+                status: currentStatus,
+                timestamp: now
+            };
+            
+            return { changed: false };
+        }
 
         async function loadCihazlar() {
             try {
-                const response = await apiCall(`/admin/cihazlar/${currentUser.firma_id}`);
+                if (!currentUser || !currentUser.firma_id) {
+                    console.error('[ADMIN] currentUser veya firma_id yok:', currentUser);
+                    showToast('Kullanıcı bilgisi bulunamadı', 'error');
+                    return;
+                }
+                
+                console.log('[ADMIN] Cihazlar yükleniyor, firma_id:', currentUser.firma_id);
+                const response = await apiCall(`/api/admin/cihazlar/${currentUser.firma_id}`);
+                console.log('[ADMIN] Cihazlar response:', response);
                 
                 if (response.status === 'success') {
                     const devices = response.devices || [];
+                    console.log('[ADMIN] Cihaz sayısı:', devices.length);
                     
                     // İstatistikleri güncelle
                     const toplamCihaz = devices.length;
@@ -2076,10 +2385,14 @@
                     
                     // Tabloyu doldur
                     renderCihazlar(devices);
+                } else {
+                    console.error('[ADMIN] Response status başarısız:', response);
+                    showToast('Cihazlar yüklenemedi: ' + (response.message || 'Bilinmeyen hata'), 'error');
                 }
             } catch (error) {
-                console.error('Cihaz yükleme hatası:', error);
-                showToast('Cihazlar yüklenemedi', 'error');
+                console.error('[ADMIN] Cihaz yükleme hatası:', error);
+                console.error('[ADMIN] Hata detayı:', error.message, error.stack);
+                showToast('Cihazlar yüklenemedi: ' + (error.message || 'Bilinmeyen hata'), 'error');
             }
         }
 
@@ -2087,20 +2400,44 @@
             const tbody = document.getElementById('cihaz-listesi');
             
             if (devices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">Henüz kayıtlı cihaz yok</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px;">Henüz kayıtlı cihaz yok</td></tr>';
                 return;
             }
             
             tbody.innerHTML = devices.map(device => {
                 const onlineStatus = device.online_status === 'online';
-                const statusBadge = onlineStatus 
-                    ? '<span style="background: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">ONLİNE</span>'
-                    : '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">OFFLİNE</span>';
                 
+                // Durum değişikliğini kontrol et
+                const statusChange = checkStatusChange(device);
+                const hasRecentChange = statusChange.changed;
+                
+                // Status badge - değişiklik varsa animasyonlu
+                let statusBadge;
+                if (onlineStatus) {
+                    if (hasRecentChange && statusChange.from === 'offline') {
+                        // Offline'dan online'a geçti - yeşil animasyonlu
+                        statusBadge = '<span style="background: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; animation: pulse-green 2s ease-in-out; box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);">ONLİNE ⚡</span>';
+                    } else {
+                        statusBadge = '<span style="background: #22c55e; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">ONLİNE</span>';
+                    }
+                } else {
+                    if (hasRecentChange && statusChange.from === 'online') {
+                        // Online'dan offline'a geçti - kırmızı animasyonlu
+                        statusBadge = '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; animation: pulse-red 2s ease-in-out; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">OFFLİNE ⚠</span>';
+                    } else {
+                        statusBadge = '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px;">OFFLİNE</span>';
+                    }
+                }
+                
+                // son_gorulen UTC formatında geliyor, doğru hesaplama için direkt kullan
                 const sonGorulen = new Date(device.son_gorulen);
                 const sonGorulenStr = sonGorulen.toLocaleString('tr-TR');
-                const gecenDakika = Math.floor((Date.now() - sonGorulen.getTime()) / 60000);
-                const gecenSure = gecenDakika < 60 
+                // Date.now() UTC milisaniye, sonGorulen.getTime() de UTC milisaniye - doğru karşılaştırma
+                const gecenMs = Date.now() - sonGorulen.getTime();
+                const gecenDakika = Math.floor(gecenMs / 60000);
+                const gecenSure = gecenDakika < 1 
+                    ? 'şimdi'
+                    : gecenDakika < 60 
                     ? `${gecenDakika} dk önce`
                     : `${Math.floor(gecenDakika / 60)} saat önce`;
                 
@@ -2109,27 +2446,54 @@
                 const ayarlarCount = device.ayarlar ? 
                     (device.ayarlar.servisIds || []).length + (device.ayarlar.kuyrukIds || []).length : 0;
                 
-                // IP veya Browser bilgisi göster
-                let ipOrBrowser = device.ip_address || '-';
-                if (ipOrBrowser === '-' && device.metadata) {
-                    // Önce browser bilgisi varsa onu göster
+                // IP adresi göster
+                const ipAddress = device.ip || '-';
+                
+                // Tarayıcı bilgisi göster
+                let browserName = '-';
+                if (device.metadata) {
                     if (device.metadata.browser) {
-                        ipOrBrowser = device.metadata.browser;
+                        const browser = device.metadata.browser;
+                        // Eğer User-Agent string'i ise (uzun ve "Mozilla" içeriyorsa), sadece browser adını çıkar
+                        if (browser.length > 50 && browser.includes('Mozilla')) {
+                            // User-Agent string'inden browser adını çıkar
+                            if (browser.includes('Edg')) browserName = 'Edge';
+                            else if (browser.includes('Chrome') && !browser.includes('Edg')) browserName = 'Chrome';
+                            else if (browser.includes('Safari') && !browser.includes('Chrome')) browserName = 'Safari';
+                            else if (browser.includes('Firefox')) browserName = 'Firefox';
+                            else if (browser.includes('Opera') || browser.includes('OPR')) browserName = 'Opera';
+                            else browserName = 'Browser';
+                        } else {
+                            // Normal browser adı
+                            browserName = browser;
+                        }
                     } else if (device.metadata.platform) {
                         // Yoksa platform'dan tahmin et
                         const platform = device.metadata.platform || '';
                         const isIOS = platform.includes('iPhone') || platform.includes('iPad');
                         const isAndroid = platform.includes('Android');
-                        ipOrBrowser = isIOS ? 'iOS Safari' : isAndroid ? 'Android' : 'Browser';
+                        browserName = isIOS ? 'iOS Safari' : isAndroid ? 'Android' : 'Browser';
                     }
                 }
+                
+                // Bölüm ve Kuyruk bilgileri
+                const servisAd = device.servis_ad ? `${device.servis_kod || ''} - ${device.servis_ad}`.trim() : '-';
+                const kuyrukAd = device.kuyruk_ad ? `${device.kuyruk_kod || ''} - ${device.kuyruk_ad}`.trim() : '-';
+                
+                // Parmak izi gösterimi (kısa versiyon)
+                const fingerprint = device.device_fingerprint || '-';
+                const fingerprintShort = fingerprint.length > 20 ? fingerprint.substring(0, 17) + '...' : fingerprint;
                 
                 return `
                     <tr>
                         <td>${statusBadge}</td>
                         <td><strong>${device.ad}</strong></td>
                         <td>${tipIkon} ${device.tip.toUpperCase()}</td>
-                        <td>${ipOrBrowser}</td>
+                        <td>${servisAd}</td>
+                        <td>${kuyrukAd}</td>
+                        <td>${ipAddress}</td>
+                        <td>${browserName}</td>
+                        <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);" title="${fingerprint}">${fingerprintShort}</td>
                         <td title="${sonGorulenStr}">${gecenSure}</td>
                         <td>
                             <button onclick="viewCihazAyarlar(${device.id})" class="btn-view" style="font-size: 12px;">
@@ -2137,6 +2501,9 @@
                             </button>
                         </td>
                         <td>
+                            <button onclick="openCihazDetay(${device.id})" class="btn-view" style="font-size: 12px; margin-right: 5px;">
+                                <i class="fas fa-edit"></i> Düzenle
+                            </button>
                             <button onclick="deleteCihaz(${device.id}, '${device.ad}')" class="btn-delete" style="font-size: 12px;">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -2146,9 +2513,116 @@
             }).join('');
         }
 
+        async function openCihazDetay(deviceId) {
+            try {
+                // Cihaz detayını getir
+                const response = await apiCall(`/api/admin/cihaz/${deviceId}/detay`);
+                
+                if (response.status === 'success') {
+                    const device = response.cihaz;
+                    const stats = response.istatistikler || {};
+                    
+                    // Form alanlarını doldur
+                    document.getElementById('detail-cihaz-id').value = device.id;
+                    document.getElementById('detail-ad').value = device.ad || '';
+                    // device_fingerprint backend'den gelmeli
+                    document.getElementById('detail-fingerprint').value = device.device_fingerprint || '(Parmak izi kaydedilmemiş)';
+                    document.getElementById('detail-tip').value = device.tip.toUpperCase();
+                    document.getElementById('detail-durum').value = device.durum || 'active';
+                    
+                    // Son görülme
+                    const sonGorulen = new Date(device.son_gorulen);
+                    document.getElementById('detail-son-gorulen').value = sonGorulen.toLocaleString('tr-TR');
+                    
+                    // İstatistikler
+                    document.getElementById('stat-toplam').textContent = stats.toplam_sira || 0;
+                    document.getElementById('stat-tamamlanan').textContent = stats.tamamlanan || 0;
+                    document.getElementById('stat-cagirilan').textContent = stats.cagirilan || 0;
+                    document.getElementById('stat-bekleyen').textContent = stats.bekleyen || 0;
+                    
+                    // Bölüm dropdown'ını doldur
+                    const servisSelect = document.getElementById('detail-servis-id');
+                    servisSelect.innerHTML = '<option value="">Tüm Bölümler (Genel)</option>';
+                    services.forEach(serv => {
+                        const opt = document.createElement('option');
+                        opt.value = serv.id;
+                        opt.textContent = `${serv.kod || ''} - ${serv.ad}`.trim();
+                        if (device.servis_id === serv.id) opt.selected = true;
+                        servisSelect.appendChild(opt);
+                    });
+                    
+                    // Kuyruk dropdown'ını güncelle
+                    updateDetailKuyrukList(device.servis_id, device.kuyruk_id);
+                    
+                    // Modal'ı aç
+                    document.getElementById('cihaz-detail-modal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Cihaz detay hatası:', error);
+                showToast('Cihaz detayları yüklenemedi', 'error');
+            }
+        }
+
+        function updateDetailKuyrukList(servisId, selectedKuyrukId) {
+            const kuyrukSelect = document.getElementById('detail-kuyruk-id');
+            kuyrukSelect.innerHTML = '<option value="">Önce Bölüm Seçin</option>';
+            
+            if (!servisId) {
+                // Tüm kuyrukları göster
+                queues.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = `${q.kod || ''} - ${q.ad}`.trim();
+                    if (selectedKuyrukId === q.id) opt.selected = true;
+                    kuyrukSelect.appendChild(opt);
+                });
+            } else {
+                // Seçili bölüme ait kuyrukları göster
+                const filteredQueues = queues.filter(q => q.servis_id === servisId);
+                filteredQueues.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.id;
+                    opt.textContent = `${q.kod || ''} - ${q.ad}`.trim();
+                    if (selectedKuyrukId === q.id) opt.selected = true;
+                    kuyrukSelect.appendChild(opt);
+                });
+            }
+        }
+
+        // Bölüm seçildiğinde kuyrukları güncelle
+        document.getElementById('detail-servis-id').addEventListener('change', function() {
+            const servisId = this.value ? parseInt(this.value) : null;
+            updateDetailKuyrukList(servisId, null);
+        });
+
+        // Form submit
+        document.getElementById('cihaz-detail-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const deviceId = document.getElementById('detail-cihaz-id').value;
+            const data = {
+                ad: document.getElementById('detail-ad').value,
+                servis_id: document.getElementById('detail-servis-id').value ? parseInt(document.getElementById('detail-servis-id').value) : null,
+                kuyruk_id: document.getElementById('detail-kuyruk-id').value ? parseInt(document.getElementById('detail-kuyruk-id').value) : null,
+                durum: document.getElementById('detail-durum').value
+            };
+            
+            try {
+                await apiCall(`/api/admin/cihaz/${deviceId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+                showToast('Cihaz bilgileri güncellendi', 'success');
+                closeModal('cihaz-detail-modal');
+                loadCihazlar();
+            } catch (error) {
+                console.error('Cihaz güncelleme hatası:', error);
+                showToast('Cihaz güncellenemedi: ' + error.message, 'error');
+            }
+        };
+
         async function viewCihazAyarlar(deviceId) {
             try {
-                const response = await apiCall(`/cihaz/${deviceId}/ayarlar`);
+                const response = await apiCall(`/api/cihaz/${deviceId}/ayarlar`);
                 
                 if (response.status === 'success') {
                     const device = response.device;
@@ -2170,7 +2644,7 @@
             }
             
             try {
-                const response = await apiCall(`/admin/cihaz/${deviceId}`, {
+                const response = await apiCall(`/api/admin/cihaz/${deviceId}`, {
                     method: 'DELETE'
                 });
                 
@@ -2190,7 +2664,113 @@
             if (['new_ticket', 'call_ticket', 'complete_ticket', 'delete_ticket'].includes(data.type)) {
                 setTimeout(loadStats, 1000);
             }
+            
+            // Cihaz durumu güncellemesi (WebSocket ile anlık güncelleme)
+            if (data.type === 'device_status_update') {
+                // Eğer cihazlar sayfasındaysak ve aynı firmaya aitse güncelle
+                if (currentUser && data.firma_id === parseInt(currentUser.firma_id)) {
+                    const currentView = document.querySelector('.view.active')?.id;
+                    if (currentView === 'view-cihazlar') {
+                        console.log('[WS] Cihaz durumu anlık güncellendi:', data);
+                        loadCihazlar(); // Cihaz listesini anlık yenile
+                    }
+                }
+            }
         });
+        
+        // Polling: 1 dakikada bir cihaz listesini güncelle (yedek mekanizma - sadece WebSocket yoksa)
+        let cihazlarPollingInterval = null;
+        
+        // WebSocket bağlantı durumu kontrolü
+        let wsConnectionCheckInterval = null;
+        let lastWsState = false;
+        
+        function isWebSocketConnected() {
+            // window.ws üzerinden WebSocket durumunu kontrol et
+            try {
+                if (window.ws && window.ws !== null) {
+                    return window.ws.readyState === WebSocket.OPEN;
+                }
+            } catch (e) {
+                // WebSocket erişilemiyorsa
+            }
+            return false;
+        }
+        
+        function startWebSocketMonitoring() {
+            // WebSocket durumunu periyodik olarak kontrol et (her 5 saniyede bir)
+            if (wsConnectionCheckInterval) {
+                clearInterval(wsConnectionCheckInterval);
+            }
+            
+            wsConnectionCheckInterval = setInterval(() => {
+                const currentView = document.querySelector('.view.active')?.id;
+                if (currentView === 'view-cihazlar') {
+                    const isConnected = isWebSocketConnected();
+                    if (isConnected !== lastWsState) {
+                        lastWsState = isConnected;
+                        console.log(`[WS] Bağlantı durumu değişti: ${isConnected ? 'Bağlı' : 'Bağlı Değil'}`);
+                        checkAndManagePolling();
+                    }
+                }
+            }, 5000); // Her 5 saniyede bir kontrol et
+        }
+        
+        function stopWebSocketMonitoring() {
+            if (wsConnectionCheckInterval) {
+                clearInterval(wsConnectionCheckInterval);
+                wsConnectionCheckInterval = null;
+            }
+        }
+        
+        function checkAndManagePolling() {
+            const currentView = document.querySelector('.view.active')?.id;
+            if (currentView !== 'view-cihazlar') {
+                // Cihazlar sayfasında değilsek polling'i durdur
+                stopCihazlarPolling();
+                return;
+            }
+            
+            if (isWebSocketConnected()) {
+                // WebSocket bağlıysa polling'i durdur (anlık güncelleme var)
+                stopCihazlarPolling();
+                console.log('[WS] WebSocket bağlı, polling durduruldu');
+            } else {
+                // WebSocket bağlı değilse polling'i başlat (yedek mekanizma)
+                startCihazlarPolling();
+                console.log('[POLL] WebSocket yok, polling başlatıldı');
+            }
+        }
+        
+        function startCihazlarPolling() {
+            // Eğer zaten çalışıyorsa durdur
+            if (cihazlarPollingInterval) {
+                clearInterval(cihazlarPollingInterval);
+            }
+            
+            // 1 dakikada bir güncelle (60000 ms)
+            cihazlarPollingInterval = setInterval(() => {
+                const currentView = document.querySelector('.view.active')?.id;
+                if (currentView === 'view-cihazlar') {
+                    // Polling sırasında da WebSocket durumunu kontrol et
+                    if (!isWebSocketConnected()) {
+                        console.log('[POLL] Cihaz listesi güncelleniyor (polling - WebSocket yok)...');
+                        loadCihazlar();
+                    } else {
+                        // WebSocket bağlandıysa polling'i durdur
+                        console.log('[WS] WebSocket bağlandı, polling durduruluyor');
+                        stopCihazlarPolling();
+                    }
+                }
+            }, 60000); // 1 dakika
+        }
+        
+        function stopCihazlarPolling() {
+            if (cihazlarPollingInterval) {
+                clearInterval(cihazlarPollingInterval);
+                cihazlarPollingInterval = null;
+            }
+        }
 
 
     </script>

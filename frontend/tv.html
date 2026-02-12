@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TV Ekranı - Sıramatik</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
     <link rel="stylesheet" href="static/style.css">
     <style>
         body {
@@ -532,7 +533,7 @@
             if (!password) return;
 
             try {
-                const res = await apiCall('/auth/ekran-login', {
+                const res = await apiCall('/api/auth/ekran-login', {
                     method: 'POST',
                     body: JSON.stringify({ sifre: password })
                 });
@@ -565,8 +566,8 @@
         async function loadSettingsData() {
             try {
                 const [servisler, kuyruklar] = await Promise.all([
-                    apiCall(`/servisler/${FIRMA_ID}`),
-                    apiCall(`/kuyruklar/firma/${FIRMA_ID}`)
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
                 ]);
 
                 const sSelect = document.getElementById('servis-filter');
@@ -633,7 +634,7 @@
 
         async function cagrilariGuncelle() {
             try {
-                let data = await apiCall(`/ekran/son-cagrilar/${FIRMA_ID}?limit=20`);
+                let data = await apiCall(`/api/ekran/son-cagrilar/${FIRMA_ID}?limit=20`);
 
                 if (tvSettings.servisIds.length > 0 || tvSettings.kuyrukIds.length > 0) {
                     data = data.filter(cagri => {
@@ -736,31 +737,60 @@
 
         async function bildirCihaz() {
             try {
-                await apiCall('/admin/cihaz/bildir', {
+                // TV ekranı için basit ama stabil bir fingerprint
+                let fingerprint = localStorage.getItem('tv_device_fingerprint');
+                if (!fingerprint) {
+                    fingerprint = `tv_${FIRMA_ID}_${window.location.hostname}`;
+                    localStorage.setItem('tv_device_fingerprint', fingerprint);
+                }
+
+                const deviceInfo = {
+                    firma_id: parseInt(FIRMA_ID),
+                    ad: 'TV-' + FIRMA_ID,
+                    tip: 'ekran',
+                    device_fingerprint: fingerprint,
+                    mac_address: null,
+                    ip: null,
+                    ayarlar: tvSettings,
+                    metadata: {
+                        servis_ids: tvSettings.servisIds,
+                        ekran_tipi: tvSettings.ekranTipi
+                    }
+                };
+
+                await apiCall('/api/cihaz/kayit', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        firma_id: parseInt(FIRMA_ID),
-                        ad: 'TV-' + FIRMA_ID,
-                        tip: 'ekran',
-                        metadata: {
-                            servis_ids: tvSettings.servisIds,
-                            ekran_tipi: tvSettings.ekranTipi
-                        }
-                    })
+                    body: JSON.stringify(deviceInfo)
                 });
             } catch (err) { console.error("Heartbeat error", err); }
         }
 
         async function initFirma() {
             try {
-                const firma = await apiCall(`/firma/${FIRMA_ID}`);
+                console.log('[TV] Firma bilgisi yükleniyor, FIRMA_ID:', FIRMA_ID);
+                
+                if (!FIRMA_ID || FIRMA_ID === 'null' || FIRMA_ID === 'undefined') {
+                    console.error('[TV] FIRMA_ID geçersiz:', FIRMA_ID);
+                    document.getElementById('firma-adi').textContent = 'Firma ID Bulunamadı';
+                    return;
+                }
+                
+                const firma = await apiCall(`/api/firma/${FIRMA_ID}`);
+                console.log('[TV] Firma bilgisi geldi:', firma);
+                
                 if (firma && firma.ad) {
                     document.getElementById('firma-adi').textContent = firma.ad;
                     document.title = firma.ad + " - Sıra Ekranı";
+                    console.log('[TV] Firma adı güncellendi:', firma.ad);
+                } else {
+                    console.warn('[TV] Firma adı bulunamadı veya geçersiz, response:', firma);
+                    document.getElementById('firma-adi').textContent = 'Firma Adı Bulunamadı';
                 }
                 bildirCihaz();
             } catch (err) {
-                console.error("Firma bilgisi alınamadı", err);
+                console.error("[TV] Firma bilgisi alınamadı", err);
+                console.error("[TV] Hata detayı:", err.message, err.stack);
+                document.getElementById('firma-adi').textContent = 'Firma Bilgisi Yüklenemedi: ' + (err.message || 'Bilinmeyen hata');
             }
         }
 

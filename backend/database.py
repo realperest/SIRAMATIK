@@ -321,9 +321,9 @@ class Database:
                     oncelik: int = 0, notlar: str = None) -> Dict:
         """Yeni sıra oluştur"""
         result = self.execute_query("""
-            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara)
+            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
             VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, 
-                    siramatik.yeni_sira_numarasi(:kuyruk_id, :oncelik))
+                    siramatik.yeni_sira_numarasi(:kuyruk_id, :oncelik), NOW())
             RETURNING *
         """, {
             "kuyruk_id": kuyruk_id,
@@ -338,8 +338,8 @@ class Database:
                            numara: str, oncelik: int = 0, notlar: str = None) -> Dict:
         """Manuel sıra oluştur (Özel numara ile)"""
         result = self.execute_query("""
-            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara)
-            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara)
+            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
+            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara, NOW())
             RETURNING *
         """, {
             "kuyruk_id": kuyruk_id,
@@ -723,10 +723,14 @@ class Database:
 
     def get_cihaz(self, cihaz_id: int) -> Optional[Dict]:
         """Cihaz bilgisini getir"""
-        result = self.execute_query(
-            "SELECT * FROM siramatik.cihazlar WHERE id = :cihaz_id",
-            {"cihaz_id": cihaz_id}
-        )
+        result = self.execute_query("""
+            SELECT 
+                id, firma_id, ad, tip, device_fingerprint, mac_address, ip,
+                durum, son_gorulen, ayarlar, metadata, olusturulma, guncelleme,
+                servis_id, kuyruk_id
+            FROM siramatik.cihazlar 
+            WHERE id = :cihaz_id
+        """, {"cihaz_id": cihaz_id})
         return result[0] if result else None
 
     def update_cihaz(self, cihaz_id: int, data: Dict) -> Dict:
@@ -749,6 +753,8 @@ class Database:
     def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: str = None, metadata: dict = {}) -> Dict:
         """Cihazın aktif olduğunu bildir (Upsert)"""
         # MAC adresi yoksa Ad üzerinden eşle
+        # NOT: Bu fonksiyon eski endpoint için, device_fingerprint yok
+        # Yeni kayıtlar için /api/cihaz/kayit endpoint'i kullanılmalı
         result = self.execute_query("""
             INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, durum, son_gorulen, metadata)
             VALUES (:firma_id, :ad, :tip, :mac, 'active', NOW(), :metadata::jsonb)
@@ -978,16 +984,38 @@ class Database:
 
         # 4. RAPOR TİPİNE GÖRE SORGULAMA
         if report_type == "transaction_log":
+            # CTE için zaman filtresi (s2 tablosunu kullanmalı)
+            time_filter_cte = time_filter.replace(" AND s.", " AND s2.")
+            
             data = self.execute_query(f"""
+                WITH personel_istatistik AS (
+                    SELECT 
+                        s2.cagiran_kullanici_id,
+                        COUNT(DISTINCT s2.id) as toplam_hasta,
+                        COUNT(DISTINCT ma.id) as puanlama_yapan,
+                        CASE 
+                            WHEN COUNT(DISTINCT s2.id) > 0 
+                            THEN ROUND(CAST(COUNT(DISTINCT ma.id) * 100.0 / COUNT(DISTINCT s2.id) AS NUMERIC), 1)
+                            ELSE 0
+                        END as puanlama_orani,
+                        ROUND(CAST(AVG(ma.puan) AS NUMERIC), 2) as ortalama_puan
+                    FROM siramatik.siralar s2
+                    LEFT JOIN siramatik.memnuniyet_anketleri ma ON s2.id = ma.sira_id
+                    WHERE s2.firma_id = :firma_id {time_filter_cte}
+                    GROUP BY s2.cagiran_kullanici_id
+                )
                 SELECT s.numara, ser.ad as servis, k.ad as kuyruk, u.ad_soyad as personel, 
                        to_char(s.olusturulma, 'DD.MM.YYYY') as tarih,
                        to_char(s.olusturulma, 'HH24:MI') as saat, s.durum,
                        ROUND(CAST(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60 AS NUMERIC), 1) as bekleme,
-                       ROUND(CAST(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60 AS NUMERIC), 1) as islem
+                       ROUND(CAST(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60 AS NUMERIC), 1) as islem,
+                       COALESCE(pi.puanlama_orani, 0) as puanlama_orani,
+                       COALESCE(pi.ortalama_puan, 0) as ortalama_puan
                 FROM siramatik.siralar s
                 LEFT JOIN siramatik.servisler ser ON s.servis_id = ser.id
                 LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
                 LEFT JOIN siramatik.kullanicilar u ON s.cagiran_kullanici_id = u.id
+                LEFT JOIN personel_istatistik pi ON s.cagiran_kullanici_id = pi.cagiran_kullanici_id
                 WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
                 ORDER BY s.olusturulma DESC
             """, params)
@@ -1266,6 +1294,67 @@ class Database:
             
             if result:
                 print("[OK] cihazlar tablosu (device_fingerprint ile) zaten var")
+                # Tablo varsa bile kolonları kontrol et ve ekle
+                try:
+                    session.execute(text("""
+                        DO $$ 
+                        BEGIN
+                            -- servis_id kolonu yoksa ekle
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_schema = 'siramatik' 
+                                AND table_name = 'cihazlar' 
+                                AND column_name = 'servis_id'
+                            ) THEN
+                                ALTER TABLE siramatik.cihazlar 
+                                ADD COLUMN servis_id INTEGER REFERENCES siramatik.servisler(id) ON DELETE SET NULL;
+                                CREATE INDEX IF NOT EXISTS idx_cihazlar_servis_id ON siramatik.cihazlar(servis_id);
+                            END IF;
+                            
+                            -- kuyruk_id kolonu yoksa ekle
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_schema = 'siramatik' 
+                                AND table_name = 'cihazlar' 
+                                AND column_name = 'kuyruk_id'
+                            ) THEN
+                                ALTER TABLE siramatik.cihazlar 
+                                ADD COLUMN kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL;
+                                CREATE INDEX IF NOT EXISTS idx_cihazlar_kuyruk_id ON siramatik.cihazlar(kuyruk_id);
+                            END IF;
+                            
+                            -- ip kolonu yoksa veya ip_address ise düzelt
+                            IF EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_schema = 'siramatik' 
+                                AND table_name = 'cihazlar' 
+                                AND column_name = 'ip_address'
+                            ) AND NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_schema = 'siramatik' 
+                                AND table_name = 'cihazlar' 
+                                AND column_name = 'ip'
+                            ) THEN
+                                ALTER TABLE siramatik.cihazlar RENAME COLUMN ip_address TO ip;
+                            END IF;
+                            
+                            -- ip kolonu yoksa ekle
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_schema = 'siramatik' 
+                                AND table_name = 'cihazlar' 
+                                AND column_name = 'ip'
+                            ) THEN
+                                ALTER TABLE siramatik.cihazlar 
+                                ADD COLUMN ip VARCHAR(50);
+                            END IF;
+                        END $$;
+                    """))
+                    session.commit()
+                    print("[OK] Cihazlar tablosuna servis_id, kuyruk_id ve ip kolonlari kontrol edildi/eklendi!")
+                except Exception as e:
+                    print(f"[WARN] Kolon kontrol/ekleme hatasi: {e}")
+                    session.rollback()
                 return
             
             # Yeni tabloyu oluştur (IF NOT EXISTS ile)
@@ -1277,7 +1366,7 @@ class Database:
                     tip VARCHAR(50) NOT NULL CHECK (tip IN ('kiosk', 'ekran', 'tablet', 'pc')),
                     device_fingerprint VARCHAR(500) UNIQUE,
                     mac_address VARCHAR(100),
-                    ip_address VARCHAR(50),
+                    ip VARCHAR(50),  -- Supabase'de 'ip' olarak tanımlı
                     durum VARCHAR(50) DEFAULT 'active' CHECK (durum IN ('active', 'inactive', 'maintenance')),
                     son_gorulen TIMESTAMP DEFAULT NOW(),
                     ayarlar JSONB DEFAULT '{}'::jsonb,
@@ -1317,6 +1406,68 @@ class Database:
             session.commit()
             print("[OK] cihazlar tablosu (yeni yapi ile) olusturuldu!")
             
+            # Servis ve Kuyruk ilişkilerini ekle (eğer yoksa)
+            try:
+                session.execute(text("""
+                    DO $$ 
+                    BEGIN
+                        -- servis_id kolonu yoksa ekle
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'siramatik' 
+                            AND table_name = 'cihazlar' 
+                            AND column_name = 'servis_id'
+                        ) THEN
+                            ALTER TABLE siramatik.cihazlar 
+                            ADD COLUMN servis_id INTEGER REFERENCES siramatik.servisler(id) ON DELETE SET NULL;
+                            CREATE INDEX IF NOT EXISTS idx_cihazlar_servis_id ON siramatik.cihazlar(servis_id);
+                        END IF;
+                        
+                        -- kuyruk_id kolonu yoksa ekle
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'siramatik' 
+                            AND table_name = 'cihazlar' 
+                            AND column_name = 'kuyruk_id'
+                        ) THEN
+                            ALTER TABLE siramatik.cihazlar 
+                            ADD COLUMN kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL;
+                            CREATE INDEX IF NOT EXISTS idx_cihazlar_kuyruk_id ON siramatik.cihazlar(kuyruk_id);
+                        END IF;
+                        
+                        -- ip kolonu yoksa veya ip_address ise düzelt
+                        IF EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'siramatik' 
+                            AND table_name = 'cihazlar' 
+                            AND column_name = 'ip_address'
+                        ) AND NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'siramatik' 
+                            AND table_name = 'cihazlar' 
+                            AND column_name = 'ip'
+                        ) THEN
+                            ALTER TABLE siramatik.cihazlar RENAME COLUMN ip_address TO ip;
+                        END IF;
+                        
+                        -- ip kolonu yoksa ekle
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'siramatik' 
+                            AND table_name = 'cihazlar' 
+                            AND column_name = 'ip'
+                        ) THEN
+                            ALTER TABLE siramatik.cihazlar 
+                            ADD COLUMN ip VARCHAR(50);
+                        END IF;
+                    END $$;
+                """))
+                session.commit()
+                print("[OK] Cihazlar tablosuna servis_id, kuyruk_id ve ip kolonlari eklendi/duzeltildi!")
+            except Exception as e:
+                print(f"[WARN] Kolon ekleme hatasi (zaten var olabilir): {e}")
+                session.rollback()
+            
         except Exception as e:
             print(f"[WARN] Cihazlar tablosu olusturma hatasi: {e}")
             session.rollback()
@@ -1327,7 +1478,7 @@ class Database:
     
     def register_device(self, firma_id: int, ad: str, tip: str, 
                        device_fingerprint: str, mac_address: Optional[str] = None,
-                       ip_address: Optional[str] = None, ayarlar: Dict = {},
+                       ip: Optional[str] = None, ayarlar: Dict = {},
                        metadata: Dict = {}) -> Dict[str, Any]:
         """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
         with Session(self.engine) as session:
@@ -1353,7 +1504,7 @@ class Database:
                             SET firma_id = :firma_id,
                                 ad = :ad,
                                 tip = :tip,
-                                ip_address = :ip_address,
+                                ip = :ip,
                                 son_gorulen = NOW(),
                                 durum = 'active'
                             WHERE id = :device_id
@@ -1365,7 +1516,7 @@ class Database:
                             UPDATE siramatik.cihazlar
                             SET son_gorulen = NOW(),
                                 durum = 'active',
-                                ip_address = COALESCE(:ip_address, ip_address)
+                                ip = COALESCE(:ip, ip)
                             WHERE id = :device_id
                             RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
                         """)
@@ -1375,7 +1526,7 @@ class Database:
                         "firma_id": firma_id,
                         "ad": ad,
                         "tip": tip,
-                        "ip_address": ip_address
+                        "ip": ip
                     }).first()
                     
                     session.commit()
@@ -1394,8 +1545,8 @@ class Database:
                 # Yeni cihaz kaydı
                 insert_query = text("""
                     INSERT INTO siramatik.cihazlar 
-                    (firma_id, ad, tip, device_fingerprint, mac_address, ip_address, ayarlar, metadata, durum)
-                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active')
+                    (firma_id, ad, tip, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen)
+                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', NOW())
                     RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
                 """)
                 
@@ -1405,7 +1556,7 @@ class Database:
                     "tip": tip,
                     "fingerprint": device_fingerprint,
                     "mac": mac_address,
-                    "ip": ip_address,
+                    "ip": ip,
                     "ayarlar": json.dumps(ayarlar),
                     "metadata": json.dumps(metadata)
                 }).first()
@@ -1431,7 +1582,7 @@ class Database:
         """Cihaz ayarlarını getir"""
         with Session(self.engine) as session:
             query = text("""
-                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen
+                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen AT TIME ZONE 'UTC' as son_gorulen
                 FROM siramatik.cihazlar
                 WHERE id = :device_id
             """)
@@ -1474,7 +1625,7 @@ class Database:
                 session.rollback()
                 raise Exception(f"Ayar güncelleme hatası: {str(e)}")
     
-    def device_heartbeat(self, device_id: int, ip_address: Optional[str] = None,
+    def device_heartbeat(self, device_id: int, ip: Optional[str] = None,
                         metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Cihaz heartbeat güncelle"""
         with Session(self.engine) as session:
@@ -1482,7 +1633,7 @@ class Database:
                 query = text("""
                     UPDATE siramatik.cihazlar
                     SET son_gorulen = NOW(),
-                        ip_address = COALESCE(:ip_address, ip_address),
+                        ip = COALESCE(:ip, ip),
                         metadata = COALESCE(:metadata, metadata),
                         durum = 'active'
                     WHERE id = :device_id
@@ -1490,7 +1641,7 @@ class Database:
                 """)
                 result = session.execute(query, {
                     "device_id": device_id,
-                    "ip_address": ip_address,
+                    "ip": ip,
                     "metadata": json.dumps(metadata) if metadata else None
                 }).first()
                 
@@ -1506,26 +1657,34 @@ class Database:
         with Session(self.engine) as session:
             query = text("""
                 SELECT 
-                    id, 
-                    firma_id, 
-                    ad, 
-                    tip, 
-                    device_fingerprint,
-                    mac_address,
-                    ip_address,
-                    durum, 
-                    son_gorulen, 
-                    ayarlar, 
-                    metadata,
-                    olusturulma,
-                    guncelleme,
+                    c.id, 
+                    c.firma_id, 
+                    c.ad, 
+                    c.tip, 
+                    c.device_fingerprint,
+                    c.mac_address,
+                    c.ip,
+                    c.durum, 
+                    c.son_gorulen AT TIME ZONE 'UTC' as son_gorulen, 
+                    c.ayarlar, 
+                    c.metadata,
+                    c.olusturulma AT TIME ZONE 'UTC' as olusturulma,
+                    c.guncelleme AT TIME ZONE 'UTC' as guncelleme,
+                    c.servis_id,
+                    c.kuyruk_id,
+                    s.ad as servis_ad,
+                    s.kod as servis_kod,
+                    k.ad as kuyruk_ad,
+                    k.kod as kuyruk_kod,
                     CASE 
-                        WHEN son_gorulen > (NOW() - INTERVAL '5 minutes') THEN 'online'
+                        WHEN c.son_gorulen > (NOW() - INTERVAL '3 minutes') THEN 'online'
                         ELSE 'offline'
                     END as online_status
-                FROM siramatik.cihazlar
-                WHERE firma_id = :firma_id
-                ORDER BY olusturulma DESC
+                FROM siramatik.cihazlar c
+                LEFT JOIN siramatik.servisler s ON c.servis_id = s.id
+                LEFT JOIN siramatik.kuyruklar k ON c.kuyruk_id = k.id
+                WHERE c.firma_id = :firma_id
+                ORDER BY c.olusturulma DESC
             """)
             results = session.execute(query, {"firma_id": firma_id}).fetchall()
             
@@ -1538,14 +1697,20 @@ class Database:
                     "tip": row[3],
                     "device_fingerprint": row[4],
                     "mac_address": row[5],
-                    "ip_address": row[6],
+                    "ip": row[6],  # Supabase'de 'ip' kolonu
                     "durum": row[7],
                     "son_gorulen": row[8],
                     "ayarlar": row[9] if row[9] else {},
                     "metadata": row[10] if row[10] else {},
                     "olusturulma": row[11],
                     "guncelleme": row[12],
-                    "online_status": row[13]
+                    "servis_id": row[13],
+                    "kuyruk_id": row[14],
+                    "servis_ad": row[15],
+                    "servis_kod": row[16],
+                    "kuyruk_ad": row[17],
+                    "kuyruk_kod": row[18],
+                    "online_status": row[19]
                 })
             
             return devices
