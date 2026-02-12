@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AG-Grid Kurumsal Analiz (Pivot Pro) - Sıramatik</title>
 
-    <!-- AG Grid Enterprise v31.0.3 -->
-    <script src="https://cdn.jsdelivr.net/npm/ag-grid-enterprise@31.0.3/dist/ag-grid-enterprise.min.js"></script>
+    <!-- AG Grid Enterprise v31.3 (31.0.x'te sütun genişliği geri yükleme hatası vardı; 31.2+ düzeltildi) -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-enterprise@31.3.2/dist/ag-grid-enterprise.min.js"></script>
     <!-- PDF Export Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -16,8 +16,8 @@
     <!-- Explicit html2canvas for paged rendering (html2pdf bundle may not expose window.html2canvas) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-grid.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-theme-quartz.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-theme-quartz.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -86,6 +86,19 @@
             --ag-selected-row-background-color: rgba(99, 102, 241, 0.2);
         }
 
+        /* Sütun başlığı: dar sütunlarda yazı boyutu küçülsün */
+        .ag-header-cell {
+            container-type: inline-size;
+            container-name: header-cell;
+        }
+        .ag-header-cell-label,
+        .ag-header-cell-text {
+            font-size: clamp(9px, 6.5cqw, 13px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         /* BRUTE FORCE: Ensure header text is visible in normal mode */
         .ag-header-cell-label,
         .ag-header-cell-text,
@@ -150,6 +163,8 @@
                 <option value="today">Bugün</option>
                 <option value="this_week">Bu Hafta</option>
                 <option value="this_month" selected>Bu Ay</option>
+                <option value="last_month">Geçen Ay</option>
+                <option value="last_year">Geçen Yıl</option>
                 <option value="all_time">Tüm Zamanlar</option>
             </select>
             <!-- Rapor Şablonları -->
@@ -559,32 +574,46 @@
         }
 
         // Şablon Listesini Güncelle
-        function updatePresetList() {
+        async function updatePresetList() {
             const select = document.getElementById('presetSelect');
-            const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
-
-            // Temizle (İlk option hariç)
-            select.innerHTML = '<option value="">-- Şablon Seç --</option>';
-
-            Object.keys(savedPresets).forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                select.appendChild(opt);
-            });
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/admin/rapor-sablonlari/${currentUser.firma_id}?rapor_tipi=ag_grid`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                // Temizle (İlk option hariç)
+                select.innerHTML = '<option value="">-- Şablon Seç --</option>';
+                
+                if (result.status === 'success' && result.data) {
+                    result.data.forEach(sablon => {
+                        const opt = document.createElement('option');
+                        opt.value = sablon.id;
+                        opt.textContent = sablon.ad;
+                        opt.dataset.ayarlar = JSON.stringify(sablon.ayarlar);
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (error) {
+                console.error("Şablon listesi yüklenemedi:", error);
+            }
         }
 
         // Yeni Şablon Kaydet
-        function saveNewPreset() {
+        async function saveNewPreset() {
             if (!gridApi) return;
             const presetSelect = document.getElementById('presetSelect');
-            const selectedPreset = (presetSelect && presetSelect.value) ? presetSelect.value.trim() : "";
+            const selectedPresetId = (presetSelect && presetSelect.value) ? presetSelect.value.trim() : "";
             const typedName = document.getElementById('newPresetName').value.trim();
 
             // Eğer comboda seçili şablon varsa, "kaydet" işlemi varsayılan olarak overwrite anlamına gelir.
             // Kullanıcıya seçim sor.
-            if (selectedPreset) {
-                openPresetModal(selectedPreset, typedName);
+            if (selectedPresetId) {
+                const selectedOption = presetSelect.options[presetSelect.selectedIndex];
+                const selectedName = selectedOption.textContent;
+                openPresetModal(selectedPresetId, selectedName, typedName);
                 return;
             }
 
@@ -594,38 +623,137 @@
                 return;
             }
 
-            savePresetByName(name);
-            document.getElementById('newPresetName').value = '';
-            updatePresetList();
-            document.getElementById('presetSelect').value = name;
-            alert(`"${name}" şablonu başarıyla kaydedildi!`);
+            const success = await savePresetByName(name);
+            if (success) {
+                document.getElementById('newPresetName').value = '';
+                await updatePresetList();
+                // Yeni kaydedilen şablonu seç
+                const select = document.getElementById('presetSelect');
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].textContent === name) {
+                        select.value = select.options[i].value;
+                        break;
+                    }
+                }
+                alert(`"${name}" şablonu başarıyla kaydedildi!`);
+            }
         }
 
-        function savePresetByName(name) {
+        async function savePresetByName(name, sablonId = null) {
+            // Tam sütun state'i (genişlik, pinned, flex, hide, sort, rowGroup, pivot, aggFunc vb.)
+            let columnState = gridApi.getColumnState();
+            // Hücre biçimlendirmesi (cellClass) getColumnState'ta gelmeyebilir; her sütundan ekle (sadece string/array)
+            const allCols = gridApi.getColumns();
+            if (allCols && columnState) {
+                columnState = columnState.map(cs => {
+                    const col = allCols.find(c => c.getColId() === cs.colId);
+                    let cellClass = col && col.getColDef() ? col.getColDef().cellClass : undefined;
+                    if (typeof cellClass === 'function') cellClass = undefined;
+                    const out = { ...cs };
+                    if (cellClass != null) out.cellClass = cellClass;
+                    return out;
+                });
+            }
             const state = {
-                columnState: gridApi.getColumnState(),
+                columnState: columnState,
                 filterModel: gridApi.getFilterModel(),
                 pivotMode: gridApi.isPivotMode(),
                 isExpanded: isExpandedGlobal,
-                decimalPlaces: decimalPlacesGlobal
+                decimalPlaces: decimalPlacesGlobal,
+                paginationPageSize: gridApi.getGridOption('paginationPageSize') || 100
             };
 
-            const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
-            savedPresets[name] = state;
-            localStorage.setItem(`ag_grid_presets_${currentUser.firma_id}`, JSON.stringify(savedPresets));
+            try {
+                const token = localStorage.getItem('token');
+                
+                // Kontroller
+                if (!token) {
+                    console.error('[RAPOR] Token bulunamadı!');
+                    alert('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
+                    return false;
+                }
+                
+                if (!currentUser || !currentUser.firma_id) {
+                    console.error('[RAPOR] currentUser bilgisi eksik:', currentUser);
+                    alert('Kullanıcı bilgisi eksik. Lütfen sayfayı yenileyin.');
+                    return false;
+                }
+                
+                console.log('[RAPOR] Şablon kaydediliyor:', {
+                    name,
+                    firma_id: currentUser.firma_id,
+                    sablonId: sablonId || 'yeni',
+                    state
+                });
+                
+                let response;
+                
+                if (sablonId) {
+                    // Güncelleme
+                    console.log('[RAPOR] PUT isteği gönderiliyor:', `${API_URL}/admin/rapor-sablonu/${sablonId}`);
+                    response = await fetch(`${API_URL}/admin/rapor-sablonu/${sablonId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ ad: name, ayarlar: state })
+                    });
+                } else {
+                    // Yeni kayıt
+                    const requestData = {
+                        firma_id: currentUser.firma_id,
+                        ad: name,
+                        ayarlar: state,
+                        rapor_tipi: 'ag_grid'
+                    };
+                    console.log('[RAPOR] POST isteği gönderiliyor:', `${API_URL}/admin/rapor-sablonu`);
+                    console.log('[RAPOR] Request data:', requestData);
+                    
+                    response = await fetch(`${API_URL}/admin/rapor-sablonu`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                }
+                
+                console.log('[RAPOR] Response status:', response.status, response.statusText);
+                
+                const result = await response.json();
+                console.log('[RAPOR] Response data:', result);
+                
+                if (result.status === 'success') {
+                    console.log('[RAPOR] ✓ Şablon başarıyla kaydedildi');
+                    return true;
+                } else {
+                    console.error('[RAPOR] Kayıt başarısız:', result);
+                    alert(result.detail || 'Şablon kaydedilemedi');
+                    return false;
+                }
+            } catch (error) {
+                console.error("[RAPOR] Şablon kaydetme hatası:", error);
+                console.error("[RAPOR] Hata detayı:", error.stack);
+                alert("Şablon kaydedilemedi: " + error.message);
+                return false;
+            }
         }
 
         // --- Şablon overwrite / save-as modal yönetimi ---
-        let __presetModalSelected = "";
-        function openPresetModal(selectedPresetName, typedName) {
-            __presetModalSelected = selectedPresetName || "";
+        let __presetModalSelectedId = "";
+        let __presetModalSelectedName = "";
+        function openPresetModal(selectedPresetId, selectedPresetName, typedName) {
+            __presetModalSelectedId = selectedPresetId || "";
+            __presetModalSelectedName = selectedPresetName || "";
             const modal = document.getElementById('presetOverwriteModal');
             const text = document.getElementById('presetOverwriteText');
             const input = document.getElementById('presetOverwriteNewName');
             if (!modal || !text || !input) return;
 
-            text.innerText = `"${__presetModalSelected}" şablonu zaten kayıtlı. Ne yapmak istiyorsunuz?`;
-            input.value = (typedName && typedName !== __presetModalSelected) ? typedName : "";
+            text.innerText = `"${__presetModalSelectedName}" şablonu zaten kayıtlı. Ne yapmak istiyorsunuz?`;
+            input.value = (typedName && typedName !== __presetModalSelectedName) ? typedName : "";
             modal.style.display = 'flex';
             setTimeout(() => input.focus(), 0);
         }
@@ -635,54 +763,84 @@
             if (modal) modal.style.display = 'none';
         }
 
-        function presetModalOverwrite() {
-            if (!__presetModalSelected) {
+        async function presetModalOverwrite() {
+            if (!__presetModalSelectedId) {
                 closePresetModal();
                 return;
             }
-            savePresetByName(__presetModalSelected);
-            updatePresetList();
-            document.getElementById('presetSelect').value = __presetModalSelected;
-            document.getElementById('newPresetName').value = '';
-            closePresetModal();
-            alert(`"${__presetModalSelected}" şablonu güncellendi!`);
+            const success = await savePresetByName(__presetModalSelectedName, __presetModalSelectedId);
+            if (success) {
+                await updatePresetList();
+                document.getElementById('presetSelect').value = __presetModalSelectedId;
+                document.getElementById('newPresetName').value = '';
+                closePresetModal();
+                alert(`"${__presetModalSelectedName}" şablonu güncellendi!`);
+            }
         }
 
-        function presetModalSaveAsNew() {
+        async function presetModalSaveAsNew() {
             const input = document.getElementById('presetOverwriteNewName');
             const newName = input ? input.value.trim() : "";
             if (!newName) {
                 alert("Lütfen yeni şablon için bir isim girin!");
                 return;
             }
-            savePresetByName(newName);
-            updatePresetList();
-            document.getElementById('presetSelect').value = newName;
-            document.getElementById('newPresetName').value = '';
-            closePresetModal();
-            alert(`"${newName}" şablonu başarıyla kaydedildi!`);
+            const success = await savePresetByName(newName);
+            if (success) {
+                await updatePresetList();
+                // Yeni kaydedilen şablonu seç
+                const select = document.getElementById('presetSelect');
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].textContent === newName) {
+                        select.value = select.options[i].value;
+                        break;
+                    }
+                }
+                document.getElementById('newPresetName').value = '';
+                closePresetModal();
+                alert(`"${newName}" şablonu başarıyla kaydedildi!`);
+            }
         }
 
         // Şablon Yükle
-        function loadPreset(name) {
-            if (!gridApi || !name) return;
-            const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
-            const state = savedPresets[name];
+        function loadPreset(sablonId) {
+            if (!gridApi || !sablonId) return;
+            
+            const select = document.getElementById('presetSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            if (!selectedOption || !selectedOption.dataset.ayarlar) return;
+            
+            const state = JSON.parse(selectedOption.dataset.ayarlar);
 
             if (state) {
-                // Önce ayarları sıfırla (temiz bir geçiş için)
-                gridApi.applyColumnState({ defaultState: { sort: null }, resetColumnState: true });
+                const applyColumnStateOnly = () => {
+                    if (!state.columnState || state.columnState.length === 0) return;
+                    gridApi.applyColumnState({ state: state.columnState, applyOrder: true });
+                    const cellClassUpdates = state.columnState
+                        .filter(cs => cs.cellClass != null)
+                        .map(cs => ({ colId: cs.colId, cellClass: cs.cellClass }));
+                    if (cellClassUpdates.length) gridApi.updateColumnDefs(cellClassUpdates);
+                };
 
-                if (state.columnState) gridApi.applyColumnState({ state: state.columnState, applyOrder: true });
-                if (state.filterModel) gridApi.setFilterModel(state.filterModel);
+                // Sütun state'ini hemen uygula (genişlik, pinned, flex, hide, sort vb.)
+                applyColumnStateOnly();
+                // Grid bazen sütunları sonradan yeniden çiziyor; genişliklerin kalıcı olması için kısa süre sonra tekrar uygula
+                setTimeout(applyColumnStateOnly, 280);
+
+                if (state.filterModel != null) gridApi.setFilterModel(state.filterModel);
                 if (state.pivotMode !== undefined) gridApi.setGridOption('pivotMode', state.pivotMode);
 
-                // Ondalık basamak ayarını uygula
+                // Sayfa başına satır sayısı
+                if (state.paginationPageSize != null) {
+                    gridApi.setGridOption('paginationPageSize', state.paginationPageSize);
+                }
+
+                // Ondalık basamak
                 if (state.decimalPlaces !== undefined) {
                     decimalPlacesGlobal = state.decimalPlaces;
                 }
 
-                // Grupların durumunu uygula
+                // Grup açık/kapalı
                 if (state.isExpanded) {
                     setTimeout(() => gridApi.expandAll(), 200);
                     isExpandedGlobal = true;
@@ -691,8 +849,9 @@
                     isExpandedGlobal = false;
                 }
 
-                // Seçilen şablonu son kullanılan olarak işaretle
-                localStorage.setItem(`ag_grid_last_preset_${currentUser.firma_id}`, name);
+                // Hücreleri yeniden çiz (cellClass vb. için)
+                gridApi.refreshCells({ force: true });
+                localStorage.setItem(`ag_grid_last_preset_${currentUser.firma_id}`, sablonId);
             }
         }
 
@@ -718,16 +877,34 @@
         }
 
         // Şablon Sil
-        function deletePreset() {
-            const name = document.getElementById('presetSelect').value;
-            if (!name) return;
+        async function deletePreset() {
+            const sablonId = document.getElementById('presetSelect').value;
+            if (!sablonId) return;
 
-            if (confirm(`"${name}" şablonunu silmek istediğinize emin misiniz?`)) {
-                const savedPresets = JSON.parse(localStorage.getItem(`ag_grid_presets_${currentUser.firma_id}`) || '{}');
-                delete savedPresets[name];
-                localStorage.setItem(`ag_grid_presets_${currentUser.firma_id}`, JSON.stringify(savedPresets));
-                updatePresetList();
-                alert("Şablon silindi.");
+            const select = document.getElementById('presetSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            const sablonAdi = selectedOption.textContent;
+
+            if (confirm(`"${sablonAdi}" şablonunu silmek istediğinize emin misiniz?`)) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`${API_URL}/admin/rapor-sablonu/${sablonId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        await updatePresetList();
+                        document.getElementById('presetSelect').value = '';
+                        alert("Şablon silindi.");
+                    } else {
+                        alert(result.detail || 'Şablon silinemedi');
+                    }
+                } catch (error) {
+                    console.error("Şablon silme hatası:", error);
+                    alert("Şablon silinemedi: " + error.message);
+                }
             }
         }
 
@@ -818,11 +995,12 @@
 
                 // Şablon listesini güncelle ve gerekirse son şablonu yükle
                 if (!window.layoutLoaded) {
-                    updatePresetList();
-                    const lastPreset = localStorage.getItem(`ag_grid_last_preset_${currentUser.firma_id}`);
-                    if (lastPreset) {
-                        document.getElementById('presetSelect').value = lastPreset;
-                        loadPreset(lastPreset);
+                    await updatePresetList();
+                    const lastPresetId = localStorage.getItem(`ag_grid_last_preset_${currentUser.firma_id}`);
+                    if (lastPresetId) {
+                        document.getElementById('presetSelect').value = lastPresetId;
+                        // Grid sütunları (pivot/row group) veri sonrası oluştuğu için şablonu kısa gecikmeyle yükle
+                        setTimeout(() => loadPreset(lastPresetId), 150);
                     }
 
                     const savedRange = localStorage.getItem('ag_grid_time_range');

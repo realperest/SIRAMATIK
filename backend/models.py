@@ -278,3 +278,33 @@ class ServisCreateRequest(BaseModel):
     
 class UserServisUpdateRequest(BaseModel):
     servis_id: Optional[int] = None
+
+
+# --- RAPOR ŞABLONLARI MODELS ---
+
+class RaporSablonuCreateRequest(BaseModel):
+    firma_id: int
+    ad: str
+    ayarlar: Dict[str, Any]
+    kullanici_id: Optional[int] = None
+    aciklama: Optional[str] = None
+    rapor_tipi: str = 'ag_grid'
+    varsayilan: bool = False
+
+class RaporSablonuUpdateRequest(BaseModel):
+    ad: Optional[str] = None
+    ayarlar: Optional[Dict[str, Any]] = None
+    aciklama: Optional[str] = None
+    varsayilan: Optional[bool] = None
+
+class RaporSablonuResponse(BaseModel):
+    id: int
+    firma_id: int
+    kullanici_id: Optional[int] = None
+    ad: str
+    aciklama: Optional[str] = None
+    rapor_tipi: str
+    ayarlar: Dict[str, Any]
+    varsayilan: bool
+    olusturulma: datetime
+    guncelleme: datetime

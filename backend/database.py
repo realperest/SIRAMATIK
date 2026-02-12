@@ -54,6 +54,8 @@ class Database:
             self._create_cihazlar_table(session)
             # Sistem ayarları tablosunu oluştur
             self._create_sistem_ayarlari_table(session)
+            # Rapor şablonları tablosunu oluştur
+            self._create_rapor_sablonlari_table(session)
             # 1. Ana Tabloları Oluştur
             session.execute(text("""
                 CREATE TABLE IF NOT EXISTS siramatik.kuyruk_konumlar (
@@ -182,7 +184,11 @@ class Database:
             session.rollback()
     
     def get_timezone_offset(self) -> int:
-        """Sistem saat dilimi offset'ini getir (default: +3)"""
+        """
+        Sistem saat dilimi offset'ini getir. Her zaman siramatik.sistem_ayarlari
+        tablosundaki timezone_offset değerine bakar (UTC+X veya UTC-X).
+        Örnek: 3 = Türkiye, 6 = Doğu Asya, -5 = EST. Hiçbir yerde sabit saat kullanılmaz.
+        """
         try:
             result = self.execute_query(
                 "SELECT deger FROM siramatik.sistem_ayarlari WHERE anahtar = 'timezone_offset'"
@@ -190,13 +196,30 @@ class Database:
             if result and len(result) > 0:
                 return int(result[0]['deger'])
         except Exception as e:
-            print(f"[WARN] Timezone offset okunamadı, default +3 kullanılıyor: {e}")
-        return 3  # Default: Türkiye (UTC+3)
+            print(f"[WARN] Timezone offset okunamadı, yedek değer kullanılıyor: {e}")
+        return 3  # Yalnızca tablo okunamazsa (kurulum varsayılanı)
     
     def get_local_now(self) -> str:
-        """Yerel saat dilimine göre şu anki zamanı döndür (SQL için)"""
+        """
+        Veritabanına yazılacak 'şu an' zamanı (SQL ifadesi).
+        Sunucu UTC çalıştığı için NOW() kullanılır; böylece doğru an saklanır.
+        Okuma/filtrelerde yerel tarih için _local_date_sql / _today_local_sql kullanın.
+        """
+        return "NOW()"
+
+    def _local_date_sql(self, column_expr: str = "s.olusturulma") -> str:
+        """Verdiğiniz sütunun yerel tarihini (timezone_offset'a göre) döndüren SQL ifadesi."""
         offset = self.get_timezone_offset()
-        return f"NOW() + INTERVAL '{offset} hours'"
+        return f"({column_expr} + INTERVAL '{offset} hours')::date"
+
+    def _today_local_sql(self) -> str:
+        """Yerel saate göre 'bugün' tarihini döndüren SQL ifadesi (timezone_offset)."""
+        offset = self.get_timezone_offset()
+        return f"(NOW() + INTERVAL '{offset} hours')::date"
+
+    def _today_filter_sql(self, column_expr: str = "s.olusturulma") -> str:
+        """Bugün (yerel) filtresi: column yerel tarihi = bugün yerel."""
+        return f" AND {self._local_date_sql(column_expr)} = {self._today_local_sql()}"
     
     # --- FİRMALAR ---
     
@@ -299,11 +322,14 @@ class Database:
     
     def get_kuyruklar(self, servis_id: int) -> List[Dict]:
         """Servise ait kuyrukları getir (Bekleyen sayıları ile birlikte)"""
-        queues = self.execute_query("""
+        offset = self.get_timezone_offset()
+        today_local = f"(NOW() + INTERVAL '{offset} hours')::date"
+        col_local = f"(s.olusturulma + INTERVAL '{offset} hours')::date"
+        queues = self.execute_query(f"""
             SELECT k.*, 
                    (SELECT COUNT(*) FROM siramatik.siralar s 
                     WHERE s.kuyruk_id = k.id AND s.durum = 'waiting' 
-                    AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+                    AND {col_local} = {today_local}
                    ) as bekleyen_sayisi
             FROM siramatik.kuyruklar k 
             WHERE k.servis_id = :servis_id AND k.aktif = true 
@@ -439,12 +465,20 @@ class Database:
         return result[0] if result else None
     
     def get_bekleyen_siralar(self, kuyruk_id: int) -> List[Dict]:
-        """Bekleyen sıraları getir (Bugünkü, öncelik sırasına göre)"""
+        """Belirli bir kuyruktaki TÜM bekleyen sıraları getir.
+
+        Burada **hiçbir tarih filtresi yok**. Bunun sebebi:
+        - Ekranlarda gördüğümüz hata, gün/tarih hesaplarındaki offset farkından kaynaklanıyordu.
+        - Çağrı mantığı açısından önemli olan; aynı kuyruktaki, durumu 'waiting' olan
+          kayıtların **öncelik** ve **olusturulma** zamanına göre sıralanması.
+        - Zaten eski kayıtlar periyodik temizleme fonksiyonlarıyla siliniyor.
+
+        Sıralama: önce yüksek öncelik, sonra en eski olusturulma.
+        """
         return self.execute_query("""
-            SELECT * FROM siramatik.siralar 
-            WHERE kuyruk_id = :kuyruk_id 
-            AND durum = 'waiting'
-            AND (olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+            SELECT * FROM siramatik.siralar
+            WHERE kuyruk_id = :kuyruk_id
+              AND durum = 'waiting'
             ORDER BY oncelik DESC, olusturulma ASC
         """, {"kuyruk_id": kuyruk_id})
     
@@ -562,8 +596,9 @@ class Database:
         return result[0] if result else None
     
     def get_son_cagrilar(self, firma_id: Any, limit: int = 5, servis_id: int = None) -> List[Dict]:
-        """Ekran için son çağrıları getir"""
-        query = """
+        """Ekran için son çağrıları getir (yerel gün filtresi)"""
+        today_filter = self._today_filter_sql("s.olusturulma")
+        query = f"""
             SELECT 
                 s.*, 
                 ser.ad as servis_ad,
@@ -573,7 +608,7 @@ class Database:
             LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
             WHERE s.firma_id = :firma_id 
             AND s.durum = 'calling'
-            AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+            {today_filter}
             AND s.cagirilma > (NOW() - INTERVAL '20 minutes')
         """
         params = {"firma_id": firma_id, "limit": limit}
@@ -682,7 +717,6 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
-            AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
             ORDER BY s.oncelik DESC, s.olusturulma ASC
         """, {"prefix_removed_already_handled": None, "firma_id": firma_id})
         
@@ -692,13 +726,14 @@ class Database:
         # Personel bazlı toplam (Eğer kullanici_id varsa)
         parametreler = {"firma_id": firma_id}
         
-        sql_toplam = """
+        today_filter = self._today_filter_sql("s.olusturulma")
+        sql_toplam = f"""
             SELECT COUNT(*) as sayi 
             FROM siramatik.siralar s
             JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
-            AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+            {today_filter}
         """
         
         if kullanici_id:
@@ -715,11 +750,10 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
-            AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
         """, {"firma_id": firma_id})
         
-        # Ortalama İşlem Süresi (Bugün, Tamamlananlar)
-        sql_avg = """
+        # Ortalama İşlem Süresi (Bugün yerel, Tamamlananlar)
+        sql_avg = f"""
             SELECT AVG(EXTRACT(EPOCH FROM (tamamlanma - COALESCE(islem_baslangic, cagirilma)))) / 60 as ort_dk
             FROM siramatik.siralar s
             JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
@@ -727,7 +761,7 @@ class Database:
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'completed'
             AND s.tamamlanma IS NOT NULL
-            AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+            {today_filter}
         """
         if kullanici_id:
             sql_avg += " AND s.cagiran_kullanici_id = :kullanici_id"
@@ -745,8 +779,7 @@ class Database:
         queues = self.execute_query("""
             SELECT k.*, sv.ad as servis_ad,
                    (SELECT COUNT(*) FROM siramatik.siralar s 
-                    WHERE s.kuyruk_id = k.id AND s.durum = 'waiting' 
-                    AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date
+                    WHERE s.kuyruk_id = k.id AND s.durum = 'waiting'
                    ) as bekleyen_sayisi
             FROM siramatik.kuyruklar k
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
@@ -847,6 +880,7 @@ class Database:
         # MAC adresi yoksa Ad üzerinden eşle
         # NOT: Bu fonksiyon eski endpoint için, device_fingerprint yok
         # Yeni kayıtlar için /api/cihaz/kayit endpoint'i kullanılmalı
+        # ÖNEMLİ: Cihaz zamanları yerel saat dilimine göre kaydedilir (timezone_offset)
         local_now = self.get_local_now()
         result = self.execute_query(f"""
             INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, durum, son_gorulen, metadata)
@@ -866,16 +900,20 @@ class Database:
         """Firma istatistiklerini getir (Gelişmiş Zaman ve Periyot Filtreli)"""
         params = {"firma_id": firma_id}
         
-        # 1. ZAMAN FİLTRESİ OLUŞTUR
+        # 1. ZAMAN FİLTRESİ OLUŞTUR (yerel tarih: timezone_offset)
         time_filter = ""
         if time_range == "today":
-            time_filter = " AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date"
+            time_filter = self._today_filter_sql("s.olusturulma")
         elif time_range == "this_week":
             time_filter = " AND s.olusturulma >= date_trunc('week', CURRENT_DATE)"
         elif time_range == "this_month":
             time_filter = " AND s.olusturulma >= date_trunc('month', CURRENT_DATE)"
+        elif time_range == "last_month":
+            time_filter = " AND s.olusturulma >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND s.olusturulma < date_trunc('month', CURRENT_DATE)"
         elif time_range == "this_year":
             time_filter = " AND s.olusturulma >= date_trunc('year', CURRENT_DATE)"
+        elif time_range == "last_year":
+            time_filter = " AND s.olusturulma >= date_trunc('year', CURRENT_DATE - INTERVAL '1 year') AND s.olusturulma < date_trunc('year', CURRENT_DATE)"
         elif time_range == "all_time":
             time_filter = "" # Filtre uygulama
         elif time_range == "custom" and start_date:
@@ -998,14 +1036,18 @@ class Database:
         """Sektör Standartlarında BI Raporlama Motoru"""
         params = {"firma_id": firma_id}
         
-        # 1. ZAMAN FİLTRESİ (Dinamik)
+        # 1. ZAMAN FİLTRESİ (yerel tarih: timezone_offset)
         time_filter = ""
         if time_range == "today":
-            time_filter = " AND (s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date = (NOW() AT TIME ZONE 'Europe/Istanbul')::date"
+            time_filter = self._today_filter_sql("s.olusturulma")
         elif time_range == "this_week":
             time_filter = " AND s.olusturulma >= date_trunc('week', CURRENT_DATE)"
         elif time_range == "this_month":
             time_filter = " AND s.olusturulma >= date_trunc('month', CURRENT_DATE)"
+        elif time_range == "last_month":
+            time_filter = " AND s.olusturulma >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND s.olusturulma < date_trunc('month', CURRENT_DATE)"
+        elif time_range == "last_year":
+            time_filter = " AND s.olusturulma >= date_trunc('year', CURRENT_DATE - INTERVAL '1 year') AND s.olusturulma < date_trunc('year', CURRENT_DATE)"
         elif time_range == "custom" and start_date:
             time_filter = " AND s.olusturulma::date BETWEEN :start AND :end"
             params["start"] = start_date
@@ -1053,7 +1095,7 @@ class Database:
                 group_label = "Kuyruk"
                 join_clause = "LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id"
             elif group_by == "tarih":
-                group_col = "(s.olusturulma AT TIME ZONE 'Europe/Istanbul')::date"
+                group_col = self._local_date_sql("s.olusturulma")
                 group_label = "Tarih"
 
             if group_col:
@@ -1207,6 +1249,7 @@ class Database:
         
         # MAC adresi ile veya AD ile kontrol et (Varsa güncelle)
         existing = None
+        local_now = self.get_local_now()
         
         if mac:
             existing_list = self.execute_query(
@@ -1222,7 +1265,6 @@ class Database:
              if existing_list: existing = existing_list[0]
 
         if existing:
-            local_now = self.get_local_now()
             updated = self.execute_query(f"""
                 UPDATE siramatik.cihazlar 
                 SET son_gorulen = {local_now}, metadata = :metadata, ad = :ad, tip = :tip
@@ -1237,7 +1279,6 @@ class Database:
             return updated[0]
 
         # Yeni kayıt oluştur
-        local_now = self.get_local_now()
         result = self.execute_query(f"""
             INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, metadata, son_gorulen)
             VALUES (:firma_id, :ad, :tip, :mac_address, :metadata, {local_now})
@@ -1581,6 +1622,9 @@ class Database:
     
     # ============================================
     # CİHAZ YÖNETİM METODLARI
+    # Tüm cihaz zamanları (son_gorulen, guncelleme) ve online/offline kontrolü
+    # get_local_now() kullanır; offset her zaman sistem_ayarlari.timezone_offset'tan okunur.
+    # Sabit saat yok: 2, 3, 6, -5 vb. tablodaki değere göre değişir.
     # ============================================
     
     def register_device(self, firma_id: int, ad: str, tip: str, 
@@ -1590,6 +1634,7 @@ class Database:
         """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
         with Session(self.engine) as session:
             try:
+                local_now = self.get_local_now()
                 # Fingerprint ile cihaz var mı kontrol et
                 check_query = text("""
                     SELECT id, firma_id FROM siramatik.cihazlar
@@ -1604,7 +1649,6 @@ class Database:
                     device_id = result[0]
                     existing_firma_id = result[1]
                     
-                    local_now = self.get_local_now()
                     # Firma farklıysa güncelle
                     if existing_firma_id != firma_id:
                         update_query = text(f"""
@@ -1650,8 +1694,7 @@ class Database:
                         "is_new": False
                     }
                 
-                # Yeni cihaz kaydı
-                local_now = self.get_local_now()
+                # Yeni cihaz kaydı (yerel saat kullanılır)
                 insert_query = text(f"""
                     INSERT INTO siramatik.cihazlar 
                     (firma_id, ad, tip, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen)
@@ -1691,7 +1734,8 @@ class Database:
         """Cihaz ayarlarını getir"""
         with Session(self.engine) as session:
             query = text("""
-                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen AT TIME ZONE 'UTC' as son_gorulen
+                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen AT TIME ZONE 'UTC' as son_gorulen, 
+                       setup_tamamlandi
                 FROM siramatik.cihazlar
                 WHERE id = :device_id
             """)
@@ -1708,7 +1752,8 @@ class Database:
                 "ayarlar": result[4] if result[4] else {},
                 "metadata": result[5] if result[5] else {},
                 "durum": result[6],
-                "son_gorulen": result[7]
+                "son_gorulen": result[7],
+                "setup_tamamlandi": result[8] if len(result) > 8 else False
             }
     
     def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any], device_name: Optional[str] = None, setup_completed: Optional[bool] = None) -> bool:
@@ -1750,6 +1795,7 @@ class Database:
                         "kuyruk_id": kuyruk_id,
                     }
                 else:
+                    print(f"[SETUP] setup_tamamlandi güncelleniyor: device_id={device_id}, setup_tamamlandi={setup_completed}")
                     query = text(f"""
                         UPDATE siramatik.cihazlar
                         SET ayarlar = :ayarlar,
@@ -1773,6 +1819,8 @@ class Database:
                 result = session.execute(query, params).first()
                 
                 session.commit()
+                if result:
+                    print(f"[OK] setup_tamamlandi başarıyla güncellendi: device_id={device_id}")
                 return result is not None
                 
             except Exception as e:
@@ -1810,7 +1858,8 @@ class Database:
     def get_devices_by_firma(self, firma_id: int) -> List[Dict[str, Any]]:
         """Firmaya ait tüm cihazları listele"""
         with Session(self.engine) as session:
-            query = text("""
+            local_now = self.get_local_now()
+            query = text(f"""
                 SELECT 
                     c.id, 
                     c.firma_id, 
@@ -1833,7 +1882,7 @@ class Database:
                     k.ad as kuyruk_ad,
                     k.kod as kuyruk_kod,
                     CASE 
-                        WHEN c.son_gorulen > (NOW() - INTERVAL '30 seconds') THEN 'online'
+                        WHEN c.son_gorulen > ({local_now} - INTERVAL '30 seconds') THEN 'online'
                         ELSE 'offline'
                     END as online_status
                 FROM siramatik.cihazlar c
@@ -1888,6 +1937,165 @@ class Database:
             except Exception as e:
                 session.rollback()
                 raise Exception(f"Cihaz silme hatası: {str(e)}")
+    
+    def _create_rapor_sablonlari_table(self, session):
+        """Rapor şablonları tablosunu oluştur"""
+        try:
+            check_query = text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'siramatik' 
+                    AND table_name = 'rapor_sablonlari'
+                );
+            """)
+            result = session.execute(check_query).scalar()
+            
+            if result:
+                print("[OK] rapor_sablonlari tablosu zaten var")
+                return
+            
+            create_table_query = text("""
+                CREATE TABLE IF NOT EXISTS siramatik.rapor_sablonlari (
+                    id SERIAL PRIMARY KEY,
+                    firma_id INTEGER NOT NULL REFERENCES siramatik.firmalar(id) ON DELETE CASCADE,
+                    kullanici_id INTEGER REFERENCES siramatik.kullanicilar(id) ON DELETE CASCADE,
+                    ad VARCHAR(255) NOT NULL,
+                    aciklama TEXT,
+                    rapor_tipi VARCHAR(50) DEFAULT 'ag_grid',
+                    ayarlar JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    varsayilan BOOLEAN DEFAULT FALSE,
+                    olusturulma TIMESTAMPTZ DEFAULT NOW(),
+                    guncelleme TIMESTAMPTZ DEFAULT NOW(),
+                    CONSTRAINT unique_firma_sablon_ad UNIQUE(firma_id, ad)
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_rapor_sablonlari_firma_id ON siramatik.rapor_sablonlari(firma_id);
+                CREATE INDEX IF NOT EXISTS idx_rapor_sablonlari_kullanici_id ON siramatik.rapor_sablonlari(kullanici_id);
+                CREATE INDEX IF NOT EXISTS idx_rapor_sablonlari_rapor_tipi ON siramatik.rapor_sablonlari(rapor_tipi);
+                
+                ALTER TABLE siramatik.rapor_sablonlari ENABLE ROW LEVEL SECURITY;
+                
+                DROP POLICY IF EXISTS rapor_sablonlari_select_policy ON siramatik.rapor_sablonlari;
+                CREATE POLICY rapor_sablonlari_select_policy ON siramatik.rapor_sablonlari
+                    FOR SELECT USING (true);
+                
+                DROP POLICY IF EXISTS rapor_sablonlari_insert_policy ON siramatik.rapor_sablonlari;
+                CREATE POLICY rapor_sablonlari_insert_policy ON siramatik.rapor_sablonlari
+                    FOR INSERT WITH CHECK (true);
+                
+                DROP POLICY IF EXISTS rapor_sablonlari_update_policy ON siramatik.rapor_sablonlari;
+                CREATE POLICY rapor_sablonlari_update_policy ON siramatik.rapor_sablonlari
+                    FOR UPDATE USING (true) WITH CHECK (true);
+                
+                DROP POLICY IF EXISTS rapor_sablonlari_delete_policy ON siramatik.rapor_sablonlari;
+                CREATE POLICY rapor_sablonlari_delete_policy ON siramatik.rapor_sablonlari
+                    FOR DELETE USING (true);
+                
+                COMMENT ON TABLE siramatik.rapor_sablonlari IS 'Kullanıcı rapor şablonları (AG-Grid vb.)';
+            """)
+            
+            session.execute(create_table_query)
+            session.commit()
+            print("[OK] rapor_sablonlari tablosu oluşturuldu!")
+            
+        except Exception as e:
+            print(f"[WARN] Rapor şablonları tablosu oluşturma hatası: {e}")
+            session.rollback()
+    
+    # ============================================
+    # RAPOR ŞABLONLARI METODLARI
+    # ============================================
+    
+    def get_rapor_sablonlari(self, firma_id: int, kullanici_id: Optional[int] = None, 
+                             rapor_tipi: str = 'ag_grid') -> List[Dict]:
+        """Firma rapor şablonlarını getir"""
+        query = """
+            SELECT id, firma_id, kullanici_id, ad, aciklama, rapor_tipi, 
+                   ayarlar, varsayilan, olusturulma, guncelleme
+            FROM siramatik.rapor_sablonlari
+            WHERE firma_id = :firma_id AND rapor_tipi = :rapor_tipi
+        """
+        params = {"firma_id": firma_id, "rapor_tipi": rapor_tipi}
+        
+        if kullanici_id:
+            query += " AND (kullanici_id = :kullanici_id OR kullanici_id IS NULL)"
+            params["kullanici_id"] = kullanici_id
+        
+        query += " ORDER BY varsayilan DESC, ad ASC"
+        
+        return self.execute_query(query, params)
+    
+    def get_rapor_sablonu(self, sablon_id: int) -> Optional[Dict]:
+        """Rapor şablonunu getir"""
+        result = self.execute_query("""
+            SELECT id, firma_id, kullanici_id, ad, aciklama, rapor_tipi, 
+                   ayarlar, varsayilan, olusturulma, guncelleme
+            FROM siramatik.rapor_sablonlari
+            WHERE id = :sablon_id
+        """, {"sablon_id": sablon_id})
+        return result[0] if result else None
+    
+    def create_rapor_sablonu(self, firma_id: int, ad: str, ayarlar: Dict,
+                            kullanici_id: Optional[int] = None,
+                            aciklama: Optional[str] = None,
+                            rapor_tipi: str = 'ag_grid',
+                            varsayilan: bool = False) -> Dict:
+        """Yeni rapor şablonu oluştur"""
+        local_now = self.get_local_now()
+        result = self.execute_query(f"""
+            INSERT INTO siramatik.rapor_sablonlari 
+            (firma_id, kullanici_id, ad, aciklama, rapor_tipi, ayarlar, varsayilan, olusturulma, guncelleme)
+            VALUES (:firma_id, :kullanici_id, :ad, :aciklama, :rapor_tipi, :ayarlar, :varsayilan, {local_now}, {local_now})
+            RETURNING *
+        """, {
+            "firma_id": firma_id,
+            "kullanici_id": kullanici_id,
+            "ad": ad,
+            "aciklama": aciklama,
+            "rapor_tipi": rapor_tipi,
+            "ayarlar": json.dumps(ayarlar),
+            "varsayilan": varsayilan
+        })
+        return result[0] if result else None
+    
+    def update_rapor_sablonu(self, sablon_id: int, ad: Optional[str] = None,
+                            ayarlar: Optional[Dict] = None,
+                            aciklama: Optional[str] = None,
+                            varsayilan: Optional[bool] = None) -> Dict:
+        """Rapor şablonunu güncelle"""
+        local_now = self.get_local_now()
+        fields = [f"guncelleme = {local_now}"]
+        params = {"sablon_id": sablon_id}
+        
+        if ad is not None:
+            fields.append("ad = :ad")
+            params["ad"] = ad
+        if ayarlar is not None:
+            fields.append("ayarlar = :ayarlar")
+            params["ayarlar"] = json.dumps(ayarlar)
+        if aciklama is not None:
+            fields.append("aciklama = :aciklama")
+            params["aciklama"] = aciklama
+        if varsayilan is not None:
+            fields.append("varsayilan = :varsayilan")
+            params["varsayilan"] = varsayilan
+        
+        query = f"""
+            UPDATE siramatik.rapor_sablonlari 
+            SET {', '.join(fields)}
+            WHERE id = :sablon_id
+            RETURNING *
+        """
+        result = self.execute_query(query, params)
+        return result[0] if result else None
+    
+    def delete_rapor_sablonu(self, sablon_id: int) -> bool:
+        """Rapor şablonunu sil"""
+        self.execute_query("""
+            DELETE FROM siramatik.rapor_sablonlari 
+            WHERE id = :sablon_id
+        """, {"sablon_id": sablon_id})
+        return True
 
 # Global database instance
 db = Database()

@@ -566,6 +566,7 @@
         let pollingInterval = null; // Polling interval referansı
         let isPageVisible = true; // Sayfa görünürlük durumu
         let avgProcessTime = 5; // Dinamik olarak güncellenecek ortalama süre (dakika)
+        let lastSpokenStatus = null; // En son seslendirilen durum metni
 
         // Supabase Bağlantısı
         const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
@@ -583,6 +584,20 @@
         tickSound.addEventListener('error', (e) => {
             console.warn('[WARN] Ses dosyası yüklenemedi:', e);
         });
+
+        // Türkçe sesli duyuru (Web Speech API)
+        function speakTr(metin) {
+            if (!metin || !('speechSynthesis' in window)) return;
+            speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(metin);
+            u.lang = 'tr-TR';
+            u.rate = 0.9;
+            u.volume = 1;
+            const sesler = speechSynthesis.getVoices();
+            const trSes = sesler.find(v => v.lang.startsWith('tr'));
+            if (trSes) u.voice = trSes;
+            speechSynthesis.speak(u);
+        }
 
         async function startNotifications() {
             // iOS için ses kilidi açma yöntemi
@@ -710,9 +725,14 @@
                 const calledSiraId = data.sira.id || data.sira.sira_id;
                 if (calledSiraId && String(calledSiraId) === String(sira_id)) {
                     console.log('🎯 Biletimiz çağrıldı (içeriden):', data.sira);
-                    // Her çağrıldığında ses çalması için notificationPlayed'i reset et
-                    notificationPlayed = false;
-                    // Direkt olarak "Sıra Sizde" durumuna geç
+
+                    // Sadece durum "calling"e ilk geçildiğinde alarm + sesli duyuru çalışsın
+                    if (sessionDurum !== 'calling') {
+                        notificationPlayed = false;
+                        sessionDurum = 'calling';
+                    }
+
+                    // Durumu ve gerekiyorsa sesi güncelle
                     showCallingStatus(data.sira);
                     return; // Diğer kontrollere gerek yok
                 }
@@ -767,6 +787,9 @@
                         // 1 saniye sonra tekrar (son ses değilse)
                         if (playCount < 3) {
                             setTimeout(playAlert, 1000);
+                        } else {
+                            // 3. alarm bittikten sonra sesli "Sıra sizde" oku
+                            setTimeout(() => speakTr('Sıra sizde'), 1200);
                         }
                     }
                 };
@@ -935,12 +958,6 @@
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
 
-                // Türkiye saatiyle (UTC+3) bugünün başlangıcını bulalım
-                const simdi = new Date();
-                const trBaslangic = new Date(simdi.getTime() + (3 * 60 * 60 * 1000));
-                trBaslangic.setUTCHours(0, 0, 0, 0);
-                const trBaslangicUtc = new Date(trBaslangic.getTime() - (3 * 60 * 60 * 1000)).toISOString();
-
                 // 1. Kendi bilet bilgilerimizi çekelim
                 const myTicket = await _supabase
                     .schema('siramatik')
@@ -954,10 +971,15 @@
 
                 // Durum kontrolü
                 if (me.durum === 'calling') {
-                    // Her çağrıldığında ses çalması için notificationPlayed'i reset et
-                    notificationPlayed = false;
-                    // "Sıra Sizde" durumunu göster (ortak fonksiyon kullan)
-                    showCallingStatus({ id: sid });
+                    // Sadece waiting → calling geçişinde alarm + sesli duyuru çalışsın
+                    if (sessionDurum !== 'calling') {
+                        notificationPlayed = false;
+                        sessionDurum = 'calling';
+                        showCallingStatus({ id: sid });
+                    } else {
+                        // Yine de görsel durumu koru
+                        showCallingStatus({ id: sid });
+                    }
                     return;
                 } else if (me.durum === 'completed') {
                     statusEl.textContent = "İŞLEM TAMAMLANDI";
@@ -965,6 +987,7 @@
                     document.body.classList.remove('calling-active-body');
                     statusEl.style.background = "#94a3b8";
                     notificationPlayed = false;
+                    sessionDurum = 'completed';
 
                     // Anket göster (sadece bir kez)
                     showSurvey();
@@ -978,7 +1001,6 @@
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', trBaslangicUtc)
                     .gt('oncelik', me.oncelik);
 
                 const samePriorityBefore = await _supabase
@@ -987,7 +1009,6 @@
                     .select('*', { count: 'exact', head: true })
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
-                    .gte('olusturulma', trBaslangicUtc)
                     .eq('oncelik', me.oncelik)
                     .lt('olusturulma', me.olusturulma);
 
@@ -1031,7 +1052,7 @@
                     lastCount = count;
                 }
 
-                // Durum mesajı güncelle
+                // Durum mesajı güncelle (waiting durumu)
                 document.body.classList.remove('calling-active-body');
                 statusEl.classList.remove('calling-status');
                 numEl.style.color = "#764ba2";
@@ -1046,6 +1067,15 @@
                     statusEl.style.color = "#667eea";
                     updateEstimatedTime(count);
                 }
+
+                // Metin değiştiyse sesli olarak oku
+                const currentStatusText = statusEl.textContent;
+                if (currentStatusText && currentStatusText !== lastSpokenStatus) {
+                    lastSpokenStatus = currentStatusText;
+                    setTimeout(() => speakTr(currentStatusText), 250);
+                }
+
+                sessionDurum = 'waiting';
 
                 // Sayfa başlığını güncelle
                 if (isPageVisible) {
@@ -1280,10 +1310,14 @@
             document.getElementById('survey-container').style.display = 'block';
 
             // Neşeli ve dinamik ses çal (anket açılırken)
-            // Kısa bir gecikme ile çal ki AudioContext hazır olsun
             setTimeout(() => {
                 playHappySound();
             }, 100);
+
+            // Puanlama ekranı açıldığında sesli duyuru
+            setTimeout(() => {
+                speakTr('Lütfen aldığınız hizmeti değerlendirin.');
+            }, 900);
 
             // Anket gösterilince sayfayı yumuşakça kaydır
             setTimeout(() => {

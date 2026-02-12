@@ -10,7 +10,7 @@ osascript -e "tell application \"Terminal\" to do script \"cd '$DIR/backend' && 
 
 echo ""
 echo "[2/2] Frontend baslatiliyor (Port 3000)..."
-osascript -e "tell application \"Terminal\" to do script \"cd '$DIR/frontend' && python3 -m http.server 3000\""
+osascript -e "tell application \"Terminal\" to do script \"cd '$DIR/frontend' && python3 -m http.server 3000 --bind 0.0.0.0\""
 
 echo ""
 echo "[3/3] Tarayici aciliyor..."
@@ -30,3 +30,4 @@ echo "- TV Ekrani:     http://localhost:3000/tv.html"
 echo ""
 echo "Backend API Docs: http://localhost:8000/docs"
 echo ""
+read -p "Devam etmek icin bir tusa basin..."

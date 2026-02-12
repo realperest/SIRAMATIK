@@ -1925,9 +1925,9 @@
                 return;
             }
 
-            // Direkt çağrı (ASYNC - API beklemeden UI aç)
+            // Direkt çağrı (ASYNC - API beklemeden UI aç) — konum personel ayarından (Koltuk 1 vb.)
             const konum = (konumGerekli && activeSettings.konumId !== 'ask_always')
-                ? activeSettings.konumAd
+                ? (activeSettings.konumAdi || null)
                 : null;
 
             // ÖNCE paneli aç (API beklemeden - ANINDA YANIT)

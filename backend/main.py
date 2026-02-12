@@ -26,9 +26,29 @@ from models import (
     DeviceResponse, DeviceUpdateRequest, DeviceHeartbeatRequest,
     UserResponse, UserCreateRequest, UserUpdateRequest, UserStatusUpdateRequest,
     SiraTransferRequest, SiraNotlarRequest, MemnuniyetAnketRequest,
-    CihazKayitRequest, CihazAyarlarUpdateRequest, CihazHeartbeatRequest, CihazResponse
+    CihazKayitRequest, CihazAyarlarUpdateRequest, CihazHeartbeatRequest, CihazResponse,
+    RaporSablonuCreateRequest, RaporSablonuUpdateRequest, RaporSablonuResponse
 )
 from pydantic import BaseModel
+
+# --- SIRA ZENGİNLEŞTİRME (TV/ekran için servis ve kuyruk adları) ---
+def enrich_sira_for_display(sira: dict) -> dict:
+    """Sira dict'ine servis_ad ve kuyruk_ad ekler (WebSocket/TV'de undefined önlemek için)."""
+    if not sira:
+        return sira
+    out = dict(sira)
+    if out.get("servis_id"):
+        s = db.get_servis(out["servis_id"])
+        if s:
+            out["servis_ad"] = s.get("ad")
+            out["servis"] = out.get("servis_ad")
+    if out.get("kuyruk_id"):
+        k = db.get_kuyruk(out["kuyruk_id"])
+        if k:
+            out["kuyruk_ad"] = k.get("ad")
+            out["kuyruk"] = out.get("kuyruk_ad")
+    return out
+
 
 # --- WEBSOCKET MANAGER ---
 class ConnectionManager:
@@ -497,11 +517,11 @@ async def sira_cagir(
         if not sira:
             raise HTTPException(status_code=404, detail="Sıra bulunamadı")
         
-        # WebSocket Bildirimi: Çağrı Yapıldı
+        # WebSocket Bildirimi: Çağrı Yapıldı (TV'de bölüm/kuyruk adı görünsün diye zenginleştir)
         try:
             await manager.broadcast({
                 "type": "call_ticket",
-                "sira": sira
+                "sira": enrich_sira_for_display(sira)
             })
         except:
             pass
@@ -536,7 +556,7 @@ async def sira_tekrar_cagir(sira_id: int, current_user: dict = Depends(get_curre
         sira = db.tekrar_cagir(sira_id)
         if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
         
-        await manager.broadcast({"type": "call_ticket", "sira": sira})
+        await manager.broadcast({"type": "call_ticket", "sira": enrich_sira_for_display(sira)})
         return {"success": True, "sira": sira}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
@@ -1017,9 +1037,11 @@ async def update_cihaz_ayarlari(
                 # Setup bilgisi: initialSetupDone true ise setup_tamamlandi = True
                 if "initialSetupDone" in request.ayarlar:
                     setup_completed = bool(request.ayarlar.get("initialSetupDone"))
+                    logging.info(f"[SETUP] Cihaz {device_id} için setup durumu: {setup_completed}")
         except Exception as parse_err:
             logging.warning(f"Cihaz ayarlarından deviceName okunamadı: {parse_err}")
 
+        logging.info(f"[SETUP] update_device_settings çağrılıyor: device_id={device_id}, setup_completed={setup_completed}")
         success = db.update_device_settings(device_id, request.ayarlar, device_name, setup_completed)
         if success:
             return {
@@ -1231,6 +1253,168 @@ async def update_sistem_ayari(
         raise
     except Exception as e:
         logging.error(f"Sistem ayarı güncelleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# RAPOR ŞABLONLARI
+# ============================================
+
+@app.get("/api/admin/rapor-sablonlari/{firma_id}")
+async def get_rapor_sablonlari(
+    firma_id: int,
+    rapor_tipi: str = 'ag_grid',
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Firma rapor şablonlarını listele"""
+    try:
+        # Sadece admin ve superadmin erişebilir
+        if current_user['rol'] not in ['admin', 'superadmin', 'manager', 'staff']:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        # Kullanıcının kendi firmasının şablonlarını görebilir
+        if current_user['rol'] != 'superadmin' and current_user['firma_id'] != firma_id:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        sablonlar = db.get_rapor_sablonlari(
+            firma_id=firma_id,
+            kullanici_id=current_user.get('id'),
+            rapor_tipi=rapor_tipi
+        )
+        
+        return {"status": "success", "data": sablonlar}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Rapor şablonları listeleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/rapor-sablonu/{sablon_id}")
+async def get_rapor_sablonu(
+    sablon_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Rapor şablonunu getir"""
+    try:
+        sablon = db.get_rapor_sablonu(sablon_id)
+        if not sablon:
+            raise HTTPException(status_code=404, detail="Şablon bulunamadı")
+        
+        # Kullanıcının kendi firmasının şablonunu görebilir
+        if current_user['rol'] != 'superadmin' and current_user['firma_id'] != sablon['firma_id']:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        return {"status": "success", "data": sablon}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Rapor şablonu getirme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/rapor-sablonu")
+async def create_rapor_sablonu(
+    request: RaporSablonuCreateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Yeni rapor şablonu oluştur"""
+    try:
+        # Kullanıcının kendi firması için şablon oluşturabilir
+        if current_user['rol'] != 'superadmin' and current_user['firma_id'] != request.firma_id:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        # Kullanıcı ID'sini otomatik ekle (eğer belirtilmemişse)
+        if request.kullanici_id is None:
+            request.kullanici_id = current_user.get('id')
+        
+        sablon = db.create_rapor_sablonu(
+            firma_id=request.firma_id,
+            ad=request.ad,
+            ayarlar=request.ayarlar,
+            kullanici_id=request.kullanici_id,
+            aciklama=request.aciklama,
+            rapor_tipi=request.rapor_tipi,
+            varsayilan=request.varsayilan
+        )
+        
+        if not sablon:
+            raise HTTPException(status_code=500, detail="Şablon oluşturulamadı")
+        
+        return {"status": "success", "data": sablon}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Rapor şablonu oluşturma hatası: {e}")
+        # Unique constraint hatası kontrolü
+        if "unique_firma_sablon_ad" in str(e):
+            raise HTTPException(status_code=400, detail="Bu isimde bir şablon zaten var")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/admin/rapor-sablonu/{sablon_id}")
+async def update_rapor_sablonu(
+    sablon_id: int,
+    request: RaporSablonuUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Rapor şablonunu güncelle"""
+    try:
+        # Şablonun var olup olmadığını kontrol et
+        sablon = db.get_rapor_sablonu(sablon_id)
+        if not sablon:
+            raise HTTPException(status_code=404, detail="Şablon bulunamadı")
+        
+        # Kullanıcının kendi firmasının şablonunu güncelleyebilir
+        if current_user['rol'] != 'superadmin' and current_user['firma_id'] != sablon['firma_id']:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        updated_sablon = db.update_rapor_sablonu(
+            sablon_id=sablon_id,
+            ad=request.ad,
+            ayarlar=request.ayarlar,
+            aciklama=request.aciklama,
+            varsayilan=request.varsayilan
+        )
+        
+        if not updated_sablon:
+            raise HTTPException(status_code=500, detail="Şablon güncellenemedi")
+        
+        return {"status": "success", "data": updated_sablon}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Rapor şablonu güncelleme hatası: {e}")
+        if "unique_firma_sablon_ad" in str(e):
+            raise HTTPException(status_code=400, detail="Bu isimde bir şablon zaten var")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/admin/rapor-sablonu/{sablon_id}")
+async def delete_rapor_sablonu(
+    sablon_id: int,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Rapor şablonunu sil"""
+    try:
+        # Şablonun var olup olmadığını kontrol et
+        sablon = db.get_rapor_sablonu(sablon_id)
+        if not sablon:
+            raise HTTPException(status_code=404, detail="Şablon bulunamadı")
+        
+        # Kullanıcının kendi firmasının şablonunu silebilir
+        if current_user['rol'] != 'superadmin' and current_user['firma_id'] != sablon['firma_id']:
+            raise HTTPException(status_code=403, detail="Yetkisiz erişim")
+        
+        success = db.delete_rapor_sablonu(sablon_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Şablon silinemedi")
+        
+        return {"status": "success", "message": "Şablon silindi"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Rapor şablonu silme hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

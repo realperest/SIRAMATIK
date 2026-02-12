@@ -649,11 +649,6 @@
                 <i class="fas fa-chart-bar"></i> RAPOR VE ANALİZLER
             </a>
 
-            <a onclick="showView('cihazlar')" class="nav-item" id="nav-cihazlar"
-                style="cursor: pointer;">
-                <i class="fas fa-tablet-alt"></i> CİHAZLAR
-            </a>
-
             <!-- PROFESYONEL ANALİZ (PRO) menüsü kaldırıldı -->
 
             <div class="nav-header">TANIMLAR & AYARLAR</div>
@@ -2960,9 +2955,7 @@
             let path = null;
             const tip = (dev.tip || '').toLowerCase();
 
-            if (tip === 'tablet') {
-                path = 'kiosk_tablet.html';
-            } else if (tip === 'kiosk') {
+            if (tip === 'tablet' || tip === 'kiosk') {
                 path = 'kiosk.html';
             } else if (tip === 'ekran' || tip === 'screen1' || tip === 'screen2' || tip === 'tv') {
                 path = 'tv.html';
