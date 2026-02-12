@@ -585,17 +585,40 @@
             console.warn('[WARN] Ses dosyası yüklenemedi:', e);
         });
 
-        // Türkçe sesli duyuru (Web Speech API)
+        // iPhone / iPad tespiti (iOS Safari TTS ve ses davranışı için)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        // iOS'ta sesler gecikmeli yüklenir; önbelleğe al
+        let cachedVoices = [];
+        function cacheVoices() {
+            cachedVoices = speechSynthesis.getVoices();
+            if (isIOS && cachedVoices.length > 0) console.log('[iOS] TTS sesleri yüklendi:', cachedVoices.length);
+        }
+        if ('speechSynthesis' in window) {
+            cacheVoices();
+            speechSynthesis.onvoiceschanged = cacheVoices;
+        }
+
+        // Türkçe sesli duyuru (Web Speech API) — iOS uyumlu
         function speakTr(metin) {
             if (!metin || !('speechSynthesis' in window)) return;
             speechSynthesis.cancel();
+
+            const sesler = cachedVoices.length > 0 ? cachedVoices : speechSynthesis.getVoices();
+            const trSes = sesler.find(v => v.lang.startsWith('tr'));
             const u = new SpeechSynthesisUtterance(metin);
             u.lang = 'tr-TR';
             u.rate = 0.9;
             u.volume = 1;
-            const sesler = speechSynthesis.getVoices();
-            const trSes = sesler.find(v => v.lang.startsWith('tr'));
             if (trSes) u.voice = trSes;
+
+            if (isIOS && sesler.length === 0) {
+                // iOS: sesler henüz yoksa kısa gecikmeyle tekrar dene
+                setTimeout(() => speakTr(metin), 150);
+                return;
+            }
+
             speechSynthesis.speak(u);
         }
 
@@ -609,6 +632,16 @@
 
             isAudioUnlocked = true;
             document.getElementById('activation-overlay').style.display = 'none';
+
+            // iPhone/iPad: TTS'i kullanıcı tıklamasıyla ısındır (sonraki konuşmalar çalışsın)
+            if (isIOS && 'speechSynthesis' in window) {
+                cacheVoices();
+                const wake = new SpeechSynthesisUtterance('\u00A0'); // boşluk
+                wake.lang = 'tr-TR';
+                wake.volume = 0.01;
+                speechSynthesis.speak(wake);
+                speechSynthesis.cancel(); // hemen iptal, sadece TTS aktif olsun
+            }
 
             // Test titreşimi
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
