@@ -244,7 +244,16 @@
         const currentHost = window.location.hostname || 'localhost';
         const API_URL = `http://${currentHost}:8000/api`;
         let gridApi;
-        let currentUser = JSON.parse(localStorage.getItem('user'));
+        let currentUser = null;
+        try {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                currentUser = JSON.parse(userStr);
+            }
+        } catch (e) {
+            console.error('[RAPOR] currentUser yüklenirken hata:', e);
+        }
+        console.log('[RAPOR] currentUser yüklendi:', currentUser);
         let isExpandedGlobal = false; // Grupların açık/kapalı durumunu takip eder
         let decimalPlacesGlobal = 2; // Varsayılan ondalık basamak
 
@@ -576,28 +585,78 @@
         // Şablon Listesini Güncelle
         async function updatePresetList() {
             const select = document.getElementById('presetSelect');
+            if (!select) {
+                console.warn('[RAPOR] presetSelect elementi bulunamadı');
+                return;
+            }
+            
+            // currentUser kontrolü
+            if (!currentUser || !currentUser.firma_id) {
+                console.error('[RAPOR] currentUser veya firma_id bulunamadı:', currentUser);
+                // 1 saniye sonra tekrar dene
+                setTimeout(updatePresetList, 1000);
+                return;
+            }
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_URL}/admin/rapor-sablonlari/${currentUser.firma_id}?rapor_tipi=ag_grid`, {
+                if (!token) {
+                    console.error('[RAPOR] Token bulunamadı');
+                    return;
+                }
+                
+                const apiUrl = `${API_URL}/admin/rapor-sablonlari/${currentUser.firma_id}?rapor_tipi=ag_grid`;
+                console.log('[RAPOR] Şablon listesi yükleniyor...', {
+                    firma_id: currentUser.firma_id,
+                    kullanici_id: currentUser.id,
+                    API_URL: apiUrl
+                });
+                
+                const response = await fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                
+                if (!response.ok) {
+                    console.error('[RAPOR] HTTP hatası:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('[RAPOR] Hata detayı:', errorText);
+                    return;
+                }
+                
                 const result = await response.json();
+                console.log('[RAPOR] Şablon listesi response:', result);
                 
                 // Temizle (İlk option hariç)
                 select.innerHTML = '<option value="">-- Şablon Seç --</option>';
                 
-                if (result.status === 'success' && result.data) {
-                    result.data.forEach(sablon => {
-                        const opt = document.createElement('option');
-                        opt.value = sablon.id;
-                        opt.textContent = sablon.ad;
-                        opt.dataset.ayarlar = JSON.stringify(sablon.ayarlar);
-                        select.appendChild(opt);
+                if (result && result.status === 'success' && result.data && Array.isArray(result.data)) {
+                    console.log('[RAPOR] Şablon sayısı:', result.data.length);
+                    if (result.data.length === 0) {
+                        console.warn('[RAPOR] Şablon listesi boş!');
+                    } else {
+                        result.data.forEach(sablon => {
+                            const opt = document.createElement('option');
+                            opt.value = sablon.id;
+                            opt.textContent = sablon.ad || `Şablon #${sablon.id}`;
+                            if (sablon.ayarlar) {
+                                opt.dataset.ayarlar = JSON.stringify(sablon.ayarlar);
+                            }
+                            select.appendChild(opt);
+                            console.log('[RAPOR] Şablon eklendi:', sablon.ad, sablon.id);
+                        });
+                    }
+                } else {
+                    console.error('[RAPOR] Şablon verisi yok veya başarısız:', result);
+                    console.error('[RAPOR] Response yapısı:', {
+                        hasResult: !!result,
+                        status: result?.status,
+                        hasData: !!result?.data,
+                        dataType: Array.isArray(result?.data) ? 'array' : typeof result?.data,
+                        dataLength: Array.isArray(result?.data) ? result.data.length : 'N/A'
                     });
                 }
             } catch (error) {
-                console.error("Şablon listesi yüklenemedi:", error);
+                console.error("[RAPOR] Şablon listesi yüklenemedi:", error);
             }
         }
 
@@ -1384,9 +1443,11 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const gridDiv = document.querySelector('#myGrid');
             gridApi = agGrid.createGrid(gridDiv, gridOptions);
+            // Şablon listesini hemen yükle
+            await updatePresetList();
             loadData();
         });
     </script>

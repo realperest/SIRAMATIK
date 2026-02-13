@@ -1276,11 +1276,16 @@ async def get_rapor_sablonlari(
         if current_user['rol'] != 'superadmin' and current_user['firma_id'] != firma_id:
             raise HTTPException(status_code=403, detail="Yetkisiz erişim")
         
+        # Firma şablonlarını getir (kullanıcı bazlı filtreleme YOK - tüm firma şablonları)
         sablonlar = db.get_rapor_sablonlari(
             firma_id=firma_id,
-            kullanici_id=current_user.get('id'),
+            kullanici_id=None,  # Kullanıcı filtresi YOK - tüm firma şablonları
             rapor_tipi=rapor_tipi
         )
+        
+        logging.info(f"Rapor şablonları sorgusu: firma_id={firma_id}, rapor_tipi={rapor_tipi}, bulunan şablon sayısı={len(sablonlar)}")
+        for sablon in sablonlar:
+            logging.info(f"  - Şablon: id={sablon.get('id')}, ad={sablon.get('ad')}, kullanici_id={sablon.get('kullanici_id')}")
         
         return {"status": "success", "data": sablonlar}
     except HTTPException:

@@ -2017,9 +2017,12 @@ class Database:
         """
         params = {"firma_id": firma_id, "rapor_tipi": rapor_tipi}
         
-        if kullanici_id:
-            query += " AND (kullanici_id = :kullanici_id OR kullanici_id IS NULL)"
-            params["kullanici_id"] = kullanici_id
+        # Admin panelinde firmanın tüm şablonlarını göster
+        # (kullanıcı bazlı filtreleme yapmıyoruz, tüm firma şablonları görünsün)
+        # Eğer ileride kullanıcı bazlı filtreleme istenirse, bu kısım tekrar eklenebilir
+        # if kullanici_id:
+        #     query += " AND (kullanici_id = :kullanici_id OR kullanici_id IS NULL)"
+        #     params["kullanici_id"] = kullanici_id
         
         query += " ORDER BY varsayilan DESC, ad ASC"
         
