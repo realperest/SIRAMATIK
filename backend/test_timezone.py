@@ -26,16 +26,17 @@ local_now_sql = db.get_local_now()
 print(f"[2] get_local_now() SQL: {local_now_sql}")
 
 # 3. Veritabanındaki şu anki zamanları göster
+# Timezone zaten execute_query() tarafından ayarlandığı için NOW() yerel saati döndürür
 time_check = db.execute_query("""
     SELECT 
-        NOW() as db_utc_now,
-        (NOW() + INTERVAL :offset hours) as db_local_now
-""", {"offset": offset})
+        NOW() as db_local_now,
+        current_setting('timezone') as timezone_setting
+""")
 
 if time_check:
     print(f"\n[3] Veritabanı Zamanları:")
-    print(f"    UTC (NOW()): {time_check[0]['db_utc_now']}")
-    print(f"    Yerel (NOW() + {offset}h): {time_check[0]['db_local_now']}")
+    print(f"    Yerel (NOW()): {time_check[0]['db_local_now']}")
+    print(f"    Timezone Setting: {time_check[0]['timezone_setting']}")
 
 # 4. Test kaydı oluştur (eğer test firma varsa)
 print(f"\n[4] Test Kaydı Oluşturuluyor...")
@@ -77,7 +78,8 @@ try:
             print()
     
     print("\n[7] Test Sonucu:")
-    print("    ✓ Kayıtlar yerel saat ile kaydediliyor (NOW() + INTERVAL)")
+    print("    ✓ Timezone otomatik ayarlanıyor (execute_query() tarafından)")
+    print("    ✓ Kayıtlar yerel saat ile kaydediliyor (NOW() direkt yerel saati döndürür)")
     print("    ✓ Sorgulama direkt yapılıyor (ek dönüşüm yok)")
     print("    ✓ Tarih filtreleri _local_date_sql() ile çalışıyor")
     

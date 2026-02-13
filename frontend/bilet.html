@@ -943,11 +943,10 @@
         // Bugünün ortalamasını manuel hesapla (fallback)
         async function calculateTodayAverage(kid) {
             try {
-                // Türkiye saatiyle bugünün başlangıcı
+                // Bugünün başlangıcı (timezone zaten Supabase'de ayarlı, direkt yerel saat kullan)
                 const simdi = new Date();
-                const trBaslangic = new Date(simdi.getTime() + (3 * 60 * 60 * 1000));
-                trBaslangic.setUTCHours(0, 0, 0, 0);
-                const trBaslangicUtc = new Date(trBaslangic.getTime() - (3 * 60 * 60 * 1000)).toISOString();
+                const bugunBaslangic = new Date(simdi.getFullYear(), simdi.getMonth(), simdi.getDate(), 0, 0, 0, 0);
+                const bugunBaslangicISO = bugunBaslangic.toISOString();
 
                 const { data, error } = await _supabase
                     .schema('siramatik')
@@ -955,7 +954,7 @@
                     .select('olusturulma, cagirilma')
                     .eq('kuyruk_id', kid)
                     .in('durum', ['calling', 'completed'])
-                    .gte('olusturulma', trBaslangicUtc)
+                    .gte('olusturulma', bugunBaslangicISO)
                     .not('cagirilma', 'is', null);
 
                 if (error || !data || data.length === 0) {

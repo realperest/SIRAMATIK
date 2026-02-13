@@ -9,9 +9,10 @@ def json_serial(obj):
     raise TypeError ("Type not serializable")
 
 print("--- DB TIME CHECK ---")
-time_check = db.execute_query("SELECT NOW() as utc_now, (NOW() + INTERVAL '3 hours') as tsi_now")
-print(f"DB Server UTC: {time_check[0]['utc_now']}")
-print(f"DB Server TSI: {time_check[0]['tsi_now']}")
+# Timezone zaten execute_query() tarafından ayarlandığı için NOW() yerel saati döndürür
+time_check = db.execute_query("SELECT NOW() as local_now, current_setting('timezone') as timezone_setting")
+print(f"DB Server Local Time (NOW()): {time_check[0]['local_now']}")
+print(f"DB Server Timezone Setting: {time_check[0]['timezone_setting']}")
 
 print("\n--- DEVICES ---")
 devices = db.execute_query("SELECT id, ad, tip, durum, son_gorulen, metadata FROM siramatik.cihazlar")

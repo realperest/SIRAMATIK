@@ -2705,10 +2705,10 @@
                     }
                 }
                 
-                // son_gorulen UTC formatında geliyor, doğru hesaplama için direkt kullan
+                // son_gorulen yerel saat ile geliyor (backend'de timezone ayarlı)
                 const sonGorulen = new Date(device.son_gorulen);
                 const sonGorulenStr = sonGorulen.toLocaleString('tr-TR');
-                // Date.now() UTC milisaniye, sonGorulen.getTime() de UTC milisaniye - doğru karşılaştırma
+                // Date.now() ve sonGorulen.getTime() yerel saat milisaniyeleri - doğru karşılaştırma
                 const gecenMs = Date.now() - sonGorulen.getTime();
                 const gecenDakika = Math.floor(gecenMs / 60000);
                 const gecenSure = gecenDakika < 1 

@@ -101,9 +101,27 @@ class Database:
                     # print(f"Migration Log: {e}") 
                     pass
     
+    def _set_session_timezone(self, session: Session):
+        """
+        Session için timezone'u tablodan okunan offset'e göre ayarlar.
+        Tüm Session kullanımlarında bu fonksiyonu çağırın.
+        """
+        try:
+            offset = self.get_timezone_offset()
+            timezone_str = self._offset_to_timezone_string(offset)
+            session.execute(text(f"SET timezone = '{timezone_str}'"))
+        except Exception as e:
+            print(f"[WARN] Timezone ayarlanamadı, varsayılan kullanılıyor: {e}")
+    
     def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
-        """SQL sorgusu çalıştır"""
+        """
+        SQL sorgusu çalıştır.
+        Her sorguda timezone'u tablodan okunan offset'e göre dinamik olarak ayarlar.
+        """
         with Session(self.engine) as session:
+            # Timezone'u ayarla
+            self._set_session_timezone(session)
+            
             result = session.execute(text(query), params or {})
             
             # SELECT sorguları için sonuçları döndür
@@ -190,26 +208,39 @@ class Database:
         Örnek: 3 = Türkiye, 6 = Doğu Asya, -5 = EST. Hiçbir yerde sabit saat kullanılmaz.
         """
         try:
-            result = self.execute_query(
-                "SELECT deger FROM siramatik.sistem_ayarlari WHERE anahtar = 'timezone_offset'"
-            )
-            if result and len(result) > 0:
-                return int(result[0]['deger'])
+            # execute_query'yi kullanmadan direkt sorgu yap (circular dependency önlemek için)
+            with Session(self.engine) as session:
+                result = session.execute(text(
+                    "SELECT deger FROM siramatik.sistem_ayarlari WHERE anahtar = 'timezone_offset'"
+                ))
+                row = result.fetchone()
+                if row:
+                    return int(row[0])
         except Exception as e:
             print(f"[WARN] Timezone offset okunamadı, yedek değer kullanılıyor: {e}")
         return 3  # Yalnızca tablo okunamazsa (kurulum varsayılanı)
     
+    def _offset_to_timezone_string(self, offset: int) -> str:
+        """
+        Offset'i PostgreSQL timezone string'ine çevirir.
+        Örnek: 3 → '+03:00', -5 → '-05:00'
+        """
+        sign = '+' if offset >= 0 else '-'
+        hours = abs(offset)
+        return f"{sign}{hours:02d}:00"
+    
     def get_local_now(self) -> str:
         """
         Veritabanına yazılacak 'şu an' zamanı (SQL ifadesi).
-        Yerel saat dilimine göre kaydedilir (timezone_offset).
-        Örnek: timezone_offset=3 ise → NOW() + INTERVAL '3 hours'
         
-        ÖNEMLİ: Bu fonksiyon sadece INSERT/UPDATE işlemlerinde kullanılır.
+        ÖNEMLİ: execute_query() fonksiyonu her sorguda timezone'u otomatik ayarladığı için,
+        NOW() direkt yerel saati döndürür. Ek INTERVAL eklemeye gerek yok.
+        
+        Bu fonksiyon sadece INSERT/UPDATE işlemlerinde kullanılır.
         SELECT sorgularında direkt sütun adını kullanın (ek dönüşüm yapmayın).
         """
-        offset = self.get_timezone_offset()
-        return f"NOW() + INTERVAL '{offset} hours'"
+        # Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan
+        return "NOW()"
 
     def _local_date_sql(self, column_expr: str = "s.olusturulma") -> str:
         """
@@ -221,9 +252,11 @@ class Database:
         return f"{column_expr}::date"
 
     def _today_local_sql(self) -> str:
-        """Yerel saate göre 'bugün' tarihini döndüren SQL ifadesi (timezone_offset)."""
-        offset = self.get_timezone_offset()
-        return f"(NOW() + INTERVAL '{offset} hours')::date"
+        """
+        Yerel saate göre 'bugün' tarihini döndüren SQL ifadesi.
+        Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan.
+        """
+        return "NOW()::date"
 
     def _today_filter_sql(self, column_expr: str = "s.olusturulma") -> str:
         """Bugün (yerel) filtresi: column yerel tarihi = bugün yerel."""
@@ -232,22 +265,22 @@ class Database:
     def _local_now_minus_interval(self, interval: str) -> str:
         """
         Yerel saatin şu anından belirtilen interval kadar öncesini döndürür.
-        Örnek: interval='20 minutes' → (NOW() + INTERVAL 'X hours' - INTERVAL '20 minutes')
+        Örnek: interval='20 minutes' → (NOW() - INTERVAL '20 minutes')
         
         Kullanım: Zaman karşılaştırmaları için (örn: son 20 dakika içindeki kayıtlar)
+        Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan.
         """
-        offset = self.get_timezone_offset()
-        return f"(NOW() + INTERVAL '{offset} hours' - INTERVAL '{interval}')"
+        return f"(NOW() - INTERVAL '{interval}')"
     
     def _local_now_plus_interval(self, interval: str) -> str:
         """
         Yerel saatin şu anından belirtilen interval kadar sonrasını döndürür.
-        Örnek: interval='1 hour' → (NOW() + INTERVAL 'X hours' + INTERVAL '1 hour')
+        Örnek: interval='1 hour' → (NOW() + INTERVAL '1 hour')
         
         Kullanım: Zaman karşılaştırmaları için (örn: 1 saat sonrasına kadar)
+        Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan.
         """
-        offset = self.get_timezone_offset()
-        return f"(NOW() + INTERVAL '{offset} hours' + INTERVAL '{interval}')"
+        return f"(NOW() + INTERVAL '{interval}')"
     
     # --- FİRMALAR ---
     
@@ -1891,7 +1924,9 @@ class Database:
     def get_devices_by_firma(self, firma_id: int) -> List[Dict[str, Any]]:
         """Firmaya ait tüm cihazları listele"""
         with Session(self.engine) as session:
-            local_now = self.get_local_now()
+            # Timezone'u ayarla
+            self._set_session_timezone(session)
+            
             query = text(f"""
                 SELECT 
                     c.id, 
@@ -1915,7 +1950,7 @@ class Database:
                     k.ad as kuyruk_ad,
                     k.kod as kuyruk_kod,
                     CASE 
-                        WHEN c.son_gorulen > ({local_now} - INTERVAL '30 seconds') THEN 'online'
+                        WHEN c.son_gorulen > {self._local_now_minus_interval("30 seconds")} THEN 'online'
                         ELSE 'offline'
                     END as online_status
                 FROM siramatik.cihazlar c
