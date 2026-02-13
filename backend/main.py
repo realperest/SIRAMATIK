@@ -702,6 +702,35 @@ async def sira_durum(sira_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _db_error_detail(e: Exception) -> str:
+    """Veritabanı hatalarında kullanıcıya anlamlı mesaj (özellikle okuma var yazma yok)."""
+    msg = str(e).lower()
+    if "permission denied" in msg or "read-only" in msg or "izin" in msg or "cannot execute" in msg:
+        return "Veritabanı yazma izni yok. Backend bağlantısının siralar tablosuna UPDATE izni olduğundan emin olun (Supabase/Railway)."
+    return str(e)
+
+
+@app.get("/api/public/db-check")
+async def public_db_check():
+    """
+    Backend'in veritabanına erişip yazabildiğini kontrol eder (Public).
+    Bilet sayfası bağlantı / yazma izni ayrımı için kullanabilir.
+    """
+    try:
+        db.execute_query("SELECT 1")
+        try:
+            db.execute_query("UPDATE siramatik.siralar SET etkin_olusturulma = etkin_olusturulma WHERE 1 = 0")
+        except Exception as e:
+            if "permission" in str(e).lower() or "read-only" in str(e).lower() or "izin" in str(e).lower():
+                raise HTTPException(status_code=503, detail="Veritabanı yazma izni yok. Backend kullanıcısına siralar tablosunda UPDATE verin.")
+            raise
+        return {"ok": True, "write_ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=_db_error_detail(e))
+
+
 @app.get("/api/public/firma/{firma_id}/erteleme-ayarlari")
 async def firma_erteleme_ayarlari(firma_id: int):
     """
@@ -737,7 +766,8 @@ async def sira_ertele(sira_id: int, request: ErteleRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        detail = _db_error_detail(e)
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @app.post("/api/memnuniyet/anket")

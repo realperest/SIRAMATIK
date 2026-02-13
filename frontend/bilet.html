@@ -519,6 +519,14 @@
         .erteleme-overlay-close:active {
             background: #e2e8f0;
         }
+        .erteleme-backend-status {
+            margin-top: 14px;
+            font-size: 12px;
+            color: #64748b;
+            min-height: 18px;
+        }
+        .erteleme-backend-status.ok { color: #16a34a; }
+        .erteleme-backend-status.fail { color: #dc2626; }
         .erteleme-estimate {
             font-size: 13px;
             color: #64748b;
@@ -731,6 +739,7 @@
                 <div class="erteleme-wheel-unit">dakika</div>
             </div>
             <button type="button" id="erteleme-btn" class="erteleme-btn erteleme-overlay-submit">Ertelemeyi Uygula</button>
+            <div id="erteleme-backend-status" class="erteleme-backend-status" aria-live="polite"></div>
         </div>
         <div class="erteleme-overlay-backdrop" id="erteleme-overlay-backdrop"></div>
     </div>
@@ -1599,6 +1608,12 @@
             const box = document.getElementById('erteleme-error');
             if (box) box.classList.remove('show');
         }
+        function setBackendStatus(text, ok) {
+            var el = document.getElementById('erteleme-backend-status');
+            if (!el) return;
+            el.textContent = text || '';
+            el.className = 'erteleme-backend-status' + (ok === true ? ' ok' : ok === false ? ' fail' : '');
+        }
         function openErtelemeOverlay() {
             const overlay = document.getElementById('erteleme-overlay');
             if (!overlay) return;
@@ -1607,15 +1622,28 @@
             hideErtelemeError();
             buildErtelemeWheel();
             updateErtelemeEstimate();
-            // Sunucuyu uyandır (Railway uyku modundan çıksın; erteleme tıklanınca bağlantı hatası azalsın)
             var base = getApiBase();
-            if (base) fetch(base + '/health', { method: 'GET' }).catch(function () {});
+            if (base) {
+                setBackendStatus('Sunucu durumu: kontrol ediliyor…', null);
+                fetch(base + '/health', { method: 'GET', mode: 'cors' }).then(function (r) {
+                    if (r.ok) setBackendStatus('Sunucu erişilebilir ✓ (bu ortamdan bağlantı var)', true);
+                    else setBackendStatus('Sunucu yanıt veremedi (HTTP ' + r.status + ')', false);
+                }).catch(function () {
+                    setBackendStatus('Sunucuya bu ortamdan ulaşılamıyor (ağ / CORS kontrol edin)', false);
+                });
+                fetch(base + '/api/public/db-check', { method: 'GET' }).then(function (r) {
+                    if (!r.ok) r.json().then(function (d) { if (d.detail && (String(d.detail).indexOf('yazma') !== -1 || String(d.detail).indexOf('permission') !== -1)) showErtelemeError(d.detail); }).catch(function () {});
+                }).catch(function () {});
+            } else {
+                setBackendStatus('', null);
+            }
         }
         function closeErtelemeOverlay() {
             const overlay = document.getElementById('erteleme-overlay');
             if (!overlay) return;
             overlay.style.display = 'none';
             overlay.removeAttribute('data-open');
+            setBackendStatus('', null);
         }
 
         const ERTELEME_ITEM_HEIGHT = 40;
