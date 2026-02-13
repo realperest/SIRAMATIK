@@ -2290,7 +2290,7 @@
             document.getElementById('active-ticket-info').textContent = `${ticket.servis_ad} - ${ticket.kuyruk_ad}`;
             document.getElementById('active-ticket-notes').value = ticket.notlar || "";
 
-            document.getElementById('active-actions-initial').style.display = 'grid';
+            document.getElementById('active-actions-initial').style.display = 'flex';
             document.getElementById('active-actions-serving').style.display = 'none';
 
             // Sayaç başlat
@@ -2444,7 +2444,7 @@
                         const initActions = document.getElementById('active-actions-initial');
                         const servingActions = document.getElementById('active-actions-serving');
                         if (initActions) initActions.style.display = 'none';
-                        if (servingActions) servingActions.style.display = 'grid';
+                        if (servingActions) servingActions.style.display = 'flex';
                         // Toast kaldırıldı - daha hızlı
                     } else {
                         // Eğer bilet açık değilse aç ve başlatılmış olarak göster
