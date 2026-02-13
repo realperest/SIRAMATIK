@@ -207,8 +207,8 @@
             flex: 1;
             display: flex;
             align-items: center;
-            /* Numara ile sağdaki bilgiler arasındaki mesafeyi küçült */
-            gap: 12px;
+            /* Numara ile saat/bölüm-kuyruk arasında yaklaşık 2 cm'lik boşluk (masaüstü için) */
+            gap: 40px;
         }
 
         .sira-info .numara {
@@ -425,6 +425,8 @@
             gap: 8px;
             align-items: center;
             flex-shrink: 0;
+            /* ÜSTTEKİ 3 KÜÇÜK DÜĞME (ve bitir düğmeleri) HER ZAMAN TEK SATIRDA YAN YANA KALSIN */
+            flex-wrap: nowrap;
         }
 
         .active-ticket-card .numara {
