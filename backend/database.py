@@ -1842,9 +1842,6 @@ class Database:
     def get_devices_by_firma(self, firma_id: int) -> List[Dict[str, Any]]:
         """Firmaya ait tüm cihazları listele"""
         with Session(self.engine) as session:
-            # Timezone'u ayarla
-            self._set_session_timezone(session)
-            
             query = text(f"""
                 SELECT 
                     c.id, 
