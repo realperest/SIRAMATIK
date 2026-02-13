@@ -9,6 +9,7 @@ from typing import List, Optional
 import uvicorn
 import json
 import logging
+import re
 from datetime import datetime, timedelta, date
 
 from config import settings
@@ -101,18 +102,30 @@ CORS_ORIGINS = [
     "http://127.0.0.1:8000",
     "https://realperest.github.io",  # Bilet ekranı (erteleme vb. API çağrıları)
 ]
+# GitHub Pages: tüm *.github.io origin'lerini kabul et (regex ile tam eşleşme)
+CORS_ORIGIN_REGEX = r"https://[a-zA-Z0-9-]+\.github\.io$"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+
+def _origin_allowed(origin: Optional[str]) -> bool:
+    if not origin:
+        return False
+    if origin in CORS_ORIGINS:
+        return True
+    return bool(re.fullmatch(CORS_ORIGIN_REGEX, origin))
 
 
 def _cors_headers(origin: Optional[str] = None) -> dict:
     """Hata yanıtlarına eklenecek CORS başlıkları (500 vb. için tarayıcı engelini kaldırır)."""
-    if origin and origin in CORS_ORIGINS:
+    if _origin_allowed(origin):
         return {
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
