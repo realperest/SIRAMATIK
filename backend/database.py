@@ -1331,6 +1331,7 @@ class Database:
 
     def update_cihaz(self, cihaz_id: int, data: Dict) -> Dict:
         """Cihaz güncelle"""
+        local_now = self.get_local_now()
         fields = []
         params = {"id": cihaz_id}
         
@@ -1341,6 +1342,9 @@ class Database:
                 
         if not fields:
             return None
+        
+        # guncelleme alanını da yerel saat ile güncelle
+        fields.append(f"guncelleme = {local_now}")
             
         return self.execute_query(f"""
             UPDATE siramatik.cihazlar 
@@ -1686,6 +1690,7 @@ class Database:
                                 tip = :tip,
                                 ip = :ip,
                                 son_gorulen = {local_now},
+                                guncelleme = {local_now},
                                 durum = 'active'
                             WHERE id = :device_id
                             RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
@@ -1725,8 +1730,8 @@ class Database:
                 # Yeni cihaz kaydı (yerel saat kullanılır)
                 insert_query = text(f"""
                     INSERT INTO siramatik.cihazlar 
-                    (firma_id, ad, tip, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen)
-                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', {local_now})
+                    (firma_id, ad, tip, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen, olusturulma, guncelleme)
+                    VALUES (:firma_id, :ad, :tip, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', {local_now}, {local_now}, {local_now})
                     RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
                 """)
                 
