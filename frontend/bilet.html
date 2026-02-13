@@ -248,6 +248,8 @@
         }
         .value-bubble-old {
             text-decoration: line-through;
+            -webkit-text-decoration: line-through;
+            text-decoration-color: #764ba2;
             opacity: 0.85;
             background: rgba(118, 75, 162, 0.08);
         }
@@ -1449,7 +1451,8 @@
                     const oldMinutesForEst = showErtelemeDiff ? ertelemeJustApplied.oldMinutes : undefined;
                     if (showErtelemeDiff) {
                         statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + ertelemeJustApplied.oldBekleyen + '</span> <span class="value-bubble value-bubble-new">' + count + '</span> kişi var';
-                        ertelemeJustApplied = null;
+                        // Sadece yeni sayı gerçekten değiştiyse temizle; yoksa poll erteleme-update'ten önce bitip balonu siliyordu
+                        if (count !== ertelemeJustApplied.oldBekleyen) ertelemeJustApplied = null;
                     } else {
                         statusEl.innerHTML = 'Önünüzde <span class="value-bubble">' + count + '</span> kişi var';
                     }

@@ -17,10 +17,28 @@
 1. https://railway.app → GitHub hesabınla giriş yap
 2. "New Project" → "Deploy from GitHub repo"
 3. SIRAMATIK repo'sunu seç
-4. Root Directory: /backend
+4. **Önemli:** Deploy'dan sonra Service → Settings → Source → **Root Directory: backend** yapın (yoksa "Error creating build plan with Railpack" alırsınız).
 5. Deploy → Otomatik URL verecek
    Örnek: https://siramatik-production.up.railway.app
 ```
+
+### Railway bağlantısını ve otomatik deploy'u doğrulama
+
+Repo’nun Railway’e bağlı olup her push’ta deploy olup olmadığını şöyle kontrol edebilirsiniz:
+
+1. **Railway dashboard**
+   - https://railway.app → Projenize girin.
+   - **Settings** (veya proje ayarları): “Connected repository” / “GitHub” kısmında **realperest/SIRAMATIK** (veya kullandığınız repo) görünmeli. Bağlı değilse “Connect repository” ile GitHub repo’yu bağlayın.
+   - **Deployments** sekmesi: Son deploy’lar listelenir. “Trigger: GitHub push” veya “Commit: …” yazıyorsa push ile tetikleniyor demektir.
+
+2. **Push sonrası yeni deploy**
+   - `git push origin main` yaptıktan sonra Railway’de **Deployments**’a bakın; 1–2 dakika içinde yeni bir deployment (Building → Deploying → Success) çıkmalı. Çıkmıyorsa repo bağlı değil veya branch (örn. `main`) Railway’de seçili değildir.
+
+3. **Canlı sürüm kontrolü**
+   - Backend canlıya alındıktan sonra tarayıcıda veya curl ile:
+     - `https://siramatik-production.up.railway.app/`
+     - veya `https://siramatik-production.up.railway.app/health`
+   - Yanıt dönüyorsa (ör. `{"status":"healthy"}` veya `{"app":"...","version":"1.0.0"}`) deploy çalışıyor demektir. Push sonrası bu URL’i yenileyip yanıtın değişip değişmediğini kontrol ederek yeni deploy’u doğrulayabilirsiniz.
 
 **Seçenek B: Render**
 ```bash
