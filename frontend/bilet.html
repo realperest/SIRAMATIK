@@ -1255,17 +1255,21 @@
 
                 if (me.durum === 'waiting') notificationPlayed = false;
 
-                // Erteleme bloğu: sadece waiting + firma erteleme açık + hakkı kalmışsa
+                // Erteleme bloğu: beklerken (waiting) her zaman göster; firma kapalıysa veya hakkı yoksa API tıklanınca söyler
                 const ertelemeWrap = document.getElementById('erteleme-wrap');
                 const ertelemeHakkiEl = document.getElementById('erteleme-hakki');
                 const ticketErtelemeKullanilan = parseInt(me.erteleme_sayisi, 10) || 0;
                 const limit = firmaErtelemeAyar.erteleme_sayisi || 0;
-                const ertelemeGoster = me.durum === 'waiting' && firmaErtelemeAyar.erteleme && limit > 0 && ticketErtelemeKullanilan < limit;
+                const ertelemeGoster = me.durum === 'waiting';
                 if (ertelemeWrap) {
                     ertelemeWrap.style.display = ertelemeGoster ? 'block' : 'none';
                     if (ertelemeHakkiEl) {
-                        if (ertelemeGoster) ertelemeHakkiEl.textContent = limit - ticketErtelemeKullanilan === 1 ? '1 erteleme hakkınız var.' : (limit - ticketErtelemeKullanilan) + ' erteleme hakkınız var.';
-                        else ertelemeHakkiEl.textContent = '';
+                        if (ertelemeGoster && firmaErtelemeAyar.erteleme && limit > 0 && ticketErtelemeKullanilan < limit)
+                            ertelemeHakkiEl.textContent = limit - ticketErtelemeKullanilan === 1 ? '1 erteleme hakkınız var.' : (limit - ticketErtelemeKullanilan) + ' erteleme hakkınız var.';
+                        else if (ertelemeGoster)
+                            ertelemeHakkiEl.textContent = 'Erteleme isteği gönderebilirsiniz; uygun değilse sunucu bilgi verecektir.';
+                        else
+                            ertelemeHakkiEl.textContent = '';
                     }
                 }
 
