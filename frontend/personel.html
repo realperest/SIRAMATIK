@@ -158,22 +158,35 @@
             cursor: pointer;
         }
 
-        /* Farklı sıralar için farklı açık tonlu renkler */
-        .sira-item:nth-child(1) { background: #fef3f2; border-left-color: #f87171; }
-        .sira-item:nth-child(2) { background: #f0fdf4; border-left-color: #4ade80; }
-        .sira-item:nth-child(3) { background: #eff6ff; border-left-color: #60a5fa; }
-        .sira-item:nth-child(4) { background: #faf5ff; border-left-color: #a78bfa; }
-        .sira-item:nth-child(5) { background: #fefce8; border-left-color: #facc15; }
-        .sira-item:nth-child(6) { background: #fff7ed; border-left-color: #fb923c; }
-        .sira-item:nth-child(7) { background: #f0f9ff; border-left-color: #38bdf8; }
-        .sira-item:nth-child(8) { background: #fdf2f8; border-left-color: #f472b6; }
-        .sira-item:nth-child(9) { background: #f0fdfa; border-left-color: #2dd4bf; }
-        .sira-item:nth-child(10) { background: #fef3c7; border-left-color: #fbbf24; }
-        /* 10'dan fazla için döngü */
-        .sira-item:nth-child(n+11) {
-            background: #f9fafb;
-            border-left-color: #9ca3af;
-        }
+        /* Kuyruk koduna göre renk sınıfları */
+        .sira-item.color-A { background: #fef3f2; border-left-color: #f87171; }
+        .sira-item.color-B { background: #f0fdf4; border-left-color: #4ade80; }
+        .sira-item.color-C { background: #eff6ff; border-left-color: #60a5fa; }
+        .sira-item.color-D { background: #faf5ff; border-left-color: #a78bfa; }
+        .sira-item.color-E { background: #fefce8; border-left-color: #facc15; }
+        .sira-item.color-F { background: #fff7ed; border-left-color: #fb923c; }
+        .sira-item.color-G { background: #f0f9ff; border-left-color: #38bdf8; }
+        .sira-item.color-H { background: #fdf2f8; border-left-color: #f472b6; }
+        .sira-item.color-I { background: #f0fdfa; border-left-color: #2dd4bf; }
+        .sira-item.color-J { background: #fef3c7; border-left-color: #fbbf24; }
+        .sira-item.color-K { background: #fef2f2; border-left-color: #ef4444; }
+        .sira-item.color-L { background: #f0f9ff; border-left-color: #0ea5e9; }
+        .sira-item.color-M { background: #f5f3ff; border-left-color: #8b5cf6; }
+        .sira-item.color-N { background: #fff7ed; border-left-color: #f97316; }
+        .sira-item.color-O { background: #ecfdf5; border-left-color: #10b981; }
+        .sira-item.color-P { background: #fef3c7; border-left-color: #eab308; }
+        .sira-item.color-Q { background: #fef2f2; border-left-color: #f87171; }
+        .sira-item.color-R { background: #f0fdf4; border-left-color: #22c55e; }
+        .sira-item.color-S { background: #eff6ff; border-left-color: #3b82f6; }
+        .sira-item.color-T { background: #faf5ff; border-left-color: #a855f7; }
+        .sira-item.color-U { background: #fff7ed; border-left-color: #fb923c; }
+        .sira-item.color-V { background: #f0f9ff; border-left-color: #06b6d4; }
+        .sira-item.color-W { background: #fdf2f8; border-left-color: #ec4899; }
+        .sira-item.color-X { background: #f0fdfa; border-left-color: #14b8a6; }
+        .sira-item.color-Y { background: #fef3c7; border-left-color: #facc15; }
+        .sira-item.color-Z { background: #f9fafb; border-left-color: #6b7280; }
+        /* Sayısal kodlar için varsayılan */
+        .sira-item.color-default { background: #f9fafb; border-left-color: #9ca3af; }
 
         .sira-item:hover {
             transform: translateX(5px);
@@ -201,6 +214,35 @@
             line-height: 1;
             margin-bottom: 8px;
         }
+
+        /* Kuyruk koduna göre numara renkleri */
+        .sira-item.color-A .numara { color: #dc2626; }
+        .sira-item.color-B .numara { color: #16a34a; }
+        .sira-item.color-C .numara { color: #2563eb; }
+        .sira-item.color-D .numara { color: #9333ea; }
+        .sira-item.color-E .numara { color: #ca8a04; }
+        .sira-item.color-F .numara { color: #ea580c; }
+        .sira-item.color-G .numara { color: #0284c7; }
+        .sira-item.color-H .numara { color: #db2777; }
+        .sira-item.color-I .numara { color: #059669; }
+        .sira-item.color-J .numara { color: #d97706; }
+        .sira-item.color-K .numara { color: #dc2626; }
+        .sira-item.color-L .numara { color: #0284c7; }
+        .sira-item.color-M .numara { color: #7c3aed; }
+        .sira-item.color-N .numara { color: #ea580c; }
+        .sira-item.color-O .numara { color: #10b981; }
+        .sira-item.color-P .numara { color: #eab308; }
+        .sira-item.color-Q .numara { color: #dc2626; }
+        .sira-item.color-R .numara { color: #22c55e; }
+        .sira-item.color-S .numara { color: #3b82f6; }
+        .sira-item.color-T .numara { color: #a855f7; }
+        .sira-item.color-U .numara { color: #fb923c; }
+        .sira-item.color-V .numara { color: #06b6d4; }
+        .sira-item.color-W .numara { color: #ec4899; }
+        .sira-item.color-X .numara { color: #14b8a6; }
+        .sira-item.color-Y .numara { color: #facc15; }
+        .sira-item.color-Z .numara { color: #6b7280; }
+        .sira-item.color-default .numara { color: #6b7280; }
 
         .sira-info .zaman {
             font-size: 14px;
@@ -1787,8 +1829,17 @@
                         const isPriority = sira.oncelik && sira.oncelik > 0;
                         const priorityClass = isPriority ? 'priority' : '';
                         
+                        // Kuyruk koduna göre renk belirle (sıra numarasının ilk harfi)
+                        let colorClass = 'color-default';
+                        if (sira.numara && sira.numara.length > 0) {
+                            const firstChar = sira.numara.charAt(0).toUpperCase();
+                            if (/[A-Z]/.test(firstChar)) {
+                                colorClass = `color-${firstChar}`;
+                            }
+                        }
+                        
                         return `
-                        <div class="sira-item ${priorityClass}" onclick="hastaCagir('${sira.id}', '${sira.numara}')">
+                        <div class="sira-item ${colorClass} ${priorityClass}" onclick="hastaCagir('${sira.id}', '${sira.numara}')">
                             <div class="sira-info">
                                 <div class="numara">${sira.numara || 'HATA'}</div>
                                 <div class="zaman">
