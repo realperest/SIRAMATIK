@@ -1033,7 +1033,18 @@
                             <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">TV
                                 ve Kiosk ekranlarında çark simgesine tıklandığında sorulacak şifredir.</small>
                         </div>
-                        
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                <input type="checkbox" id="setting-firma-erteleme" style="width:20px; height:20px;">
+                                <span>Bilet erteleme açık (müşteri sırasını X dakika geciktirebilir)</span>
+                            </label>
+                            <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">Açıksa müşteri bilet ekranında "Erteleme İste" ile sırasını 5–50 dk geciktirebilir.</small>
+                        </div>
+                        <div class="form-group" id="setting-erteleme-sayisi-wrap" style="margin-bottom: 20px; display:none;">
+                            <label style="display:block; margin-bottom:8px; opacity:0.8;">Bilet başına erteleme hakkı (kaç kez)</label>
+                            <input type="number" id="setting-firma-erteleme-sayisi" class="admin-input" min="0" max="10" value="1" style="max-width:100px;">
+                            <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">Her bilet bu kadar kez erteleyebilir (örn: 1 = tek sefer).</small>
+                        </div>
                         <div style="margin-top: 30px;">
                             <button type="submit" class="btn-action">
                                 <i class="fas fa-save"></i> Değişiklikleri Kaydet
@@ -1546,8 +1557,24 @@
                         passInput.style.opacity = "1";
                         passInput.style.cursor = "auto";
                     }
+                    const ertelemeCb = document.getElementById('setting-firma-erteleme');
+                    const ertelemeSayisiWrap = document.getElementById('setting-erteleme-sayisi-wrap');
+                    const ertelemeSayisiInput = document.getElementById('setting-firma-erteleme-sayisi');
+                    if (ertelemeCb) {
+                        ertelemeCb.checked = !!firma.erteleme;
+                        if (ertelemeSayisiWrap) ertelemeSayisiWrap.style.display = firma.erteleme ? 'block' : 'none';
+                    }
+                    if (ertelemeSayisiInput) ertelemeSayisiInput.value = Math.max(0, parseInt(firma.erteleme_sayisi, 10) || 0);
                 }
             } catch (err) { console.error("Firma settings load error", err); }
+            const ertelemeCb2 = document.getElementById('setting-firma-erteleme');
+            const ertelemeSayisiWrap2 = document.getElementById('setting-erteleme-sayisi-wrap');
+            if (ertelemeCb2 && ertelemeSayisiWrap2) {
+                ertelemeCb2.onchange = function () {
+                    ertelemeSayisiWrap2.style.display = this.checked ? 'block' : 'none';
+                    if (!this.checked) document.getElementById('setting-firma-erteleme-sayisi').value = '0';
+                };
+            }
         }
 
         document.getElementById('firma-settings-form').onsubmit = async (e) => {
@@ -1557,7 +1584,9 @@
                 const firmaData = {
                     ad: document.getElementById('setting-firma-ad').value,
                     sektor: document.getElementById('setting-firma-sektor').value,
-                    ekran_sifre: document.getElementById('setting-firma-ekran-sifre').value
+                    ekran_sifre: document.getElementById('setting-firma-ekran-sifre').value,
+                    erteleme: document.getElementById('setting-firma-erteleme').checked,
+                    erteleme_sayisi: Math.max(0, parseInt(document.getElementById('setting-firma-erteleme-sayisi').value, 10) || 0)
                 };
                 await apiCall(`/api/admin/firma/${currentUser.firma_id}`, {
                     method: 'PUT',

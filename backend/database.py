@@ -83,6 +83,8 @@ class Database:
                 "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS lisans_tipi VARCHAR(20) DEFAULT 'Kiralama'",
                 "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS max_cihaz INTEGER DEFAULT 10",
                 "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS notlar TEXT",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS erteleme BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS erteleme_sayisi INTEGER DEFAULT 0",
                 "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS varsayilan_kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL",
                 "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS varsayilan_konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL",
                 "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS servis_ids INTEGER[]",
@@ -93,7 +95,9 @@ class Database:
                 "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS islem_baslangic TIMESTAMP",
                 "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS tamamlanma TIMESTAMP",
                 "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS cagirilma_sayisi INTEGER DEFAULT 1",
-                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS notlar TEXT"
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS notlar TEXT",
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS erteleme_sayisi INTEGER DEFAULT 0",
+                "ALTER TABLE siramatik.siralar ADD COLUMN IF NOT EXISTS etkin_olusturulma TIMESTAMP"
             ]
 
             for q in alter_queries:
@@ -107,7 +111,13 @@ class Database:
                     # IF NOT EXISTS desteklenmiyorsa veya başka hata varsa yut (Eski yöntem gibi)
                     # print(f"Migration Log: {e}") 
                     pass
-    
+            # Eski kayıtlar için etkin_olusturulma = olusturulma (tek seferlik backfill)
+            try:
+                session.execute(text("UPDATE siramatik.siralar SET etkin_olusturulma = olusturulma WHERE etkin_olusturulma IS NULL"))
+                session.commit()
+            except Exception:
+                session.rollback()
+
     def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """
         SQL sorgusu çalıştır.
@@ -256,6 +266,14 @@ class Database:
         result = self.execute_query(
             "SELECT * FROM siramatik.firmalar WHERE ekran_sifre = :sifre AND aktif = true",
             {"sifre": sifre}
+        )
+        return result[0] if result else None
+
+    def get_firma_erteleme_ayarlari(self, firma_id: int) -> Optional[Dict]:
+        """Firmanın erteleme ayarlarını getir (bilet ekranı için public)."""
+        result = self.execute_query(
+            "SELECT erteleme, erteleme_sayisi FROM siramatik.firmalar WHERE id = :firma_id AND aktif = true",
+            {"firma_id": firma_id}
         )
         return result[0] if result else None
     
@@ -418,9 +436,9 @@ class Database:
         """Yeni sıra oluştur"""
         local_now = self.get_local_now()
         result = self.execute_query(f"""
-            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
+            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma, etkin_olusturulma)
             VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, 
-                    siramatik.yeni_sira_numarasi(:kuyruk_id, :oncelik), {local_now})
+                    siramatik.yeni_sira_numarasi(:kuyruk_id, :oncelik), {local_now}, {local_now})
             RETURNING *
         """, {
             "kuyruk_id": kuyruk_id,
@@ -461,8 +479,8 @@ class Database:
         if not numara or not numara.strip() or (len(prefix) <= 1 and prefix.isalpha()):
             numara = self.get_next_manuel_numara(firma_id, prefix if prefix else "X")
         result = self.execute_query(f"""
-            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
-            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara, {local_now})
+            INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma, etkin_olusturulma)
+            VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara, {local_now}, {local_now})
             RETURNING *
         """, {
             "kuyruk_id": kuyruk_id,
@@ -483,13 +501,13 @@ class Database:
           kayıtların **öncelik** ve **olusturulma** zamanına göre sıralanması.
         - Zaten eski kayıtlar periyodik temizleme fonksiyonlarıyla siliniyor.
 
-        Sıralama: önce yüksek öncelik, sonra en eski olusturulma.
+        Sıralama: önce yüksek öncelik, sonra en eski etkin_olusturulma (erteleme sonrası sıra konumu).
         """
         return self.execute_query("""
             SELECT * FROM siramatik.siralar
             WHERE kuyruk_id = :kuyruk_id
               AND durum = 'waiting'
-            ORDER BY oncelik DESC, olusturulma ASC
+            ORDER BY oncelik DESC, COALESCE(etkin_olusturulma, olusturulma) ASC
         """, {"kuyruk_id": kuyruk_id})
     
     def cagir_sira(self, sira_id: int, kullanici_id: int, konum: str = None) -> Dict:
@@ -727,7 +745,7 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
-            ORDER BY COALESCE(s.oncelik, 0) DESC, s.olusturulma ASC
+            ORDER BY COALESCE(s.oncelik, 0) DESC, COALESCE(s.etkin_olusturulma, s.olusturulma) ASC
         """, {"firma_id": firma_id})
 
     def discard_bekleyen_siralar(self, firma_id: int) -> int:
@@ -961,7 +979,7 @@ class Database:
                 COUNT(*) FILTER (WHERE durum = 'waiting') as bekleyen,
                 COUNT(*) FILTER (WHERE durum = 'calling') as cagirildi,
                 COUNT(*) FILTER (WHERE durum = 'completed') as tamamlandi,
-                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 END) as ort_bekleme_dk,
+                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - COALESCE(etkin_olusturulma, olusturulma)))/60 END) as ort_bekleme_dk,
                 AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (tamamlanma - cagirilma))/60 END) as ort_islem_dk
             FROM siramatik.siralar s
             WHERE s.firma_id = :firma_id {time_filter} {service_filter} {user_filter}
@@ -970,23 +988,24 @@ class Database:
         # 4. PERİYOT GRUPLAMA (Grafik için)
         group_sql = ""
         label_format = ""
+        etkin_col = "COALESCE(s.etkin_olusturulma, s.olusturulma)"
         if period_type == "hour":
-            group_sql = "EXTRACT(HOUR FROM s.olusturulma)"
+            group_sql = f"EXTRACT(HOUR FROM {etkin_col})"
             label_format = "saat"
         elif period_type == "weekday":
-            group_sql = "EXTRACT(DOW FROM s.olusturulma)"
+            group_sql = f"EXTRACT(DOW FROM {etkin_col})"
             label_format = "gün" # 0: Pazar, 1: Pazartesi...
         elif period_type == "monthday":
-            group_sql = "EXTRACT(DAY FROM s.olusturulma)"
+            group_sql = f"EXTRACT(DAY FROM {etkin_col})"
             label_format = "gün"
         elif period_type == "week":
-            group_sql = "EXTRACT(WEEK FROM s.olusturulma)"
+            group_sql = f"EXTRACT(WEEK FROM {etkin_col})"
             label_format = "hafta"
         elif period_type == "month":
-            group_sql = "EXTRACT(MONTH FROM s.olusturulma)"
+            group_sql = f"EXTRACT(MONTH FROM {etkin_col})"
             label_format = "ay"
         else:
-            group_sql = "EXTRACT(HOUR FROM s.olusturulma)"
+            group_sql = f"EXTRACT(HOUR FROM {etkin_col})"
             label_format = "saat"
 
         periodic_raw = self.execute_query(f"""
@@ -1026,13 +1045,13 @@ class Database:
             GROUP BY ser.ad
         """, params)
 
-        # 6. SON BİLETLER
+        # 6. SON BİLETLER (etkin zamana göre sıra ve gösterim)
         recent_tickets = self.execute_query(f"""
-            SELECT s.id, s.numara, s.durum, to_char(s.olusturulma, 'DD.MM HH24:MI') as saat, ser.ad as servis_ad
+            SELECT s.id, s.numara, s.durum, to_char(COALESCE(s.etkin_olusturulma, s.olusturulma), 'DD.MM HH24:MI') as saat, ser.ad as servis_ad
             FROM siramatik.siralar s
             JOIN siramatik.servisler ser ON s.servis_id = ser.id
             WHERE s.firma_id = :firma_id {time_filter} {service_filter} {user_filter}
-            ORDER BY s.olusturulma DESC LIMIT 10
+            ORDER BY COALESCE(s.etkin_olusturulma, s.olusturulma) DESC LIMIT 10
         """, params)
 
         return {
@@ -1089,7 +1108,7 @@ class Database:
             SELECT 
                 COUNT(*) as toplam_bilet,
                 COUNT(*) FILTER (WHERE durum = 'completed') as tamamlanan,
-                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 END) as ort_bekleme,
+                AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (cagirilma - COALESCE(etkin_olusturulma, olusturulma)))/60 END) as ort_bekleme,
                 AVG(CASE WHEN durum = 'completed' THEN EXTRACT(EPOCH FROM (tamamlanma - cagirilma))/60 END) as ort_islem
             FROM siramatik.siralar s
             WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
@@ -1115,7 +1134,7 @@ class Database:
                 group_label = "Kuyruk"
                 join_clause = "LEFT JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id"
             elif group_by == "tarih":
-                group_col = self._local_date_sql("s.olusturulma")
+                group_col = self._local_date_sql("COALESCE(s.etkin_olusturulma, s.olusturulma)")
                 group_label = "Tarih"
 
             if group_col:
@@ -1123,7 +1142,7 @@ class Database:
                     SELECT {group_col}::text as grup, 
                            COUNT(*) as adet,
                            COUNT(*) FILTER (WHERE s.durum = 'completed') as tamamlanan,
-                           ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60) AS NUMERIC), 1) as ort_bekleme,
+                           ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - COALESCE(s.etkin_olusturulma, s.olusturulma)))/60) AS NUMERIC), 1) as ort_bekleme,
                            ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60) AS NUMERIC), 1) as ort_islem
                     FROM siramatik.siralar s
                     {join_clause}
@@ -1160,9 +1179,9 @@ class Database:
                     GROUP BY s2.cagiran_kullanici_id
                 )
                 SELECT s.numara, ser.ad as servis, k.ad as kuyruk, u.ad_soyad as personel, 
-                       to_char(s.olusturulma, 'DD.MM.YYYY') as tarih,
-                       to_char(s.olusturulma, 'HH24:MI') as saat, s.durum,
-                       ROUND(CAST(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60 AS NUMERIC), 1) as bekleme,
+                       to_char(COALESCE(s.etkin_olusturulma, s.olusturulma), 'DD.MM.YYYY') as tarih,
+                       to_char(COALESCE(s.etkin_olusturulma, s.olusturulma), 'HH24:MI') as saat, s.durum,
+                       ROUND(CAST(EXTRACT(EPOCH FROM (s.cagirilma - COALESCE(s.etkin_olusturulma, s.olusturulma)))/60 AS NUMERIC), 1) as bekleme,
                        ROUND(CAST(EXTRACT(EPOCH FROM (s.tamamlanma - s.cagirilma))/60 AS NUMERIC), 1) as islem,
                        COALESCE(pi.puanlama_orani, 0) as puanlama_orani,
                        COALESCE(pi.ortalama_puan, 0) as ortalama_puan
@@ -1172,7 +1191,7 @@ class Database:
                 LEFT JOIN siramatik.kullanicilar u ON s.cagiran_kullanici_id = u.id
                 LEFT JOIN personel_istatistik pi ON s.cagiran_kullanici_id = pi.cagiran_kullanici_id
                 WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
-                ORDER BY s.olusturulma DESC
+                ORDER BY COALESCE(s.etkin_olusturulma, s.olusturulma) DESC
             """, params)
 
         elif report_type == "staff_performance":
@@ -1193,8 +1212,8 @@ class Database:
                 SELECT ser.ad as servis, 
                        COUNT(*) as toplam_bilet,
                        COUNT(*) FILTER (WHERE durum = 'completed') as tamamlanan,
-                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60) AS NUMERIC), 1) as ort_bekleme,
-                       COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60 > 15) as geciken_bilet
+                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - COALESCE(s.etkin_olusturulma, s.olusturulma)))/60) AS NUMERIC), 1) as ort_bekleme,
+                       COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM (s.cagirilma - COALESCE(s.etkin_olusturulma, s.olusturulma)))/60 > 15) as geciken_bilet
                 FROM siramatik.siralar s
                 JOIN siramatik.servisler ser ON s.servis_id = ser.id
                 WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
@@ -1203,10 +1222,10 @@ class Database:
 
         elif report_type == "hourly_density":
             data = self.execute_query(f"""
-                SELECT to_char(s.olusturulma, 'HH24:00') as saat_araligi, 
+                SELECT to_char(COALESCE(s.etkin_olusturulma, s.olusturulma), 'HH24:00') as saat_araligi, 
                        COUNT(*) as bilet_sayisi,
                        COUNT(*) FILTER (WHERE durum = 'completed') as hizmet_verilen,
-                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - s.olusturulma))/60) AS NUMERIC), 1) as ort_bekleme
+                       ROUND(CAST(AVG(EXTRACT(EPOCH FROM (s.cagirilma - COALESCE(s.etkin_olusturulma, s.olusturulma)))/60) AS NUMERIC), 1) as ort_bekleme
                 FROM siramatik.siralar s
                 WHERE s.firma_id = :firma_id {time_filter} {extra_filters}
                 GROUP BY saat_araligi ORDER BY saat_araligi
@@ -1215,9 +1234,9 @@ class Database:
         elif report_type == "waiting_seg":
             data = self.execute_query(f"""
                 SELECT CASE 
-                         WHEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 < 5 THEN '0-5 dk (Hızlı)'
-                         WHEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 < 15 THEN '5-15 dk (Normal)'
-                         WHEN EXTRACT(EPOCH FROM (cagirilma - olusturulma))/60 < 30 THEN '15-30 dk (Yoğun)'
+                         WHEN EXTRACT(EPOCH FROM (cagirilma - COALESCE(etkin_olusturulma, olusturulma)))/60 < 5 THEN '0-5 dk (Hızlı)'
+                         WHEN EXTRACT(EPOCH FROM (cagirilma - COALESCE(etkin_olusturulma, olusturulma)))/60 < 15 THEN '5-15 dk (Normal)'
+                         WHEN EXTRACT(EPOCH FROM (cagirilma - COALESCE(etkin_olusturulma, olusturulma)))/60 < 30 THEN '15-30 dk (Yoğun)'
                          ELSE '30+ dk (Kritik)'
                        END as bekleme_grubu,
                        COUNT(*) as bilet_sayisi,
@@ -1352,9 +1371,8 @@ class Database:
         
         ticket = ticket[0]
         
-        # 2. Önündeki kişi sayısını hesapla
-        # Aynı kuyrukta, waiting durumunda, önceliği daha yüksek olanlar
-        # Veya önceliği aynı olup daha önce oluşturulanlar
+        # 2. Önündeki kişi sayısını hesapla (sıra konumu = etkin_olusturulma)
+        etkin = ticket.get("etkin_olusturulma") or ticket.get("olusturulma")
         count = 0
         if ticket["durum"] == "waiting":
             res = self.execute_query("""
@@ -1364,12 +1382,12 @@ class Database:
                   AND durum = 'waiting'
                   AND (
                       oncelik > :oncelik
-                      OR (oncelik = :oncelik AND olusturulma < :olusturulma)
+                      OR (oncelik = :oncelik AND COALESCE(etkin_olusturulma, olusturulma) < :etkin_olusturulma)
                   )
             """, {
                 "kuyruk_id": ticket["kuyruk_id"],
                 "oncelik": ticket["oncelik"],
-                "olusturulma": ticket["olusturulma"]
+                "etkin_olusturulma": etkin
             })
             count = res[0]["count"]
             
@@ -1379,6 +1397,37 @@ class Database:
             "durum": ticket["durum"],
             "bekleyen_sayisi": count
         }
+
+    def ertele_sira(self, sira_id: int, dakika: int) -> Optional[Dict]:
+        """
+        Biletin sırasını X dakika geciktirir: etkin_olusturulma += dakika (olusturulma değişmez, ertelenen bilet belli olur).
+        Koşullar: bilet waiting, firma erteleme açık, biletin erteleme hakkı kalmış.
+        """
+        if not isinstance(dakika, int) or dakika < 1 or dakika > 60:
+            return None
+        ticket = self.execute_query("SELECT id, kuyruk_id, firma_id, durum, COALESCE(erteleme_sayisi, 0) as erteleme_sayisi FROM siramatik.siralar WHERE id = :id", {"id": sira_id})
+        if not ticket:
+            return None
+        ticket = ticket[0]
+        if ticket["durum"] != "waiting":
+            return None
+        firma = self.get_firma_erteleme_ayarlari(ticket["firma_id"])
+        if not firma or not firma.get("erteleme"):
+            return None
+        limit = int(firma.get("erteleme_sayisi") or 0)
+        if limit <= 0:
+            return None
+        kullanilan = int(ticket.get("erteleme_sayisi") or 0)
+        if kullanilan >= limit:
+            return None
+        result = self.execute_query("""
+            UPDATE siramatik.siralar
+            SET etkin_olusturulma = COALESCE(etkin_olusturulma, olusturulma) + (:dakika || ' minutes')::interval,
+                erteleme_sayisi = COALESCE(erteleme_sayisi, 0) + 1
+            WHERE id = :sira_id AND durum = 'waiting'
+            RETURNING *
+        """, {"sira_id": sira_id, "dakika": dakika})
+        return result[0] if result else None
     
     def _create_memnuniyet_table(self, session):
         """Memnuniyet anketi tablosunu oluştur"""

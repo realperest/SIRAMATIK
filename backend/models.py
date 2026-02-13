@@ -203,6 +203,9 @@ class SiraTransferRequest(BaseModel):
 class SiraNotlarRequest(BaseModel):
     notlar: str
 
+class ErteleRequest(BaseModel):
+    dakika: int  # 1-60 arası dakika
+
 class MemnuniyetAnketRequest(BaseModel):
     sira_id: int
     kuyruk_id: int

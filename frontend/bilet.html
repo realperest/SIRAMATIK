@@ -253,6 +253,101 @@
             display: none;
         }
 
+        /* Erteleme alanı - iPhone tarzı çark */
+        .erteleme-wrap {
+            background: rgba(118, 75, 162, 0.06);
+        }
+        .erteleme-inner {
+            padding: 16px 20px;
+            border-top: 2px dashed #eee;
+            text-align: center;
+        }
+        .erteleme-wheel-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .erteleme-wheel-mask {
+            height: 120px;
+            overflow: hidden;
+            position: relative;
+            border-radius: 12px;
+            background: linear-gradient(to bottom,
+                rgba(255,255,255,0) 0%,
+                rgba(248,249,250,0.95) 15%,
+                rgba(248,249,250,1) 35%,
+                rgba(248,249,250,1) 65%,
+                rgba(248,249,250,0.95) 85%,
+                rgba(255,255,255,0) 100%);
+            box-shadow: inset 0 0 20px rgba(118, 75, 162, 0.08);
+        }
+        .erteleme-wheel-mask::before,
+        .erteleme-wheel-mask::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            height: 40px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .erteleme-wheel-mask::before {
+            top: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.98), transparent);
+        }
+        .erteleme-wheel-mask::after {
+            bottom: 0;
+            background: linear-gradient(to top, rgba(255,255,255,0.98), transparent);
+        }
+        .erteleme-wheel {
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+            padding: 40px 24px;
+        }
+        .erteleme-wheel-spacer {
+            height: 40px;
+            scroll-snap-align: center;
+            flex-shrink: 0;
+        }
+        .erteleme-wheel-item {
+            height: 40px;
+            line-height: 40px;
+            scroll-snap-align: center;
+            scroll-snap-stop: always;
+            font-size: 22px;
+            font-weight: 700;
+            color: #764ba2;
+            flex-shrink: 0;
+        }
+        .erteleme-wheel-unit {
+            font-size: 16px;
+            font-weight: 600;
+            color: #64748b;
+            align-self: center;
+        }
+        .erteleme-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .erteleme-btn:active {
+            transform: scale(0.98);
+        }
+        .erteleme-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* Ekran Yönlendirme Kilidi - Sadece Portre Mod */
         @media screen and (orientation: landscape) {
             body::before {
@@ -424,6 +519,24 @@
             <div id="current-time">--:--:--</div>
             <div style="margin-top: 5px;">Lütfen ekranlardan numaranızı takip ediniz.</div>
         </div>
+        <!-- Erteleme (firma erteleme açıksa ve hakkı varsa gösterilir) - iPhone tarzı dakika çarkı -->
+        <div id="erteleme-wrap" class="erteleme-wrap" style="display: none;">
+            <div class="erteleme-inner">
+                <div class="label" style="margin-bottom: 8px;">Sıranızı kaç dakika geciktirmek istiyorsunuz?</div>
+                <div class="erteleme-wheel-container">
+                    <div class="erteleme-wheel-mask">
+                        <div id="erteleme-wheel" class="erteleme-wheel" role="listbox" aria-label="Dakika seçin">
+                            <!-- scroll-snap için üst boşluk -->
+                            <div class="erteleme-wheel-spacer"></div>
+                            <!-- 1-60 dakika -->
+                        </div>
+                    </div>
+                    <div class="erteleme-wheel-unit">dakika</div>
+                </div>
+                <button type="button" id="erteleme-btn" class="erteleme-btn">Erteleme İste</button>
+                <small id="erteleme-hakki" style="display:block; margin-top:8px; color:#7f8c8d; font-size:12px;"></small>
+            </div>
+        </div>
     </div>
 
     <!-- Memnuniyet Anketi -->
@@ -567,6 +680,13 @@
         let isPageVisible = true; // Sayfa görünürlük durumu
         let avgProcessTime = 5; // Dinamik olarak güncellenecek ortalama süre (dakika)
         let lastSpokenStatus = null; // En son seslendirilen durum metni
+        let firmaErtelemeAyar = { erteleme: false, erteleme_sayisi: 0 };
+        let firmaErtelemeAyarFetched = false;
+
+        function getApiBase() {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return '';
+            return window.location.origin;
+        }
 
         // Supabase Bağlantısı
         const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
@@ -951,7 +1071,7 @@
                 const { data, error } = await _supabase
                     .schema('siramatik')
                     .from('siralar')
-                    .select('olusturulma, cagirilma')
+                    .select('olusturulma, etkin_olusturulma, cagirilma')
                     .eq('kuyruk_id', kid)
                     .in('durum', ['calling', 'completed'])
                     .gte('olusturulma', bugunBaslangicISO)
@@ -961,11 +1081,11 @@
                     return 0;
                 }
 
-                // Ortalama bekleme süresini hesapla (dakika)
+                // Ortalama bekleme süresini hesapla (dakika) - etkin zamana göre
                 const totalMinutes = data.reduce((sum, row) => {
-                    const created = new Date(row.olusturulma);
+                    const effective = row.etkin_olusturulma || row.olusturulma;
                     const called = new Date(row.cagirilma);
-                    const diffMinutes = (called - created) / 60000;
+                    const diffMinutes = (called - new Date(effective)) / 60000;
                     return sum + diffMinutes;
                 }, 0);
 
@@ -990,11 +1110,23 @@
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
 
+                if (ticketSpecs.firma_id && !firmaErtelemeAyarFetched) {
+                    firmaErtelemeAyarFetched = true;
+                    try {
+                        const base = getApiBase();
+                        const r = await fetch(base + '/api/public/firma/' + ticketSpecs.firma_id + '/erteleme-ayarlari');
+                        if (r.ok) {
+                            const j = await r.json();
+                            firmaErtelemeAyar = { erteleme: !!j.erteleme, erteleme_sayisi: parseInt(j.erteleme_sayisi, 10) || 0 };
+                        }
+                    } catch (e) { console.warn('Erteleme ayarları alınamadı:', e); }
+                }
+
                 // 1. Kendi bilet bilgilerimizi çekelim
                 const myTicket = await _supabase
                     .schema('siramatik')
                     .from('siralar')
-                    .select('durum, oncelik, olusturulma')
+                    .select('durum, oncelik, olusturulma, etkin_olusturulma, erteleme_sayisi')
                     .eq('id', sid)
                     .single();
 
@@ -1035,6 +1167,7 @@
                     .eq('durum', 'waiting')
                     .gt('oncelik', me.oncelik);
 
+                const etkinOlusturulma = me.etkin_olusturulma || me.olusturulma;
                 const samePriorityBefore = await _supabase
                     .schema('siramatik')
                     .from('siralar')
@@ -1042,7 +1175,7 @@
                     .eq('kuyruk_id', kid)
                     .eq('durum', 'waiting')
                     .eq('oncelik', me.oncelik)
-                    .lt('olusturulma', me.olusturulma);
+                    .lt('etkin_olusturulma', etkinOlusturulma);
 
                 if (highPriority.error) throw highPriority.error;
                 if (samePriorityBefore.error) throw samePriorityBefore.error;
@@ -1116,6 +1249,20 @@
 
                 if (me.durum === 'waiting') notificationPlayed = false;
 
+                // Erteleme bloğu: sadece waiting + firma erteleme açık + hakkı kalmışsa
+                const ertelemeWrap = document.getElementById('erteleme-wrap');
+                const ertelemeHakkiEl = document.getElementById('erteleme-hakki');
+                const ticketErtelemeKullanilan = parseInt(me.erteleme_sayisi, 10) || 0;
+                const limit = firmaErtelemeAyar.erteleme_sayisi || 0;
+                const ertelemeGoster = me.durum === 'waiting' && firmaErtelemeAyar.erteleme && limit > 0 && ticketErtelemeKullanilan < limit;
+                if (ertelemeWrap) {
+                    ertelemeWrap.style.display = ertelemeGoster ? 'block' : 'none';
+                    if (ertelemeHakkiEl) {
+                        if (ertelemeGoster) ertelemeHakkiEl.textContent = limit - ticketErtelemeKullanilan === 1 ? '1 erteleme hakkınız var.' : (limit - ticketErtelemeKullanilan) + ' erteleme hakkınız var.';
+                        else ertelemeHakkiEl.textContent = '';
+                    }
+                }
+
             } catch (e) {
                 console.error("Takip Hatası:", e);
             }
@@ -1157,6 +1304,95 @@
                 faviconEl.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎫</text></svg>";
             }
         }
+
+        async function requestErteleme() {
+            const btn = document.getElementById('erteleme-btn');
+            if (!sira_id || !btn) return;
+            const dakika = getErtelemeWheelValue ? getErtelemeWheelValue() : 10;
+            if (dakika < 1 || dakika > 60) return;
+            btn.disabled = true;
+            btn.textContent = 'İşleniyor...';
+            try {
+                const base = getApiBase();
+                const r = await fetch(base + '/api/sira/ertele/' + sira_id, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dakika: dakika })
+                });
+                const data = await r.json().catch(() => ({}));
+                if (r.ok && data.success) {
+                    if (data.mesaj) alert(data.mesaj);
+                    updateStatus();
+                } else {
+                    alert(data.detail || 'Erteleme yapılamadı.');
+                }
+            } catch (e) {
+                console.error('Erteleme hatası:', e);
+                alert('Bağlantı hatası. Lütfen tekrar deneyin.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Erteleme İste';
+            }
+        }
+
+        const ERTELEME_ITEM_HEIGHT = 40;
+        function buildErtelemeWheel() {
+            const wheel = document.getElementById('erteleme-wheel');
+            if (!wheel || wheel.dataset.built === '1') return;
+            wheel.innerHTML = '';
+            const topPad = document.createElement('div');
+            topPad.className = 'erteleme-wheel-spacer';
+            wheel.appendChild(topPad);
+            for (let i = 1; i <= 60; i++) {
+                const div = document.createElement('div');
+                div.className = 'erteleme-wheel-item';
+                div.setAttribute('data-value', i);
+                div.textContent = i;
+                wheel.appendChild(div);
+            }
+            const bottomPad = document.createElement('div');
+            bottomPad.className = 'erteleme-wheel-spacer';
+            wheel.appendChild(bottomPad);
+            wheel.dataset.built = '1';
+            setErtelemeWheelValue(10);
+            wheel.addEventListener('scroll', function () {
+                clearTimeout(wheel._scrollTimer);
+                wheel._scrollTimer = setTimeout(function () { snapErtelemeWheel(); }, 100);
+            });
+            wheel.addEventListener('touchmove', function () {
+                clearTimeout(wheel._scrollTimer);
+                wheel._scrollTimer = setTimeout(function () { snapErtelemeWheel(); }, 150);
+            }, { passive: true });
+        }
+        function getErtelemeWheelValue() {
+            const wheel = document.getElementById('erteleme-wheel');
+            if (!wheel || !wheel.children.length) return 10;
+            const st = wheel.scrollTop;
+            const value = Math.round((st + ERTELEME_ITEM_HEIGHT) / ERTELEME_ITEM_HEIGHT);
+            return Math.max(1, Math.min(60, value));
+        }
+        function setErtelemeWheelValue(dakika) {
+            const wheel = document.getElementById('erteleme-wheel');
+            if (!wheel) return;
+            const targetScroll = (dakika - 1) * ERTELEME_ITEM_HEIGHT;
+            wheel.scrollTop = targetScroll;
+        }
+        function snapErtelemeWheel() {
+            const wheel = document.getElementById('erteleme-wheel');
+            if (!wheel) return;
+            const v = getErtelemeWheelValue();
+            setErtelemeWheelValue(v);
+        }
+        document.getElementById('erteleme-btn').addEventListener('click', requestErteleme);
+        document.addEventListener('DOMContentLoaded', function () {
+            const wrap = document.getElementById('erteleme-wrap');
+            if (wrap) {
+                const obs = new MutationObserver(function () {
+                    if (wrap.style.display !== 'none') buildErtelemeWheel();
+                });
+                obs.observe(wrap, { attributes: true, attributeFilter: ['style'] });
+            }
+        });
 
         // Sayfa yüklendiğinde
         setInterval(updateTime, 1000);

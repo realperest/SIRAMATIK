@@ -26,7 +26,7 @@ from models import (
     ManuelSiraRequest, IstatistikResponse,
     DeviceResponse, DeviceUpdateRequest, DeviceHeartbeatRequest,
     UserResponse, UserCreateRequest, UserUpdateRequest, UserStatusUpdateRequest,
-    SiraTransferRequest, SiraNotlarRequest, MemnuniyetAnketRequest,
+    SiraTransferRequest, SiraNotlarRequest, ErteleRequest, MemnuniyetAnketRequest,
     CihazKayitRequest, CihazAyarlarUpdateRequest, CihazHeartbeatRequest, CihazResponse,
     RaporSablonuCreateRequest, RaporSablonuUpdateRequest, RaporSablonuResponse
 )
@@ -683,9 +683,6 @@ async def save_sira_notlar(sira_id: int, request: SiraNotlarRequest, current_use
         if not sira: raise HTTPException(status_code=404, detail="Sıra bulunamadı")
         return {"success": True}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/sira/durum/{sira_id}")
@@ -701,6 +698,44 @@ async def sira_durum(sira_id: int):
     except Exception as e:
         # Pydantic validation error gibi görünmesin diye str(e)
         if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/public/firma/{firma_id}/erteleme-ayarlari")
+async def firma_erteleme_ayarlari(firma_id: int):
+    """
+    Firmanın erteleme ayarları (Public - bilet ekranı için).
+    erteleme: true ise bilet ekranında erteleme combosu gösterilir.
+    erteleme_sayisi: bilet başına izin verilen erteleme hakkı (0 ise kapalı).
+    """
+    try:
+        ayar = db.get_firma_erteleme_ayarlari(firma_id)
+        if not ayar:
+            raise HTTPException(status_code=404, detail="Firma bulunamadı")
+        return {"erteleme": bool(ayar.get("erteleme")), "erteleme_sayisi": int(ayar.get("erteleme_sayisi") or 0)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/sira/ertele/{sira_id}")
+async def sira_ertele(sira_id: int, request: ErteleRequest):
+    """
+    Müşteri biletini X dakika geciktirir (Public).
+    Sadece waiting biletlerde, firma erteleme açıksa ve hakkı varsa.
+    """
+    try:
+        sira = db.ertele_sira(sira_id, request.dakika)
+        if not sira:
+            raise HTTPException(
+                status_code=400,
+                detail="Erteleme yapılamadı. (Bilet beklemede mi? Firma erteleme açık mı? Erteleme hakkınız kaldı mı?)"
+            )
+        return {"success": True, "mesaj": f"Sıranız {request.dakika} dakika ertelendi.", "sira": sira}
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 

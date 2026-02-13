@@ -104,7 +104,7 @@ RETURNS INT AS $$
 DECLARE
     ort_saniye NUMERIC;
 BEGIN
-    SELECT AVG(EXTRACT(EPOCH FROM (cagirilma - olusturulma)))
+    SELECT AVG(EXTRACT(EPOCH FROM (cagirilma - COALESCE(etkin_olusturulma, olusturulma))))
     INTO ort_saniye
     FROM siralar
     WHERE kuyruk_id = p_kuyruk_id
