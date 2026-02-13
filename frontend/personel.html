@@ -207,7 +207,8 @@
             flex: 1;
             display: flex;
             align-items: center;
-            gap: 20px;
+            /* Numara ile sağdaki bilgiler arasındaki mesafeyi küçült */
+            gap: 12px;
         }
 
         .sira-info .numara {
@@ -222,9 +223,9 @@
         .sira-info-right {
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
-            flex: 1;
+            /* Saat ve bölüm/kuyruk bilgileri numaranın hemen sağında, sola hizalı dursun */
+            align-items: flex-start;
+            gap: 4px;
         }
 
         /* Kuyruk koduna göre numara renkleri */
@@ -535,6 +536,9 @@
         .action-btn-compact.btn-finish {
             background: #10b981;
             border: 2px solid rgba(255, 255, 255, 0.3) !important;
+            /* Aktif kart içindeki bitir butonu kompakt olsun */
+            padding: 6px 12px;
+            font-size: 13px;
         }
 
         .btn-finish-next {
@@ -547,11 +551,14 @@
         .action-btn-compact.btn-finish-next {
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             border: 2px solid rgba(255, 255, 255, 0.3) !important;
+            /* Aktif kart içindeki bitir & yeni çağır butonu kompakt olsun */
+            padding: 6px 12px;
+            font-size: 13px;
         }
 
         .btn-finish span,
         .btn-finish-next span {
-            font-size: 32px;
+            font-size: 28px;
         }
 
         .action-btn-large:hover {
