@@ -59,66 +59,18 @@
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             text-align: center;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            cursor: pointer;
         }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--stat-color, #667eea);
-        }
-
-        .stat-card.bekleyen::before { background: #f59e0b; }
-        .stat-card.bugun::before { background: #3b82f6; }
-        .stat-card.sure::before { background: #10b981; }
-
-        .stat-card .icon {
-            font-size: 32px;
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        .stat-card.bekleyen .icon { color: #f59e0b; }
-        .stat-card.bugun .icon { color: #3b82f6; }
-        .stat-card.sure .icon { color: #10b981; }
 
         .stat-card .number {
             font-size: 48px;
             font-weight: bold;
-            color: var(--stat-color, #667eea);
-            transition: all 0.3s ease;
+            color: #667eea;
         }
-
-        .stat-card.bekleyen .number { color: #f59e0b; }
-        .stat-card.bugun .number { color: #3b82f6; }
-        .stat-card.sure .number { color: #10b981; }
 
         .stat-card .label {
             font-size: 16px;
             color: #7f8c8d;
             margin-top: 10px;
-            font-weight: 500;
-        }
-
-        .stat-card .trend {
-            font-size: 12px;
-            margin-top: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
         }
 
         .sira-listesi {
@@ -134,81 +86,31 @@
             align-items: center;
             padding: 20px;
             margin: 15px 0;
-            background: white;
-            border-radius: 12px;
+            background: #f8f9fa;
+            border-radius: 10px;
             border-left: 5px solid #667eea;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             transition: all 0.3s ease;
-            cursor: pointer;
         }
 
         .sira-item:hover {
-            background: #f8f9fa;
+            background: #e9ecef;
             transform: translateX(5px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-        }
-
-        .sira-item.priority {
-            border-left-color: #ef4444;
-            background: linear-gradient(90deg, #fef2f2 0%, #ffffff 100%);
-        }
-
-        .sira-item.priority .numara {
-            color: #ef4444;
-        }
-
-        .sira-info {
-            flex: 1;
         }
 
         .sira-info .numara {
             font-size: 42px;
             font-weight: bold;
             color: #667eea;
-            line-height: 1;
-            margin-bottom: 8px;
         }
 
         .sira-info .zaman {
             font-size: 14px;
             color: #7f8c8d;
             margin-top: 5px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .sira-info .bekleme-suresi {
-            font-size: 13px;
-            color: #f59e0b;
-            font-weight: 600;
-            margin-top: 4px;
-        }
-
-        .sira-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
         }
 
         .sira-actions button {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-
-        .sira-actions .btn-cagir {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .sira-actions .btn-cagir:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            margin-left: 10px;
         }
 
         .empty-state {
@@ -396,7 +298,6 @@
             body {
                 padding: 10px;
                 background: #ebf0f5;
-                font-size: 14px;
             }
 
             .header {
@@ -408,8 +309,7 @@
             }
 
             .header h1 {
-                font-size: 18px;
-                line-height: 1.3;
+                font-size: 20px;
             }
 
             .user-info {
@@ -419,77 +319,11 @@
                 gap: 10px;
             }
 
-            .user-info > div {
-                width: 100%;
-            }
-
-            .user-info button {
-                min-height: 44px; /* Touch-friendly */
-                font-size: 14px;
-                padding: 10px 15px;
-            }
-
             #active-settings-info {
                 width: 100%;
                 flex-direction: column;
                 align-items: flex-start !important;
                 gap: 5px !important;
-            }
-
-            .stats {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-
-            .stat-card {
-                padding: 20px;
-            }
-
-            .stat-card .number {
-                font-size: 36px;
-            }
-
-            .stat-card .icon {
-                font-size: 28px;
-            }
-
-            .sira-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
-                padding: 15px;
-            }
-
-            .sira-info .numara {
-                font-size: 32px;
-            }
-
-            .sira-actions {
-                width: 100%;
-            }
-
-            .sira-actions button {
-                flex: 1;
-                min-height: 44px;
-            }
-
-            .active-ticket-card {
-                padding: 20px;
-            }
-
-            .active-ticket-card .numara {
-                font-size: 48px;
-            }
-
-            .action-grid {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-
-            .action-btn-large {
-                min-height: 50px;
-                padding: 15px;
-                font-size: 14px;
             }
 
             .stats {
@@ -701,23 +535,17 @@
         </div>
 
         <div class="stats">
-            <div class="stat-card bekleyen" onclick="focusBekleyenListesi()">
-                <span class="icon">⏳</span>
+            <div class="stat-card">
                 <div class="number" id="stat-bekleyen">0</div>
                 <div class="label">Bekleyen İşlem</div>
-                <div class="trend" id="trend-bekleyen"></div>
             </div>
-            <div class="stat-card bugun" onclick="showTodayStats()">
-                <span class="icon">📊</span>
+            <div class="stat-card">
                 <div class="number" id="stat-bugun">0</div>
                 <div class="label">Bugün Toplam</div>
-                <div class="trend" id="trend-bugun"></div>
             </div>
-            <div class="stat-card sure" onclick="showTimeStats()">
-                <span class="icon">⏱️</span>
+            <div class="stat-card">
                 <div class="number" id="stat-avg-time">--:--</div>
                 <div class="label">Ort. İşlem Süresi</div>
-                <div class="trend" id="trend-sure"></div>
             </div>
         </div>
 
@@ -1033,179 +861,6 @@
             }
 
             siralariYukle();
-            initKeyboardShortcuts();
-            initSoundNotifications();
-        }
-
-        // --- SES BİLDİRİMLERİ ---
-        let audioContext = null;
-        let soundEnabled = localStorage.getItem('sound_enabled') !== 'false';
-
-        function initAudioContext() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioContext.state === 'suspended') {
-                    audioContext.resume();
-                }
-            }
-        }
-
-        function playSound(frequency = 800, duration = 200, type = 'sine') {
-            if (!soundEnabled || !audioContext) return;
-            try {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = frequency;
-                oscillator.type = type;
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + duration / 1000);
-            } catch (e) {
-                console.warn('Ses çalınamadı:', e);
-            }
-        }
-
-        function playNotifySound() {
-            // Yeni sıra geldiğinde çalınacak ses
-            playSound(600, 150, 'sine');
-            setTimeout(() => playSound(800, 150, 'sine'), 100);
-        }
-
-        function playSuccessSound() {
-            // Başarılı işlem sesi
-            playSound(800, 200, 'sine');
-        }
-
-        function playErrorSound() {
-            // Hata sesi
-            playSound(400, 300, 'sawtooth');
-        }
-
-        function initSoundNotifications() {
-            // İlk kullanıcı etkileşiminde audio context'i başlat
-            document.addEventListener('click', initAudioContext, { once: true });
-            document.addEventListener('touchstart', initAudioContext, { once: true });
-        }
-
-        // --- KLAVYE KISAYOLLARI ---
-        function initKeyboardShortcuts() {
-            document.addEventListener('keydown', handleKeyboardShortcuts);
-        }
-
-        function handleKeyboardShortcuts(e) {
-            // Modal açıksa klavye kısayollarını devre dışı bırak
-            const modals = ['settings-modal', 'manuel-modal', 'ask-location-modal', 'transfer-modal'];
-            if (modals.some(id => {
-                const modal = document.getElementById(id);
-                return modal && modal.style.display !== 'none' && modal.style.display !== '';
-            })) {
-                return;
-            }
-
-            // Ctrl/Cmd + tuş kombinasyonları
-            if (e.ctrlKey || e.metaKey) {
-                switch(e.key) {
-                    case 'n':
-                    case 'N':
-                        e.preventDefault();
-                        siradakiniCagir();
-                        break;
-                    case 'm':
-                    case 'M':
-                        e.preventDefault();
-                        openManuelModal();
-                        break;
-                    case 's':
-                    case 'S':
-                        e.preventDefault();
-                        openSettingsModal();
-                        break;
-                }
-                return;
-            }
-
-            // Tek tuş kısayolları (sadece input alanları dışında)
-            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
-                switch(e.key) {
-                    case ' ':
-                    case 'Enter':
-                        e.preventDefault();
-                        if (activeTicket && activeTicket.durum === 'calling') {
-                            activeTicketStart();
-                        } else {
-                            siradakiniCagir();
-                        }
-                        break;
-                    case 'Escape':
-                        if (activeTicket) {
-                            // Aktif işlemi iptal et
-                            if (confirm('Aktif işlemi iptal etmek istediğinize emin misiniz?')) {
-                                closeActiveTicketUI();
-                            }
-                        }
-                        break;
-                    case '1':
-                        if (activeTicket && activeTicket.durum === 'calling') {
-                            activeTicketRecall();
-                        }
-                        break;
-                    case '2':
-                        if (activeTicket && activeTicket.durum === 'calling') {
-                            activeTicketStart();
-                        }
-                        break;
-                    case '3':
-                        if (activeTicket && activeTicket.durum === 'calling') {
-                            activeTicketNoShow();
-                        }
-                        break;
-                    case '4':
-                        if (activeTicket && activeTicket.durum === 'serving') {
-                            activeTicketFinishAndNext();
-                        }
-                        break;
-                }
-            }
-        }
-
-        // --- YARDIMCI FONKSİYONLAR ---
-        function formatTarih(tarihStr) {
-            if (!tarihStr) return 'Bilinmiyor';
-            const tarih = new Date(tarihStr);
-            const now = new Date();
-            const diffMs = now - tarih;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMins / 60);
-            
-            if (diffMins < 1) return 'Az önce';
-            if (diffMins < 60) return `${diffMins} dakika önce`;
-            if (diffHours < 24) return `${diffHours} saat önce`;
-            
-            // Tarih formatı
-            const gun = tarih.getDate().toString().padStart(2, '0');
-            const ay = (tarih.getMonth() + 1).toString().padStart(2, '0');
-            const saat = tarih.getHours().toString().padStart(2, '0');
-            const dakika = tarih.getMinutes().toString().padStart(2, '0');
-            return `${gun}.${ay} ${saat}:${dakika}`;
-        }
-
-        function focusBekleyenListesi() {
-            document.getElementById('sira-liste-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function showTodayStats() {
-            showToast('Bugünkü istatistikler yakında eklenecek', 'info');
-        }
-
-        function showTimeStats() {
-            showToast('Ortalama işlem süresi detayları yakında eklenecek', 'info');
         }
 
         // --- AYARLAR ---
@@ -1675,43 +1330,22 @@
                         </div>
                     `;
                 } else {
-                    const now = new Date();
-                    container.innerHTML = siralar.map(sira => {
-                        const olusturulma = new Date(sira.olusturulma);
-                        const beklemeMs = now - olusturulma;
-                        const beklemeDk = Math.floor(beklemeMs / 60000);
-                        const beklemeSaat = Math.floor(beklemeDk / 60);
-                        let beklemeText = '';
-                        if (beklemeSaat > 0) {
-                            beklemeText = `${beklemeSaat} saat ${beklemeDk % 60} dakika`;
-                        } else if (beklemeDk > 0) {
-                            beklemeText = `${beklemeDk} dakika`;
-                        } else {
-                            beklemeText = 'Az önce';
-                        }
-                        
-                        const isPriority = sira.oncelik && sira.oncelik > 0;
-                        const priorityClass = isPriority ? 'priority' : '';
-                        
-                        return `
-                        <div class="sira-item ${priorityClass}" onclick="hastaCagir('${sira.id}', '${sira.numara}')">
+                    container.innerHTML = siralar.map(sira => `
+                        <div class="sira-item slide-in">
                             <div class="sira-info">
-                                <div class="numara">${sira.numara || 'HATA'}</div>
+                                <div class="numara" style="color: black !important;">${sira.numara || 'HATA'}</div>
                                 <div class="zaman">
-                                    <span>🕐</span> ${formatTarih(sira.olusturulma)}
-                                    <span style="font-size:12px; color:#aaa; margin-left:8px;">(${sira.servis_ad || '?'} - ${sira.kuyruk_ad || '?'})</span>
+                                    ${formatTarih(sira.olusturulma)}
+                                    <span style="font-size:12px; color:#aaa;">(${sira.servis_ad || '?'} - ${sira.kuyruk_ad || '?'})</span>
                                 </div>
-                                <div class="bekleme-suresi">⏱️ ${beklemeText} önce</div>
-                                ${isPriority ? '<div style="font-size:11px; color:#ef4444; font-weight:600; margin-top:4px;">⭐ ÖNCELİKLİ</div>' : ''}
                             </div>
                             <div class="sira-actions">
-                                <button class="btn-cagir" onclick="event.stopPropagation(); hastaCagir('${sira.id}', '${sira.numara}')">
+                                <button class="btn btn-success" onclick="hastaCagir('${sira.id}', '${sira.numara}')">
                                     📢 ÇAĞIR
                                 </button>
                             </div>
                         </div>
-                    `;
-                    }).join('');
+                    `).join('');
                 }
 
                 document.getElementById('stat-bekleyen').textContent = siralar.length;
