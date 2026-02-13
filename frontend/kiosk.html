@@ -1666,7 +1666,7 @@
 
         async function initConfig() {
             try {
-                const config = await apiCall('/kiosk-config');
+                const config = await apiCall('/api/kiosk-config');
                 kioskConfig = config;
                 console.log("Kiosk Yapılandırması:", kioskConfig);
             } catch (err) {

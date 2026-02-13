@@ -223,8 +223,26 @@ class Database:
     def _offset_to_timezone_string(self, offset: int) -> str:
         """
         Offset'i PostgreSQL timezone string'ine çevirir.
-        Örnek: 3 → '+03:00', -5 → '-05:00'
+        Örnek: 3 → 'Europe/Istanbul', -5 → 'America/New_York'
+        
+        NOT: Offset yerine timezone name kullanmak daha güvenilir.
         """
+        # Yaygın offset'ler için timezone name mapping
+        offset_to_tz = {
+            3: 'Europe/Istanbul',
+            2: 'Europe/Athens',
+            1: 'Europe/Paris',
+            0: 'UTC',
+            -5: 'America/New_York',
+            -6: 'America/Chicago',
+            -8: 'America/Los_Angeles',
+        }
+        
+        # Mapping'de varsa timezone name kullan
+        if offset in offset_to_tz:
+            return offset_to_tz[offset]
+        
+        # Yoksa offset string'i kullan (fallback)
         sign = '+' if offset >= 0 else '-'
         hours = abs(offset)
         return f"{sign}{hours:02d}:00"
