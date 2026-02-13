@@ -995,6 +995,9 @@
         let DEVICE_ID = localStorage.getItem('tablet_device_id') || null;
         let DEVICE_FINGERPRINT = localStorage.getItem('device_fingerprint') || null;
 
+        // Barkod/QR'da çıkacak bilet linkinin adresi. realperest.github.io yerine kendi domain'iniz (örn. https://siramatik.inovathinks.com) yazarsanız barkodta o adres görünür.
+        const BILET_QR_BASE_URL = 'https://realperest.github.io/SIRAMATIK';
+
         // Kiosk Ayarları Yönetimi
         // Not: initialSetupDone, ilk kurulum sihirbazının tamamlanıp tamamlanmadığını tutar
         let kioskSettings = {
@@ -1927,7 +1930,7 @@
 
             const fisQrContainer = document.getElementById('fis-qrcode');
             fisQrContainer.innerHTML = '';
-            const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}&sira_id=${lastSiraResponse.sira_id}`;
+            const biletUrl = `${BILET_QR_BASE_URL}/frontend/bilet.html?numara=${lastSiraResponse.numara}&kuyruk=${encodeURIComponent(lastSiraResponse.kuyruk_ad)}&bekleyen=${Math.max(0, lastSiraResponse.bekleyen_sayisi - 1)}&firma=${encodeURIComponent(document.getElementById('hospital-name').textContent)}&kuyruk_id=${lastSiraResponse.kuyruk_id}&sira_id=${lastSiraResponse.sira_id}`;
 
             new QRCode(fisQrContainer, {
                 text: biletUrl,
@@ -1979,7 +1982,7 @@
                 const safeK = encodeURIComponent(k);
 
                 const sid = lastSiraResponse.sira_id || 0;
-                const biletUrl = `https://realperest.github.io/SIRAMATIK/frontend/bilet.html?numara=${safeN}&kuyruk=${safeK}&bekleyen=${b}&firma=${safeH}&kuyruk_id=${kid}&sira_id=${sid}`;
+                const biletUrl = `${BILET_QR_BASE_URL}/frontend/bilet.html?numara=${safeN}&kuyruk=${safeK}&bekleyen=${b}&firma=${safeH}&kuyruk_id=${kid}&sira_id=${sid}`;
 
                 console.log("QR Kod Telefon Linki:", biletUrl);
 
