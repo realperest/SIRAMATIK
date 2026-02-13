@@ -1698,6 +1698,8 @@ class Database:
                        metadata: Dict = {}) -> Dict[str, Any]:
         """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
         with Session(self.engine) as session:
+            # Timezone'u ayarla
+            self._set_session_timezone(session)
             try:
                 local_now = self.get_local_now()
                 # Fingerprint ile cihaz var mı kontrol et
@@ -1825,6 +1827,8 @@ class Database:
     def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any], device_name: Optional[str] = None, setup_completed: Optional[bool] = None) -> bool:
         """Cihaz ayarlarını güncelle (ayarlar JSON + opsiyonel cihaz adı + setup flag)"""
         with Session(self.engine) as session:
+            # Timezone'u ayarla
+            self._set_session_timezone(session)
             try:
                 local_now = self.get_local_now()
                 # Ayarlar içinden özet bölüm/kuyruk bilgisini çek (ilk seçilenler)
@@ -1898,6 +1902,8 @@ class Database:
         """Cihaz heartbeat güncelle (son_gorulen)"""
         local_now = self.get_local_now()
         with Session(self.engine) as session:
+            # Timezone'u ayarla
+            self._set_session_timezone(session)
             try:
                 query = text(f"""
                     UPDATE siramatik.cihazlar
