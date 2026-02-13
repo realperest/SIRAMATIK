@@ -202,15 +202,23 @@ class Database:
     def get_local_now(self) -> str:
         """
         Veritabanına yazılacak 'şu an' zamanı (SQL ifadesi).
-        Sunucu UTC çalıştığı için NOW() kullanılır; böylece doğru an saklanır.
-        Okuma/filtrelerde yerel tarih için _local_date_sql / _today_local_sql kullanın.
+        Yerel saat dilimine göre kaydedilir (timezone_offset).
+        Örnek: timezone_offset=3 ise → NOW() + INTERVAL '3 hours'
+        
+        ÖNEMLİ: Bu fonksiyon sadece INSERT/UPDATE işlemlerinde kullanılır.
+        SELECT sorgularında direkt sütun adını kullanın (ek dönüşüm yapmayın).
         """
-        return "NOW()"
+        offset = self.get_timezone_offset()
+        return f"NOW() + INTERVAL '{offset} hours'"
 
     def _local_date_sql(self, column_expr: str = "s.olusturulma") -> str:
-        """Verdiğiniz sütunun yerel tarihini (timezone_offset'a göre) döndüren SQL ifadesi."""
-        offset = self.get_timezone_offset()
-        return f"({column_expr} + INTERVAL '{offset} hours')::date"
+        """
+        Verdiğiniz sütunun yerel tarihini döndüren SQL ifadesi.
+        
+        ÖNEMLİ: Kayıtlar zaten yerel saat ile kaydediliyor (get_local_now() kullanılarak),
+        bu yüzden ek dönüşüm yapmaya gerek yok. Direkt tarih olarak alınır.
+        """
+        return f"{column_expr}::date"
 
     def _today_local_sql(self) -> str:
         """Yerel saate göre 'bugün' tarihini döndüren SQL ifadesi (timezone_offset)."""
@@ -220,6 +228,26 @@ class Database:
     def _today_filter_sql(self, column_expr: str = "s.olusturulma") -> str:
         """Bugün (yerel) filtresi: column yerel tarihi = bugün yerel."""
         return f" AND {self._local_date_sql(column_expr)} = {self._today_local_sql()}"
+    
+    def _local_now_minus_interval(self, interval: str) -> str:
+        """
+        Yerel saatin şu anından belirtilen interval kadar öncesini döndürür.
+        Örnek: interval='20 minutes' → (NOW() + INTERVAL 'X hours' - INTERVAL '20 minutes')
+        
+        Kullanım: Zaman karşılaştırmaları için (örn: son 20 dakika içindeki kayıtlar)
+        """
+        offset = self.get_timezone_offset()
+        return f"(NOW() + INTERVAL '{offset} hours' - INTERVAL '{interval}')"
+    
+    def _local_now_plus_interval(self, interval: str) -> str:
+        """
+        Yerel saatin şu anından belirtilen interval kadar sonrasını döndürür.
+        Örnek: interval='1 hour' → (NOW() + INTERVAL 'X hours' + INTERVAL '1 hour')
+        
+        Kullanım: Zaman karşılaştırmaları için (örn: 1 saat sonrasına kadar)
+        """
+        offset = self.get_timezone_offset()
+        return f"(NOW() + INTERVAL '{offset} hours' + INTERVAL '{interval}')"
     
     # --- FİRMALAR ---
     
@@ -322,9 +350,8 @@ class Database:
     
     def get_kuyruklar(self, servis_id: int) -> List[Dict]:
         """Servise ait kuyrukları getir (Bekleyen sayıları ile birlikte)"""
-        offset = self.get_timezone_offset()
-        today_local = f"(NOW() + INTERVAL '{offset} hours')::date"
-        col_local = f"(s.olusturulma + INTERVAL '{offset} hours')::date"
+        today_local = self._today_local_sql()
+        col_local = self._local_date_sql("s.olusturulma")
         queues = self.execute_query(f"""
             SELECT k.*, 
                    (SELECT COUNT(*) FROM siramatik.siralar s 
@@ -609,7 +636,7 @@ class Database:
             WHERE s.firma_id = :firma_id 
             AND s.durum = 'calling'
             {today_filter}
-            AND s.cagirilma > (NOW() - INTERVAL '20 minutes')
+            AND s.cagirilma > {self._local_now_minus_interval("20 minutes")}
         """
         params = {"firma_id": firma_id, "limit": limit}
 
@@ -1208,11 +1235,12 @@ class Database:
             """, params)
 
         elif report_type == "abandonment":
+            local_5min_ago = self._local_now_minus_interval("5 minutes")
             data = self.execute_query(f"""
                 SELECT ser.ad as servis, 
                        COUNT(*) as toplam_bilet,
                        COUNT(*) FILTER (WHERE durum = 'cancelled') as iptal,
-                       COUNT(*) FILTER (WHERE durum = 'calling' AND cagirilma < NOW() - INTERVAL '5 minutes') as cevapsiz,
+                       COUNT(*) FILTER (WHERE durum = 'calling' AND cagirilma < {local_5min_ago}) as cevapsiz,
                        ROUND(CAST(COUNT(*) FILTER (WHERE durum = 'cancelled' OR durum = 'calling') * 100.0 / COUNT(*) AS NUMERIC), 1) as kayip_orani
                 FROM siramatik.siralar s
                 JOIN siramatik.servisler ser ON s.servis_id = ser.id
@@ -1734,7 +1762,7 @@ class Database:
         """Cihaz ayarlarını getir"""
         with Session(self.engine) as session:
             query = text("""
-                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen AT TIME ZONE 'UTC' as son_gorulen, 
+                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen, 
                        setup_tamamlandi
                 FROM siramatik.cihazlar
                 WHERE id = :device_id
@@ -1869,11 +1897,11 @@ class Database:
                     c.mac_address,
                     c.ip,
                     c.durum, 
-                    c.son_gorulen AT TIME ZONE 'UTC' as son_gorulen, 
+                    c.son_gorulen, 
                     c.ayarlar, 
                     c.metadata,
-                    c.olusturulma AT TIME ZONE 'UTC' as olusturulma,
-                    c.guncelleme AT TIME ZONE 'UTC' as guncelleme,
+                    c.olusturulma,
+                    c.guncelleme,
                     c.servis_id,
                     c.kuyruk_id,
                     c.setup_tamamlandi,
