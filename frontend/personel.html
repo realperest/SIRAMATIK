@@ -142,10 +142,27 @@
             cursor: pointer;
         }
 
+        /* Farklı sıralar için farklı açık tonlu renkler */
+        .sira-item:nth-child(1) { background: #fef3f2; border-left-color: #f87171; }
+        .sira-item:nth-child(2) { background: #f0fdf4; border-left-color: #4ade80; }
+        .sira-item:nth-child(3) { background: #eff6ff; border-left-color: #60a5fa; }
+        .sira-item:nth-child(4) { background: #faf5ff; border-left-color: #a78bfa; }
+        .sira-item:nth-child(5) { background: #fefce8; border-left-color: #facc15; }
+        .sira-item:nth-child(6) { background: #fff7ed; border-left-color: #fb923c; }
+        .sira-item:nth-child(7) { background: #f0f9ff; border-left-color: #38bdf8; }
+        .sira-item:nth-child(8) { background: #fdf2f8; border-left-color: #f472b6; }
+        .sira-item:nth-child(9) { background: #f0fdfa; border-left-color: #2dd4bf; }
+        .sira-item:nth-child(10) { background: #fef3c7; border-left-color: #fbbf24; }
+        /* 10'dan fazla için döngü */
+        .sira-item:nth-child(n+11) {
+            background: #f9fafb;
+            border-left-color: #9ca3af;
+        }
+
         .sira-item:hover {
-            background: #f8f9fa;
             transform: translateX(5px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            opacity: 0.95;
         }
 
         .sira-item.priority {
@@ -178,12 +195,6 @@
             gap: 6px;
         }
 
-        .sira-info .bekleme-suresi {
-            font-size: 13px;
-            color: #f59e0b;
-            font-weight: 600;
-            margin-top: 4px;
-        }
 
         .sira-actions {
             display: flex;
@@ -204,6 +215,10 @@
         .sira-actions .btn-cagir {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            font-size: 18px;
+            padding: 16px 32px;
+            font-weight: 700;
+            min-height: 60px;
         }
 
         .sira-actions .btn-cagir:hover {
@@ -294,31 +309,64 @@
             color: #475569;
         }
 
-        /* Active Ticket Card */
+        /* Active Ticket Card - Kompakt Tasarım */
         .active-ticket-card {
             background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             color: white;
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             display: none;
             animation: fadeIn 0.5s ease-out;
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+        }
+
+        .active-ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 20px;
+        }
+
+        .active-ticket-header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1;
         }
 
         .active-ticket-card .numara {
-            font-size: 64px;
+            font-size: 48px;
             font-weight: 800;
             margin: 0;
             color: #fbbf24;
             text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            line-height: 1;
+        }
+
+        .active-ticket-timer {
+            font-size: 24px;
+            font-weight: 700;
+            font-family: monospace;
+            color: #60a5fa;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .active-ticket-info {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
         }
 
         .action-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 12px;
-            margin-top: 20px;
+            margin-top: 15px;
         }
 
         .action-btn-large {
@@ -354,6 +402,20 @@
         .btn-finish {
             background: #10b981;
             border: 2px solid white !important;
+            font-size: 18px;
+            padding: 16px;
+        }
+
+        .btn-finish-next {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: 2px solid white !important;
+            font-size: 18px;
+            padding: 16px;
+        }
+
+        .btn-finish span,
+        .btn-finish-next span {
+            font-size: 32px;
         }
 
         .action-btn-large:hover {
@@ -524,23 +586,52 @@
                 font-size: 12px;
             }
 
-            /* Aktif Bilet Kartı */
+            /* Aktif Bilet Kartı - Mobil Kompakt */
             .active-ticket-card {
                 padding: 15px;
+                position: sticky;
+                top: 0;
+            }
+
+            .active-ticket-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .active-ticket-header-left {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
 
             .active-ticket-card .numara {
-                font-size: 48px;
+                font-size: 36px;
+            }
+
+            .active-ticket-timer {
+                font-size: 20px;
             }
 
             .action-grid {
-                grid-template-columns: 1fr 1fr;
-                /* 2 kolon */
+                grid-template-columns: 1fr;
+                gap: 10px;
             }
 
             .action-btn-large {
-                padding: 10px;
-                font-size: 13px;
+                padding: 12px;
+                font-size: 14px;
+                min-height: 50px;
+            }
+
+            .btn-finish,
+            .btn-finish-next {
+                font-size: 16px;
+                padding: 14px;
+            }
+
+            .btn-finish span,
+            .btn-finish-next span {
+                font-size: 28px;
             }
 
             .sira-listesi {
@@ -635,19 +726,18 @@
 
         <!-- MOLA EKRANI (OVERLAY GİBİ) - BURADAN TAŞINDI -->
 
-        <!-- AKTİF BİLET PANELİ -->
+        <!-- AKTİF BİLET PANELİ - Kompakt Tasarım -->
         <div id="active-ticket-panel" class="active-ticket-card">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                    <span style="text-transform:uppercase; font-size:12px; letter-spacing:1px; opacity:0.8;">Şu Anki
-                        İşlem</span>
-                    <h1 class="numara" id="active-ticket-numara">---</h1>
-                    <div id="active-ticket-info" style="margin-top:5px; opacity:0.9;"></div>
-                </div>
-                <div style="text-align:right;">
-                    <div id="active-ticket-timer" style="font-size:24px; font-weight:700; font-family:monospace;">00:00
+            <div class="active-ticket-header">
+                <div class="active-ticket-header-left">
+                    <div>
+                        <h1 class="numara" id="active-ticket-numara">---</h1>
+                        <div id="active-ticket-info" class="active-ticket-info"></div>
                     </div>
-                    <div style="font-size:11px; opacity:0.7;">İşlem Süresi</div>
+                    <div style="text-align:right;">
+                        <div id="active-ticket-timer" class="active-ticket-timer">00:00</div>
+                        <div style="font-size:11px; opacity:0.7;">İşlem Süresi</div>
+                    </div>
                 </div>
             </div>
 
@@ -667,9 +757,7 @@
             </div>
 
             <div class="action-grid" id="active-actions-serving" style="display:none;">
-                <button class="action-btn-large btn-finish"
-                    style="grid-column: span 2; background: linear-gradient(135deg, #10b981 0%, #059669 100%);"
-                    onclick="activeTicketFinishAndNext()">
+                <button class="action-btn-large btn-finish-next" onclick="activeTicketFinishAndNext()">
                     <span>⏩</span>
                     <span>BİTİR VE YENİ ÇAĞIR</span>
                 </button>
@@ -1179,21 +1267,16 @@
         function formatTarih(tarihStr) {
             if (!tarihStr) return 'Bilinmiyor';
             const tarih = new Date(tarihStr);
-            const now = new Date();
-            const diffMs = now - tarih;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMins / 60);
             
-            if (diffMins < 1) return 'Az önce';
-            if (diffMins < 60) return `${diffMins} dakika önce`;
-            if (diffHours < 24) return `${diffHours} saat önce`;
-            
-            // Tarih formatı
+            // Tam tarih ve saat formatı: GG.AA.YYYY SS:DD:SS
             const gun = tarih.getDate().toString().padStart(2, '0');
             const ay = (tarih.getMonth() + 1).toString().padStart(2, '0');
+            const yil = tarih.getFullYear();
             const saat = tarih.getHours().toString().padStart(2, '0');
             const dakika = tarih.getMinutes().toString().padStart(2, '0');
-            return `${gun}.${ay} ${saat}:${dakika}`;
+            const saniye = tarih.getSeconds().toString().padStart(2, '0');
+            
+            return `${gun}.${ay}.${yil} ${saat}:${dakika}:${saniye}`;
         }
 
         function focusBekleyenListesi() {
@@ -1675,21 +1758,7 @@
                         </div>
                     `;
                 } else {
-                    const now = new Date();
                     container.innerHTML = siralar.map(sira => {
-                        const olusturulma = new Date(sira.olusturulma);
-                        const beklemeMs = now - olusturulma;
-                        const beklemeDk = Math.floor(beklemeMs / 60000);
-                        const beklemeSaat = Math.floor(beklemeDk / 60);
-                        let beklemeText = '';
-                        if (beklemeSaat > 0) {
-                            beklemeText = `${beklemeSaat} saat ${beklemeDk % 60} dakika`;
-                        } else if (beklemeDk > 0) {
-                            beklemeText = `${beklemeDk} dakika`;
-                        } else {
-                            beklemeText = 'Az önce';
-                        }
-                        
                         const isPriority = sira.oncelik && sira.oncelik > 0;
                         const priorityClass = isPriority ? 'priority' : '';
                         
@@ -1701,7 +1770,6 @@
                                     <span>🕐</span> ${formatTarih(sira.olusturulma)}
                                     <span style="font-size:12px; color:#aaa; margin-left:8px;">(${sira.servis_ad || '?'} - ${sira.kuyruk_ad || '?'})</span>
                                 </div>
-                                <div class="bekleme-suresi">⏱️ ${beklemeText} önce</div>
                                 ${isPriority ? '<div style="font-size:11px; color:#ef4444; font-weight:600; margin-top:4px;">⭐ ÖNCELİKLİ</div>' : ''}
                             </div>
                             <div class="sira-actions">
