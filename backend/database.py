@@ -20,7 +20,7 @@ DB_URL = "postgresql://postgres.wyursjdrnnjabpfeucyi:qk4SEnyhu3NUk2@aws-1-eu-cen
 # Engine oluştur - search_path ile siramatik schema'yı belirt
 # Engine oluştur - search_path ile siramatik schema'yı belirt
 connect_args = {
-    "options": "-c search_path=siramatik,public",
+    "options": "-c search_path=siramatik,public -c timezone=Europe/Istanbul",
     "keepalives": 1,
     "keepalives_idle": 30,
     "keepalives_interval": 10,
