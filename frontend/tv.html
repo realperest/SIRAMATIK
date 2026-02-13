@@ -1126,6 +1126,45 @@
             lastCagriId = sira.id;
         }
 
+        // Polling mekanizması (WebSocket yedek sistemi)
+        let pollingInterval = null;
+        
+        function isWebSocketConnected() {
+            return window.ws && window.ws.readyState === WebSocket.OPEN;
+        }
+        
+        function startPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            // WebSocket bağlı değilse polling başlat (10 saniyede bir)
+            pollingInterval = setInterval(() => {
+                if (!isWebSocketConnected()) {
+                    // WebSocket yoksa polling ile güncelle
+                    cagrilariGuncelle();
+                } else {
+                    // WebSocket bağlandıysa polling'i durdur
+                    stopPolling();
+                }
+            }, 10000); // 10 saniye
+        }
+        
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+        
+        function checkWebSocketAndManagePolling() {
+            if (isWebSocketConnected()) {
+                stopPolling();
+            } else {
+                startPolling();
+            }
+        }
+        
         initWebSocket((data) => {
             if (data.type === 'call_ticket') {
                 handleFastCall(data.sira);
@@ -1133,6 +1172,16 @@
                 debouncedUpdate();
             }
         });
+        
+        // İlk kontrol: WebSocket durumunu kontrol et ve polling'i başlat/durdur
+        setTimeout(() => {
+            checkWebSocketAndManagePolling();
+        }, 2000);
+        
+        // Periyodik kontrol: Her 5 saniyede bir WebSocket durumunu kontrol et
+        setInterval(() => {
+            checkWebSocketAndManagePolling();
+        }, 5000);
     </script>
 </body>
 

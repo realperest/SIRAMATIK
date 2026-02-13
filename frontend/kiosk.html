@@ -1778,7 +1778,51 @@
         // Debounce için timer
         let verileriYukleTimer = null;
         
+        // Polling mekanizması (WebSocket yedek sistemi)
+        let pollingInterval = null;
+        
+        function isWebSocketConnected() {
+            return window.ws && window.ws.readyState === WebSocket.OPEN;
+        }
+        
+        function startPolling() {
+            // Eğer zaten çalışıyorsa durdur
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            // WebSocket bağlı değilse polling başlat (10 saniyede bir)
+            pollingInterval = setInterval(() => {
+                if (!isWebSocketConnected()) {
+                    // WebSocket yoksa polling ile güncelle
+                    verileriYukle(true); // Sessiz güncelleme (loader göstermeden)
+                } else {
+                    // WebSocket bağlandıysa polling'i durdur
+                    stopPolling();
+                }
+            }, 10000); // 10 saniye (maksimum tazeleme süresi)
+        }
+        
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+        
+        // WebSocket durumunu kontrol et ve polling'i yönet
+        function checkWebSocketAndManagePolling() {
+            if (isWebSocketConnected()) {
+                // WebSocket bağlıysa polling'i durdur
+                stopPolling();
+            } else {
+                // WebSocket bağlı değilse polling'i başlat (yedek mekanizma)
+                startPolling();
+            }
+        }
+        
         baslat();
+        
         // WebSocket Dinleyici (debounce ile optimize edildi)
         initWebSocket((data) => {
             if (['new_ticket', 'call_ticket', 'complete_ticket', 'delete_ticket'].includes(data.type)) {
@@ -1789,6 +1833,16 @@
                 }, 300); // 300ms debounce
             }
         });
+        
+        // İlk kontrol: WebSocket durumunu kontrol et ve polling'i başlat/durdur
+        setTimeout(() => {
+            checkWebSocketAndManagePolling();
+        }, 2000); // 2 saniye sonra kontrol et (WebSocket bağlantısı için zaman tanı)
+        
+        // Periyodik kontrol: Her 5 saniyede bir WebSocket durumunu kontrol et
+        setInterval(() => {
+            checkWebSocketAndManagePolling();
+        }, 5000);
 
 
     </script>
