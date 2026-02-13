@@ -683,8 +683,12 @@
         let firmaErtelemeAyar = { erteleme: false, erteleme_sayisi: 0 };
         let firmaErtelemeAyarFetched = false;
 
+        // Bilet GitHub Pages'te (realperest.github.io) açıldığında kullanılacak backend adresi.
+        // Buraya backend adresinizi bir kez yazın; kullanıcının özel linke tıklaması gerekmez.
+        const BILET_BACKEND_URL = 'https://siramatik-production.up.railway.app';
         function getApiBase() {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return '';
+            if (window.location.hostname.indexOf('github.io') !== -1 && BILET_BACKEND_URL) return BILET_BACKEND_URL.replace(/\/$/, '');
             return window.location.origin;
         }
 
@@ -1110,28 +1114,30 @@
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
 
-                if (ticketSpecs.firma_id && !firmaErtelemeAyarFetched) {
+                // 1. Kendi bilet bilgilerimizi çekelim (firma_id erteleme için biletten de alınacak)
+                const myTicket = await _supabase
+                    .schema('siramatik')
+                    .from('siralar')
+                    .select('durum, oncelik, olusturulma, etkin_olusturulma, erteleme_sayisi, firma_id')
+                    .eq('id', sid)
+                    .single();
+
+                if (myTicket.error) throw myTicket.error;
+                const me = myTicket.data;
+
+                // Erteleme ayarları: firma_id URL'de yoksa bileti kullan (GitHub Pages vb. için)
+                const firmaIdForErteleme = ticketSpecs.firma_id || (me && me.firma_id);
+                if (firmaIdForErteleme && !firmaErtelemeAyarFetched) {
                     firmaErtelemeAyarFetched = true;
                     try {
                         const base = getApiBase();
-                        const r = await fetch(base + '/api/public/firma/' + ticketSpecs.firma_id + '/erteleme-ayarlari');
+                        const r = await fetch(base + '/api/public/firma/' + firmaIdForErteleme + '/erteleme-ayarlari');
                         if (r.ok) {
                             const j = await r.json();
                             firmaErtelemeAyar = { erteleme: !!j.erteleme, erteleme_sayisi: parseInt(j.erteleme_sayisi, 10) || 0 };
                         }
                     } catch (e) { console.warn('Erteleme ayarları alınamadı:', e); }
                 }
-
-                // 1. Kendi bilet bilgilerimizi çekelim
-                const myTicket = await _supabase
-                    .schema('siramatik')
-                    .from('siralar')
-                    .select('durum, oncelik, olusturulma, etkin_olusturulma, erteleme_sayisi')
-                    .eq('id', sid)
-                    .single();
-
-                if (myTicket.error) throw myTicket.error;
-                const me = myTicket.data;
 
                 // Durum kontrolü
                 if (me.durum === 'calling') {

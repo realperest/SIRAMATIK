@@ -93,12 +93,13 @@ app = FastAPI(
     description="Queue Management System API - Sector Agnostic"
 )
 
-# CORS: localhost:3000 (personel paneli) mutlaka izin listesinde olsun
+# CORS: personel paneli (localhost) + bilet sayfası (GitHub Pages)
 CORS_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://realperest.github.io",  # Bilet ekranı (erteleme vb. API çağrıları)
 ]
 app.add_middleware(
     CORSMiddleware,
