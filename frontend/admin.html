@@ -2100,14 +2100,14 @@
                 <tr>
                     <td>
                         <div style="display: flex; align-items: center;">
-                            <div class="device-icon"><i class="fas ${getDeviceIcon(d.tip)}"></i></div>
+                            <div class="device-icon"><i class="fas ${getDeviceIcon(d.kullanim_tipi || d.cihaz_tipi)}"></i></div>
                             <div>
                                 <div style="font-weight: 600;">${d.ad}</div>
                                 <div style="font-size: 11px; color: var(--text-muted);">${d.mac_adresi || 'MAC Yok'}</div>
                             </div>
                         </div>
                     </td>
-                    <td><span style="text-transform: uppercase; font-size:11px;">${d.tip}</span></td>
+                    <td><span style="text-transform: uppercase; font-size:11px;">${(d.kullanim_tipi || d.cihaz_tipi || '-')}</span></td>
                     <td>${d.servis_ad || '<span style="color: #f87171;">Bütünü Görüyor</span>'}</td>
                     <td>${d.konum || '-'}</td>
                     <td>${liveSettings}</td>
@@ -2118,13 +2118,12 @@
         }
 
         function getDeviceIcon(tip) {
-            switch (tip) {
-                case 'pc': return 'fa-desktop';
-                case 'kiosk': return 'fa-ticket-alt';
-                case 'screen1':
-                case 'screen2': return 'fa-tv';
-                default: return 'fa-microchip';
-            }
+            if (!tip) return 'fa-microchip';
+            const t = String(tip).toUpperCase();
+            if (t === 'PC' || t === 'KULLANICI_EKRANI') return 'fa-desktop';
+            if (t === 'KIOSK') return 'fa-ticket-alt';
+            if (t === 'EKRAN' || t === 'TV') return 'fa-tv';
+            return 'fa-microchip';
         }
 
         function openEditModal(id) {
@@ -2560,7 +2559,7 @@
                     const offlineCihaz = toplamCihaz - onlineCihaz;
                     // Kiosk: kullanım tipi KIOSK veya eski tip kiosk/tablet
                     const tabletCihaz = devices.filter(d => 
-                        (d.kullanim_tipi || '').toUpperCase() === 'KIOSK' || d.tip === 'kiosk' || d.tip === 'tablet'
+                        (d.kullanim_tipi || '').toUpperCase() === 'KIOSK'
                     ).length;
                     
                     document.getElementById('stat-toplam-cihaz').textContent = toplamCihaz;
@@ -2887,18 +2886,6 @@
 
                     let cihazTipi = (device.cihaz_tipi || '').toUpperCase();
                     let kullanimTipi = (device.kullanim_tipi || '').toUpperCase();
-                    const legacyTip = (device.tip || '').toLowerCase();
-
-                    if (!cihazTipi) {
-                        if (legacyTip === 'kiosk' || legacyTip === 'tablet') cihazTipi = 'TABLET';
-                        else if (legacyTip === 'ekran') cihazTipi = 'TV';
-                        else if (legacyTip === 'pc') cihazTipi = 'PC';
-                    }
-                    if (!kullanimTipi) {
-                        if (legacyTip === 'kiosk' || legacyTip === 'tablet') kullanimTipi = 'KIOSK';
-                        else if (legacyTip === 'ekran') kullanimTipi = 'EKRAN';
-                        else if (legacyTip === 'pc') kullanimTipi = 'KULLANICI_EKRANI';
-                    }
 
                     if (cihazTipi && Array.from(cihazTipiSelect.options).some(o => o.value === cihazTipi)) {
                         cihazTipiSelect.value = cihazTipi;
@@ -2985,27 +2972,10 @@
             const cihazTipi = document.getElementById('detail-cihaz-tipi').value || null;
             const kullanimTipi = document.getElementById('detail-kullanim-tipi').value || null;
 
-            // Legacy tip alanını, kullanım tipine göre belirle (geriye dönük uyum)
-            let legacyTip = null;
-            switch ((kullanimTipi || '').toUpperCase()) {
-                case 'KIOSK':
-                    legacyTip = 'kiosk';
-                    break;
-                case 'EKRAN':
-                    legacyTip = 'ekran';
-                    break;
-                case 'KULLANICI_EKRANI':
-                    legacyTip = 'pc';
-                    break;
-                default:
-                    legacyTip = null;
-            }
-
             const data = {
                 ad: document.getElementById('detail-ad').value,
-                tip: legacyTip,
-                cihaz_tipi: cihazTipi,
-                kullanim_tipi: kullanimTipi,
+                cihaz_tipi: cihazTipi || null,
+                kullanim_tipi: kullanimTipi || null,
                 servis_id: document.getElementById('detail-servis-id').value ? parseInt(document.getElementById('detail-servis-id').value) : null,
                 kuyruk_id: document.getElementById('detail-kuyruk-id').value ? parseInt(document.getElementById('detail-kuyruk-id').value) : null,
                 durum: document.getElementById('detail-durum').value
@@ -3068,11 +3038,12 @@
             }
 
             let path = null;
-            const tip = (dev.tip || '').toLowerCase();
+            const kullanimTipi = (dev.kullanim_tipi || '').toUpperCase();
+            const cihazTipi = (dev.cihaz_tipi || '').toUpperCase();
 
-            if (tip === 'tablet' || tip === 'kiosk') {
+            if (kullanimTipi === 'KIOSK') {
                 path = 'kiosk.html';
-            } else if (tip === 'ekran' || tip === 'screen1' || tip === 'screen2' || tip === 'tv') {
+            } else if (kullanimTipi === 'EKRAN' || cihazTipi === 'TV') {
                 path = 'tv.html';
             }
 

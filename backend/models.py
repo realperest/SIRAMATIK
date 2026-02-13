@@ -141,7 +141,6 @@ class DeviceUpdateRequest(BaseModel):
     kuyruk_id: Optional[int] = None
     ad: Optional[str] = None
     konum: Optional[str] = None
-    tip: Optional[str] = None
     cihaz_tipi: Optional[str] = None
     kullanim_tipi: Optional[str] = None
     durum: Optional[str] = None
@@ -220,7 +219,7 @@ class MemnuniyetAnketRequest(BaseModel):
 class CihazKayitRequest(BaseModel):
     firma_id: int
     ad: str  # Cihaz adı (örn: "Resepsiyon Tablet-1")
-    tip: str  # kiosk, ekran, tablet, pc (legacy kullanım tipi)
+    tip: Optional[str] = None  # Eski/opsiyonel; cihaz_tipi/kullanim_tipi veya metadata kullanılır
     cihaz_tipi: Optional[str] = None  # TABLET, TV, PC, TELEFON, EL_MODULU
     kullanim_tipi: Optional[str] = None  # KIOSK, EKRAN, KULLANICI_EKRANI, TELEFON, EL_MODULU
     device_fingerprint: str  # Benzersiz browser fingerprint
@@ -244,10 +243,11 @@ class CihazResponse(BaseModel):
     id: int
     firma_id: int
     ad: str
-    tip: str
+    cihaz_tipi: Optional[str] = None
+    kullanim_tipi: Optional[str] = None
     device_fingerprint: Optional[str] = None
     mac_address: Optional[str] = None
-    ip: Optional[str] = None  # Supabase'de 'ip' kolonu
+    ip: Optional[str] = None
     durum: str
     son_gorulen: datetime
     ayarlar: Dict[str, Any]

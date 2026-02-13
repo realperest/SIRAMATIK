@@ -1622,6 +1622,18 @@
             document.addEventListener('touchstart', initAudioContext, { once: true });
         }
 
+        window.addEventListener('beforeunload', function(e) {
+            if (typeof activeTicket !== 'undefined' && activeTicket) {
+                e.preventDefault();
+                e.returnValue = 'Şu anda işlemde olan işleminiz var. Önce onu bitirin.';
+                return;
+            }
+            if (mesaiBitimiKapanisZamani() && typeof bekleyenSiralar !== 'undefined' && bekleyenSiralar && bekleyenSiralar.length > 0) {
+                e.preventDefault();
+                e.returnValue = 'Sırada ' + bekleyenSiralar.length + ' bilet görünüyor. Sırada kimse yoksa bu biletleri çöpe atayım mı? Çıkmak için lütfen ÇIKIŞ butonunu kullanın.';
+            }
+        });
+
         // --- KLAVYE KISAYOLLARI ---
         function initKeyboardShortcuts() {
             document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -2010,6 +2022,22 @@
                 kuyrukSelect.appendChild(opt);
             });
             
+            // Varsayılan: kullanıcının seçili bölüme bağlı / seçili kuyruğu
+            let defaultId = null;
+            if (activeSettings.kuyrukIds && activeSettings.kuyrukIds.length > 0) {
+                // Birden fazla kuyruk seçiliyse listede bulunan ilki
+                defaultId = activeSettings.kuyrukIds.find(id => allQueues.some(q => q.id == id));
+                if (defaultId != null) defaultId = parseInt(defaultId, 10);
+            }
+            if (defaultId == null && activeSettings.servisIds && activeSettings.servisIds.length > 0) {
+                // Seçili kuyruk yoksa, seçili bölüme ait ilk kuyruk
+                const firstQ = allQueues.find(q => activeSettings.servisIds.includes(q.servis_id));
+                if (firstQ) defaultId = firstQ.id;
+            }
+            if (defaultId != null && kuyrukSelect.querySelector('option[value="' + defaultId + '"]')) {
+                kuyrukSelect.value = String(defaultId);
+            }
+            
             // Eğer hiç kuyruk yoksa
             if (allQueues.length === 0) {
                 const opt = document.createElement('option');
@@ -2244,7 +2272,40 @@
             siralariYukle(); // Listeyi yenile
         }
 
-        function logout() {
+        /** Hafta içi 17:30'dan sonra veya cumartesi 14:00'dan sonra herhangi bir zamanda true (mesai bittikten sonra kapatılırsa). */
+        function mesaiBitimiKapanisZamani() {
+            var now = new Date();
+            var gun = now.getDay();
+            var toplamDakika = now.getHours() * 60 + now.getMinutes();
+            if (gun >= 1 && gun <= 5) return toplamDakika >= 17 * 60 + 30;
+            if (gun === 6) return toplamDakika >= 14 * 60 + 0;
+            return false;
+        }
+
+        async function logout() {
+            if (typeof activeTicket !== 'undefined' && activeTicket) {
+                alert('Şu anda işlemde olan işleminiz var. Önce onu bitirin.');
+                return;
+            }
+            if (mesaiBitimiKapanisZamani() && typeof bekleyenSiralar !== 'undefined' && bekleyenSiralar && bekleyenSiralar.length > 0) {
+                var n = bekleyenSiralar.length;
+                if (!confirm('Sırada ' + n + ' bilet görünüyor. Sırada kimse yoksa bu biletleri çöpe atayım mı?')) {
+                    doLogout();
+                    return;
+                }
+                try {
+                    var r = await apiCall('/api/sira/bekleyen-discard', { method: 'POST' });
+                    if (r && r.discarded !== undefined) {
+                        showToast(r.discarded + ' bilet atıldı.', 'success');
+                    }
+                } catch (e) {
+                    showToast('Biletler atılamadı: ' + (e.message || e), 'error');
+                }
+            }
+            doLogout();
+        }
+
+        function doLogout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('personel_settings_v2');

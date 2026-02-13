@@ -861,9 +861,19 @@
             }
         }
 
+        // Varsayılan durum filtresi: sadece "Bitti" (başlangıçta ve şablon seçilmediğinde)
+        function applyDefaultDurumFilter() {
+            if (!gridApi) return;
+            gridApi.setFilterModel({ Durum: { filterType: 'set', values: ['Bitti'] } });
+        }
+
         // Şablon Yükle
         function loadPreset(sablonId) {
-            if (!gridApi || !sablonId) return;
+            if (!gridApi) return;
+            if (!sablonId) {
+                applyDefaultDurumFilter();
+                return;
+            }
             
             const select = document.getElementById('presetSelect');
             const selectedOption = select.options[select.selectedIndex];
@@ -1052,13 +1062,15 @@
 
                 gridApi.setGridOption('rowData', mappedData);
 
+                // Başlangıçta her zaman durum = Bitti filtresi uygula (veri ilk geldiğinde)
+                applyDefaultDurumFilter();
+
                 // Şablon listesini güncelle ve gerekirse son şablonu yükle
                 if (!window.layoutLoaded) {
                     await updatePresetList();
                     const lastPresetId = localStorage.getItem(`ag_grid_last_preset_${currentUser.firma_id}`);
                     if (lastPresetId) {
                         document.getElementById('presetSelect').value = lastPresetId;
-                        // Grid sütunları (pivot/row group) veri sonrası oluştuğu için şablonu kısa gecikmeyle yükle
                         setTimeout(() => loadPreset(lastPresetId), 150);
                     }
 
@@ -1066,6 +1078,11 @@
                     if (savedRange) document.getElementById('timeRange').value = savedRange;
 
                     window.layoutLoaded = true;
+                } else {
+                    // Yenileme sonrası şablon seçili değilse varsayılan durum filtresini uygula
+                    if (!document.getElementById('presetSelect').value) {
+                        applyDefaultDurumFilter();
+                    }
                 }
 
                 // Eğer aktif şablon yoksa sütunları sığdır

@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ekran - Sıramatik</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ekran-bg: #0f0f1a;
+            --ekran-card: rgba(255,255,255,0.14);
+            --ekran-border: rgba(255,255,255,0.12);
+            --ekran-spotlight: linear-gradient(135deg, #ff4d7a 0%, #e03a8a 40%, #7c6cf7 100%);
+            --ekran-text: #f1f5f9;
+            --ekran-muted: #94a3b8;
+            --ekran-accent: #22c55e;
+            --ekran-glow: 0 0 60px rgba(255,45,106,0.35);
+        }
+        body {
+            margin: 0;
+            background: var(--ekran-bg);
+            color: var(--ekran-text);
+            font-family: 'Outfit', system-ui, sans-serif;
+            overflow: hidden;
+            min-height: 100vh;
+        }
+        .ekran-header {
+            background: linear-gradient(180deg, rgba(30,30,50,0.95) 0%, rgba(15,15,26,0.9) 100%);
+            padding: clamp(20px, 3vh, 36px) 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 24px;
+            border-bottom: 1px solid var(--ekran-border);
+            position: relative;
+        }
+        .ekran-header h1 {
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.02em;
+            background: linear-gradient(90deg, #fff 0%, #c7d2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .ekran-header .subtitle {
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            color: var(--ekran-muted);
+            margin: 0;
+        }
+        .ekran-saat {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            font-variant-numeric: tabular-nums;
+            max-height: 95%;
+        }
+        .flip-clock {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: clamp(2.4rem, 4vw, 3.5rem);
+            font-weight: 800;
+            color: #fff;
+            font-family: 'Outfit', system-ui, sans-serif;
+        }
+        .flip-clock-split {
+            font-size: clamp(4.4rem, 9.9vh, 7.7rem);
+        }
+        .flip-digit {
+            width: 0.65em;
+            height: 1.1em;
+            perspective: 200px;
+            position: relative;
+        }
+        .flip-card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.35s ease-in-out;
+        }
+        .flip-card.flipping {
+            transform: rotateX(-180deg);
+        }
+        .flip-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 8px;
+            text-shadow: 0 0 24px rgba(255,255,255,0.25);
+        }
+        .flip-face.flip-back {
+            transform: rotateX(180deg);
+        }
+        .flip-colon {
+            width: 0.2em;
+            font-size: 0.85em;
+            opacity: 0.9;
+            padding-bottom: 0.15em;
+        }
+        /* Çift kanat flip (yarım yaprak) */
+        .flip-clock-split .flip-digit-split {
+            width: 0.65em;
+            height: 1.1em;
+            position: relative;
+            perspective: 220px;
+            transform-style: preserve-3d;
+        }
+        .flip-clock-split .flip-split-top {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            z-index: 0;
+        }
+        /* Yaprağın arkasında görünen: diğer (yeni) rakamın üst yarısı */
+        .flip-clock-split .flip-split-behind {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 1.1em;
+            z-index: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2);
+            background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 6px 6px 0 0;
+        }
+        .flip-clock-split .flip-split-leaf {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 1.1em;
+            transform-origin: center bottom;
+            transform-style: preserve-3d;
+            transition: transform 0.18s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        .flip-clock-split .flip-split-leaf.flipping {
+            transform: rotateX(-180deg);
+        }
+        .flip-clock-split .flip-split-leaf .flip-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px 6px 0 0;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 0 24px rgba(255,255,255,0.08);
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.15);
+        }
+        .flip-clock-split .flip-split-leaf .flip-face.flip-back {
+            transform: rotateX(180deg);
+            border-radius: 0 0 6px 6px;
+        }
+        .flip-clock-split .flip-split-bottom {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-top: none;
+            background: linear-gradient(0deg, #1e293b 0%, #334155 100%);
+            box-shadow: inset 0 -1px 0 rgba(255,255,255,0.1);
+            z-index: 2;
+            transform: translateZ(1px);
+        }
+        .flip-clock-split .flip-split-bottom-inner {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 1.1em;
+            line-height: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.15);
+        }
+        .ekran-spotlight-wrap {
+            min-height: clamp(280px, 38vh, 420px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .ekran-spotlight {
+            width: 100%;
+            max-width: min(1560px, 95vw);
+            padding: clamp(28px, 4vw, 48px);
+            border-radius: 28px;
+            background: var(--ekran-spotlight);
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: var(--ekran-glow), inset 0 1px 0 rgba(255,255,255,0.15);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .ekran-spotlight::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.06) 100%);
+            pointer-events: none;
+        }
+        .ekran-spotlight-badge {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.9);
+            animation: ekran-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes ekran-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .ekran-numara {
+            font-size: clamp(6rem, 14vw, 11rem);
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+            line-height: 1;
+            letter-spacing: -0.02em;
+            perspective: 280px;
+        }
+        .ekran-numara-inner {
+            display: inline-block;
+            transform-style: preserve-3d;
+        }
+        .ekran-numara-inner.ekran-numara-spin {
+            animation: ekran-numara-firdondü 0.55s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        @keyframes ekran-numara-firdondü {
+            from { transform: rotateX(0deg); }
+            to { transform: rotateX(360deg); }
+        }
+        .ekran-spotlight-detay {
+            text-align: center;
+        }
+        .ekran-spotlight-servis {
+            font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            margin-bottom: 6px;
+        }
+        .ekran-spotlight-konum {
+            font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+            font-weight: 700;
+            color: var(--ekran-accent);
+            text-shadow: 0 0 20px rgba(34,197,94,0.4);
+        }
+        .ekran-list {
+            padding: 16px 40px 40px;
+            max-width: min(1560px, 95vw);
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            perspective: 1200px;
+        }
+        .ekran-cagri-item {
+            width: 100%;
+            max-width: 100%;
+            background: var(--ekran-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--ekran-border);
+            border-radius: 16px;
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.5s ease, box-shadow 0.4s ease, opacity 0.5s ease, filter 0.5s ease;
+            transform-origin: center center;
+        }
+        /* Genişlik: 1. satır spotlight'ın %80'i, sonra her biri bir öncekinin %80'i — mevcut değerlerin %20 geniş hali */
+        .ekran-cagri-item:nth-child(1) { transform: scaleX(0.96) scaleY(1) translateZ(0); opacity: 1; filter: blur(0); }
+        .ekran-cagri-item:nth-child(2) { transform: scaleX(0.768) scaleY(1) translateZ(-50px); opacity: 0.88; filter: blur(0.4px); }
+        .ekran-cagri-item:nth-child(3) { transform: scaleX(0.614) scaleY(1) translateZ(-100px); opacity: 0.7; filter: blur(0.9px); }
+        .ekran-cagri-item:nth-child(4) { transform: scaleX(0.492) scaleY(1) translateZ(-150px); opacity: 0.5; filter: blur(1.5px); }
+        .ekran-cagri-item:nth-child(5) { transform: scaleX(0.396) scaleY(1) translateZ(-200px); opacity: 0.32; filter: blur(2.5px); }
+        .ekran-cagri-item:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .ekran-cagri-item:nth-child(1):hover { transform: scaleX(0.984) scaleY(1) translateZ(15px); }
+        .ekran-cagri-item:nth-child(2):hover { transform: scaleX(0.792) scaleY(1) translateZ(-40px); }
+        .ekran-cagri-item:nth-child(3):hover { transform: scaleX(0.636) scaleY(1) translateZ(-90px); }
+        .ekran-cagri-item:nth-child(4):hover { transform: scaleX(0.516) scaleY(1) translateZ(-140px); }
+        .ekran-cagri-item:nth-child(5):hover { transform: scaleX(0.408) scaleY(1) translateZ(-190px); }
+        .ekran-cagri-numara {
+            font-size: clamp(1.4rem, 2.2vw, 2rem);
+            font-weight: 700;
+            color: #fff;
+            display: inline-block;
+            transform-style: preserve-3d;
+        }
+        .ekran-cagri-numara.ekran-cagri-numara-spin {
+            animation: ekran-numara-firdondü 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        .ekran-cagri-detay {
+            text-align: right;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .ekran-cagri-servis { font-size: 0.95rem; color: var(--ekran-muted); }
+        .ekran-cagri-konum { font-size: 1rem; font-weight: 600; color: var(--ekran-accent); }
+        .ekran-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--ekran-muted);
+            font-size: 1.25rem;
+        }
+        .ekran-empty-icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.4; }
+        .ekran-settings-btn {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--ekran-border);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+        .ekran-settings-btn:hover {
+            background: rgba(255,255,255,0.18);
+            transform: scale(1.08);
+        }
+        /* Modal (kiosk benzeri) */
+        .ekran-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .ekran-modal-panel {
+            background: #fff;
+            color: #1e293b;
+            border-radius: 20px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 92vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+        }
+        .ekran-modal-panel h2 { margin: 0 0 8px 0; color: #0f172a; font-size: 1.6rem; font-weight: 700; }
+        .ekran-modal-panel > p { margin: 0 0 20px 0; color: #64748b; font-size: 0.9rem; }
+        .ekran-modal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        @media (max-width: 700px) { .ekran-modal-grid { grid-template-columns: 1fr; } }
+        .ekran-modal-section {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .ekran-modal-section h3 { margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 600; color: #475569; }
+        .ekran-modal-section label { display: block; margin: 10px 0 4px 0; font-size: 0.85rem; color: #475569; }
+        .ekran-modal-section input[type="text"],
+        .ekran-modal-section select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; }
+        .ekran-modal-section select[multiple] { min-height: 100px; }
+        .ekran-modal-actions {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .ekran-btn { padding: 12px 22px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+        .ekran-btn-save { background: #22c55e; color: #fff; }
+        .ekran-btn-save:hover { background: #16a34a; }
+        .ekran-btn-cancel { background: #64748b; color: #fff; }
+        .ekran-btn-cancel:hover { background: #475569; }
+        .ekran-btn-reset { background: #f59e0b; color: #fff; }
+        .ekran-btn-reset:hover { background: #d97706; }
+        .ekran-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15,15,26,0.97);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            text-align: center;
+            padding: 24px;
+        }
+        .ekran-overlay h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); margin: 0 0 16px 0; font-weight: 800; }
+        .ekran-overlay p { color: #94a3b8; margin-bottom: 32px; max-width: 480px; line-height: 1.6; }
+        .ekran-overlay button {
+            padding: 20px 56px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(34,197,94,0.35);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ekran-overlay button:hover { transform: scale(1.03); box-shadow: 0 12px 40px rgba(34,197,94,0.45); }
+        @keyframes ekran-heartbeat {
+            0%, 100% { transform: scale(1); box-shadow: var(--ekran-glow); }
+            50% { transform: scale(1.02); box-shadow: 0 0 80px rgba(255,45,106,0.5); }
+        }
+        .ekran-spotlight.animate { animation: ekran-heartbeat 1.4s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+    <header class="ekran-header">
+        <div>
+            <h1 id="firma-adi">Yükleniyor...</h1>
+            <p class="subtitle" id="firma-baslik">Sıra Çağrı Ekranı</p>
+            <p id="firma-retry-wrap" class="subtitle" style="display:none; margin-top:8px;">
+                <button type="button" id="firma-retry-btn" class="ekran-btn ekran-btn-save" style="padding:8px 16px; font-size:0.9rem;">Yeniden dene</button>
+            </p>
+        </div>
+        <div class="ekran-saat" id="saat">
+            <div class="flip-clock flip-clock-split" id="flip-clock-split">
+                    <div class="flip-digit-split" data-pos="0"><div class="flip-split-top"><div class="flip-split-behind">0</div><div class="flip-split-leaf"><div class="flip-face flip-front">0</div><div class="flip-face flip-back">0</div></div></div><div class="flip-split-bottom"><div class="flip-split-bottom-inner">0</div></div></div>
+                    <div class="flip-digit-split" data-pos="1"><div class="flip-split-top"><div class="flip-split-behind">0</div><div class="flip-split-leaf"><div class="flip-face flip-front">0</div><div class="flip-face flip-back">0</div></div></div><div class="flip-split-bottom"><div class="flip-split-bottom-inner">0</div></div></div>
+                    <span class="flip-colon">:</span>
+                    <div class="flip-digit-split" data-pos="2"><div class="flip-split-top"><div class="flip-split-behind">0</div><div class="flip-split-leaf"><div class="flip-face flip-front">0</div><div class="flip-face flip-back">0</div></div></div><div class="flip-split-bottom"><div class="flip-split-bottom-inner">0</div></div></div>
+                    <div class="flip-digit-split" data-pos="3"><div class="flip-split-top"><div class="flip-split-behind">0</div><div class="flip-split-leaf"><div class="flip-face flip-front">0</div><div class="flip-face flip-back">0</div></div></div><div class="flip-split-bottom"><div class="flip-split-bottom-inner">0</div></div></div>
+                    <span class="flip-colon">:</span>
+                    <div class="flip-digit-split" data-pos="4"><div class="flip-split-top"><div class="flip-split-behind">0</div><div class="flip-split-leaf"><div class="flip-face flip-front">0</div><div class="flip-face flip-back">0</div></div></div><div class="flip-split-bottom"><div class="flip-split-bottom-inner">0</div></div></div>
+                    <div class="flip-digit-split" data-pos="5"><div class="flip-split-top"><div class="flip-split-behind">0</div><div class="flip-split-leaf"><div class="flip-face flip-front">0</div><div class="flip-face flip-back">0</div></div></div><div class="flip-split-bottom"><div class="flip-split-bottom-inner">0</div></div></div>
+            </div>
+        </div>
+    </header>
+
+    <div id="spotlight-wrap" class="ekran-spotlight-wrap"></div>
+    <div id="history-list" class="ekran-list"></div>
+
+    <button type="button" class="ekran-settings-btn" onclick="openSettings()" title="Ekran Ayarları" aria-label="Ayarlar">⚙️</button>
+
+    <!-- Şifre modal -->
+    <div id="password-modal" class="ekran-modal" style="z-index: 11000;">
+        <div class="ekran-modal-panel" style="max-width: 400px; text-align: center;">
+            <h2>Müdahale Şifresi</h2>
+            <p>Ayarlara erişmek için şifreyi girin.</p>
+            <input type="password" id="password-input" placeholder="****" style="width: 100%; padding: 14px; font-size: 1.2rem; margin: 16px 0; border: 2px solid #e2e8f0; border-radius: 12px; text-align: center; box-sizing: border-box;">
+            <div class="ekran-modal-actions">
+                <button type="button" class="ekran-btn ekran-btn-cancel" onclick="closePasswordModal()">İptal</button>
+                <button type="button" class="ekran-btn ekran-btn-save" onclick="verifyPassword()">Giriş</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ayarlar modal (kiosk tarzı: cihaz bilgisi + ekran + bölüm/kuyruk + ses) -->
+    <div id="settings-modal" class="ekran-modal">
+        <div class="ekran-modal-panel">
+            <h2>Ekran Ayarları</h2>
+            <p>Bu ekranın hangi bölüm/kuyruklara ait çağrıları göstereceğini ve cihaz bilgilerini ayarlayın.</p>
+            <div class="ekran-modal-grid">
+                <div class="ekran-modal-section">
+                    <h3>Cihaz Bilgileri</h3>
+                    <label for="device-name">Ekran Adı</label>
+                    <input type="text" id="device-name" placeholder="Örn: Bekleme Salonu TV">
+                    <label for="ekran-cihaz-tipi">Cihaz Tipi</label>
+                    <select id="ekran-cihaz-tipi">
+                        <option value="TV">TV</option>
+                        <option value="TABLET">TABLET</option>
+                        <option value="PC">PC</option>
+                        <option value="TELEFON">TELEFON</option>
+                        <option value="EL_MODULU">EL MODÜLÜ</option>
+                    </select>
+                    <label for="ekran-kullanim-tipi">Kullanım Tipi</label>
+                    <select id="ekran-kullanim-tipi">
+                        <option value="EKRAN">EKRAN</option>
+                        <option value="KIOSK">KIOSK</option>
+                        <option value="KULLANICI_EKRANI">KULLANICI EKRANI</option>
+                        <option value="TELEFON">TELEFON</option>
+                        <option value="EL_MODULU">EL MODÜLÜ</option>
+                    </select>
+                    <label>Parmak İzi</label>
+                    <input type="text" id="device-fp" readonly style="background:#f1f5f9; color:#64748b; font-size: 0.8rem;">
+                </div>
+                <div class="ekran-modal-section">
+                    <h3>Ekran & Ses</h3>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="fullscreen-cb" checked> Tam ekran
+                    </label>
+                    <label for="orientation-sel">Yön</label>
+                    <select id="orientation-sel">
+                        <option value="auto">Otomatik</option>
+                        <option value="portrait">Dikey</option>
+                        <option value="landscape" selected>Yatay</option>
+                    </select>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-top:14px;">
+                        <input type="checkbox" id="ses-acik" checked> Ses (ding-dong)
+                    </label>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="sesli-duyuru" checked> Sesli duyuru (numara okunsun)
+                    </label>
+                </div>
+                <div class="ekran-modal-section" style="grid-column: 1 / -1;">
+                    <h3>Bölümler (Servisler)</h3>
+                    <select id="servis-filter" multiple size="4" style="width:100%;"></select>
+                    <small style="color:#64748b; font-size: 0.8rem;">Ctrl/Cmd ile çoklu seçim.</small>
+                </div>
+                <div class="ekran-modal-section" style="grid-column: 1 / -1;">
+                    <h3>Kuyruklar (Opsiyonel)</h3>
+                    <select id="kuyruk-filter" multiple size="4" style="width:100%;"></select>
+                    <small style="color:#64748b; font-size: 0.8rem;">Boş = seçili bölümlerin tümü.</small>
+                </div>
+            </div>
+            <div class="ekran-modal-actions">
+                <button type="button" class="ekran-btn ekran-btn-save" onclick="saveSettings()">Kaydet</button>
+                <button type="button" class="ekran-btn ekran-btn-reset" onclick="resetSettings()">Ekran Sıfırla</button>
+                <button type="button" class="ekran-btn ekran-btn-cancel" onclick="closeSettings()">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-overlay" class="ekran-overlay">
+        <div style="font-size: 5rem; margin-bottom: 20px;">📺</div>
+        <h1>Ekran Hazır</h1>
+        <p>Sesin çalabilmesi için bir kez tıklayın; tam ekran ve ayarlar uygulanacak.</p>
+        <button type="button" onclick="baslatEkran()">Başlat</button>
+    </div>
+
+    <script src="static/app.js"></script>
+    <script>
+(function() {
+        const currentHost = window.location.hostname || 'localhost';
+        const apiHost = (currentHost === 'localhost' || currentHost === '127.0.0.1') ? '127.0.0.1' : currentHost;
+        const API_URL = window.API_URL || ('http://' + apiHost + ':8000');
+        let FIRMA_ID = parseInt(localStorage.getItem('global_firma_id') || '1', 10);
+        let DEVICE_ID = localStorage.getItem('ekran_device_id') || null;
+        let DEVICE_FINGERPRINT = localStorage.getItem('ekran_fingerprint') || null;
+        let ekranSettings = {
+            servisIds: [],
+            kuyrukIds: [],
+            deviceName: null,
+            fullscreen: true,
+            orientation: 'landscape',
+            sesAcik: true,
+            sesliDuyuru: true,
+            cihaz_tipi: 'TV',
+            kullanim_tipi: 'EKRAN',
+            initialSetupDone: false
+        };
+        let displayedCalls = [];
+        let seenIds = {};
+        let lastCagriId = null;
+        let lastSpotlightNumara = null;
+        let lastRestNumeras = [];
+        let isFirstLoad = true;
+        let cachedVoices = [];
+        let audioContext = null;
+        let isMuted = false;
+        let updateTimer = null;
+        let flipClockPrev = ['0','0','0','0','0','0'];
+        let flipClockInited = false;
+
+        function api(endpoint, opts) {
+            return fetch(API_URL + endpoint, {
+                headers: { 'Content-Type': 'application/json', ...(opts && opts.headers) },
+                ...opts
+            }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail || 'Hata'))));
+        }
+
+        function loadSavedSettings() {
+            try {
+                const s = localStorage.getItem('ekran_settings');
+                if (s) {
+                    const p = JSON.parse(s);
+                    ekranSettings = { ...ekranSettings, ...p };
+                }
+            } catch (e) {}
+            isMuted = !ekranSettings.sesAcik;
+        }
+
+        async function generateFingerprint() {
+            const c = document.createElement('canvas');
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(0, 0, 60, 20);
+            ctx.fillStyle = '#069';
+            ctx.font = '14px Arial';
+            ctx.fillText('SIRAMATIK', 2, 15);
+            const h = [c.toDataURL(), navigator.userAgent, screen.width + 'x' + screen.height].join('|');
+            let hash = 0;
+            for (let i = 0; i < h.length; i++) hash = ((hash << 5) - hash) + h.charCodeAt(i) | 0;
+            return 'ek_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+        }
+
+        async function registerDevice() {
+            try {
+                let fp = localStorage.getItem('ekran_fingerprint');
+                if (!fp) {
+                    fp = await generateFingerprint();
+                    localStorage.setItem('ekran_fingerprint', fp);
+                }
+                DEVICE_FINGERPRINT = fp;
+                const res = await api('/api/cihaz/kayit', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        firma_id: FIRMA_ID,
+                        ad: ekranSettings.deviceName || ('EKRAN-' + fp.slice(3, 10)),
+                        cihaz_tipi: ekranSettings.cihaz_tipi || 'TV',
+                        kullanim_tipi: ekranSettings.kullanim_tipi || 'EKRAN',
+                        device_fingerprint: fp,
+                        ayarlar: ekranSettings,
+                        metadata: { cihaz_tipi: 'TV', kullanim_tipi: 'EKRAN' }
+                    })
+                });
+                if (res.status === 'success' && res.device && res.device.id) {
+                    DEVICE_ID = res.device.id;
+                    localStorage.setItem('ekran_device_id', DEVICE_ID);
+                }
+            } catch (err) { console.warn('Cihaz kayıt:', err); }
+        }
+
+        async function syncFromBackend() {
+            if (!DEVICE_ID) return;
+            try {
+                const res = await api('/api/cihaz/' + DEVICE_ID + '/ayarlar');
+                if (res.status === 'success' && res.device) {
+                    if (res.device.ayarlar && typeof res.device.ayarlar === 'object')
+                        ekranSettings = { ...ekranSettings, ...res.device.ayarlar };
+                    if (res.device.setup_tamamlandi) ekranSettings.initialSetupDone = true;
+                    if (res.device.cihaz_tipi) ekranSettings.cihaz_tipi = res.device.cihaz_tipi;
+                    if (res.device.kullanim_tipi) ekranSettings.kullanim_tipi = res.device.kullanim_tipi;
+                    localStorage.setItem('ekran_settings', JSON.stringify(ekranSettings));
+                }
+            } catch (e) {}
+        }
+
+        function applyDisplay() {
+            const o = ekranSettings.orientation || 'landscape';
+            document.body.classList.remove('orientation-portrait', 'orientation-landscape');
+            document.body.classList.add(o === 'portrait' ? 'orientation-portrait' : 'orientation-landscape');
+            if (ekranSettings.fullscreen && document.fullscreenEnabled && !document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    if (screen.orientation && screen.orientation.lock && o !== 'auto') {
+                        screen.orientation.lock(o === 'portrait' ? 'portrait-primary' : 'landscape-primary').catch(() => {});
+                    }
+                }).catch(() => {});
+            } else if (screen.orientation && screen.orientation.lock && o !== 'auto') {
+                screen.orientation.lock(o === 'portrait' ? 'portrait-primary' : 'landscape-primary').catch(() => {});
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('password-modal').style.display = 'flex';
+            document.getElementById('password-input').value = '';
+            setTimeout(() => document.getElementById('password-input').focus(), 100);
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').style.display = 'none';
+        }
+
+        async function verifyPassword() {
+            const pwd = document.getElementById('password-input').value;
+            if (!pwd) return;
+            try {
+                const res = await api('/api/auth/ekran-login', { method: 'POST', body: JSON.stringify({ sifre: pwd }) });
+                if (res.status === 'authorized') {
+                    if (res.firma_id != FIRMA_ID) {
+                        localStorage.setItem('global_firma_id', res.firma_id);
+                        FIRMA_ID = parseInt(res.firma_id, 10);
+                        alert('Firma: ' + (res.firma_ad || '') + '. Sayfa yenileniyor.');
+                        location.reload();
+                        return;
+                    }
+                    closePasswordModal();
+                    document.getElementById('settings-modal').style.display = 'flex';
+                    await loadSettingsData();
+                } else alert('Geçersiz şifre.');
+            } catch (err) {
+                alert('Geçersiz şifre veya hata.');
+                document.getElementById('password-input').value = '';
+            }
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        async function loadSettingsData() {
+            try {
+                const [servisler, kuyruklar] = await Promise.all([
+                    api('/api/servisler/' + FIRMA_ID),
+                    api('/api/kuyruklar/firma/' + FIRMA_ID)
+                ]);
+                window._ekranServisler = servisler || [];
+                window._ekranKuyruklar = kuyruklar || [];
+                const sSel = document.getElementById('servis-filter');
+                const kSel = document.getElementById('kuyruk-filter');
+                sSel.innerHTML = '';
+                (servisler || []).forEach(s => {
+                    const o = new Option((s.kod || '') + ' - ' + (s.ad || ''), s.id);
+                    o.selected = (ekranSettings.servisIds || []).includes(s.id);
+                    sSel.add(o);
+                });
+                function fillKuyruk() {
+                    const sid = Array.from(sSel.selectedOptions).map(o => parseInt(o.value, 10));
+                    kSel.innerHTML = '';
+                    (kuyruklar || []).filter(k => sid.length === 0 || sid.includes(k.servis_id)).forEach(k => {
+                        const o = new Option((k.kod || '') + ' - ' + (k.ad || ''), k.id);
+                        o.selected = (ekranSettings.kuyrukIds || []).includes(k.id);
+                        kSel.add(o);
+                    });
+                }
+                sSel.onchange = fillKuyruk;
+                fillKuyruk();
+                document.getElementById('device-name').value = ekranSettings.deviceName || ('EKRAN-' + (DEVICE_FINGERPRINT || '').slice(3, 10));
+                document.getElementById('device-fp').value = DEVICE_FINGERPRINT || '—';
+                document.getElementById('ekran-cihaz-tipi').value = ekranSettings.cihaz_tipi || 'TV';
+                document.getElementById('ekran-kullanim-tipi').value = ekranSettings.kullanim_tipi || 'EKRAN';
+                document.getElementById('fullscreen-cb').checked = ekranSettings.fullscreen !== false;
+                document.getElementById('orientation-sel').value = (ekranSettings.orientation === 'portrait' || ekranSettings.orientation === 'landscape') ? ekranSettings.orientation : 'landscape';
+                document.getElementById('ses-acik').checked = ekranSettings.sesAcik !== false;
+                document.getElementById('sesli-duyuru').checked = ekranSettings.sesliDuyuru !== false;
+                const setupDone = ekranSettings.initialSetupDone;
+                document.getElementById('device-name').readOnly = setupDone;
+                document.getElementById('ekran-cihaz-tipi').disabled = setupDone;
+                document.getElementById('ekran-kullanim-tipi').disabled = setupDone;
+            } catch (err) { console.error('Ayarlar yükleme:', err); }
+        }
+
+        async function saveSettings() {
+            const sSel = document.getElementById('servis-filter');
+            const kSel = document.getElementById('kuyruk-filter');
+            ekranSettings = {
+                servisIds: Array.from(sSel.selectedOptions).map(o => parseInt(o.value, 10)),
+                kuyrukIds: Array.from(kSel.selectedOptions).map(o => parseInt(o.value, 10)),
+                deviceName: document.getElementById('device-name').value.trim() || ekranSettings.deviceName,
+                fullscreen: document.getElementById('fullscreen-cb').checked,
+                orientation: document.getElementById('orientation-sel').value || 'landscape',
+                sesAcik: document.getElementById('ses-acik').checked,
+                sesliDuyuru: document.getElementById('sesli-duyuru').checked,
+                cihaz_tipi: document.getElementById('ekran-cihaz-tipi').value || 'TV',
+                kullanim_tipi: document.getElementById('ekran-kullanim-tipi').value || 'EKRAN',
+                initialSetupDone: true
+            };
+            localStorage.setItem('ekran_settings', JSON.stringify(ekranSettings));
+            isMuted = !ekranSettings.sesAcik;
+            if (DEVICE_ID) {
+                try {
+                    await api('/api/cihaz/' + DEVICE_ID + '/ayarlar', {
+                        method: 'PUT',
+                        body: JSON.stringify({ ayarlar: ekranSettings })
+                    });
+                } catch (e) { console.warn('Backend ayar:', e); }
+            }
+            alert('Ayarlar kaydedildi.');
+            closeSettings();
+            applyDisplay();
+            cagrilariGuncelle();
+        }
+
+        function resetSettings() {
+            if (!confirm('Ekran ayarlarını sıfırlamak istiyor musunuz? Sayfa yenilenecek.')) return;
+            localStorage.removeItem('ekran_settings');
+            localStorage.removeItem('ekran_device_id');
+            localStorage.removeItem('ekran_fingerprint');
+            location.reload();
+        }
+
+        function servisLabel(c) {
+            const s = c.servis_ad || c.servis;
+            const k = c.kuyruk_ad || c.kuyruk;
+            return (s && k) ? (s + ' — ' + k) : (s || k || '—');
+        }
+
+        function playDingDong() {
+            if (isMuted || !audioContext) return;
+            try {
+                if (audioContext.state === 'suspended') audioContext.resume();
+            } catch (e) {}
+            const o1 = audioContext.createOscillator();
+            const g1 = audioContext.createGain();
+            o1.type = 'sine';
+            o1.frequency.setValueAtTime(660, audioContext.currentTime);
+            g1.gain.setValueAtTime(0.4, audioContext.currentTime);
+            g1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.7);
+            o1.connect(g1);
+            g1.connect(audioContext.destination);
+            o1.start();
+            o1.stop(audioContext.currentTime + 0.7);
+            setTimeout(() => {
+                if (isMuted) return;
+                const o2 = audioContext.createOscillator();
+                const g2 = audioContext.createGain();
+                o2.type = 'sine';
+                o2.frequency.setValueAtTime(550, audioContext.currentTime);
+                g2.gain.setValueAtTime(0.4, audioContext.currentTime);
+                g2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+                o2.connect(g2);
+                g2.connect(audioContext.destination);
+                o2.start();
+                o2.stop(audioContext.currentTime + 1);
+            }, 500);
+        }
+
+        function sayiToTurkce(n) {
+            if (n === 0) return 'sıfır';
+            const b = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+            const on = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+            if (n < 10) return b[n];
+            if (n < 100) return (on[Math.floor(n/10)] + ' ' + b[n%10]).trim();
+            if (n < 1000) {
+                const y = Math.floor(n/100);
+                const k = n % 100;
+                const ys = y === 1 ? 'yüz' : b[y] + ' yüz';
+                return k === 0 ? ys : ys + ' ' + sayiToTurkce(k);
+            }
+            return String(n);
+        }
+
+        function numaraToSpeech(numara) {
+            if (!numara || typeof numara !== 'string') return numara;
+            const m = numara.trim().match(/^([A-Za-zÇçĞğİıÖöŞşÜü])(\d+)$/);
+            if (!m) return numara;
+            const harf = m[1];
+            const r = m[2];
+            const sifir = (r.match(/^0*/) || [''])[0].length;
+            const kalan = r.slice(sifir) || '0';
+            const sayi = sayiToTurkce(parseInt(kalan, 10));
+            const sStr = sifir > 0 ? ' sıfır'.repeat(sifir).trim() : '';
+            return (harf + ' ' + sStr + ' ' + sayi).trim();
+        }
+
+        function cacheVoices() {
+            cachedVoices = speechSynthesis.getVoices();
+        }
+        function announceSira(numara) {
+            if (isMuted || !numara || !ekranSettings.sesliDuyuru) return;
+            if (!('speechSynthesis' in window)) return;
+            speechSynthesis.cancel();
+            cacheVoices();
+            var sesler = cachedVoices.length > 0 ? cachedVoices : speechSynthesis.getVoices();
+            function isMale(v) {
+                if (v.gender === 'male') return true;
+                var n = (v.name || '').toLowerCase();
+                return (n.indexOf('erkek') !== -1 || n.indexOf('male') === 0 || n.indexOf(' male') !== -1) && n.indexOf('female') === -1;
+            }
+            function isFemale(v) {
+                if (v.gender === 'female') return true;
+                var n = (v.name || '').toLowerCase();
+                return n.indexOf('female') !== -1 || n.indexOf('kadın') !== -1 || n.indexOf('kadin') !== -1 ||
+                    n.indexOf('woman') !== -1 || n.indexOf('ayşe') !== -1 || n.indexOf('ayse') !== -1 ||
+                    n.indexOf('filiz') !== -1 || n.indexOf('yelda') !== -1 || n.indexOf('melina') !== -1 ||
+                    n.indexOf('fatma') !== -1 || n.indexOf('zeynep') !== -1 || n.indexOf('hazel') !== -1 ||
+                    (n.indexOf('microsoft') !== -1 && n.indexOf('female') !== -1);
+            }
+            var trVoices = sesler.filter(function(v) { return (v.lang || '').toLowerCase().startsWith('tr'); });
+            var trFemale = trVoices.find(function(v) { return isFemale(v) && !isMale(v); });
+            var anyFemale = sesler.find(function(v) { return isFemale(v) && !isMale(v); });
+            var ses = trFemale || anyFemale;
+            var u = new SpeechSynthesisUtterance(numaraToSpeech(numara));
+            u.lang = 'tr-TR';
+            u.rate = 1.02;
+            u.volume = 1;
+            if (ses) u.voice = ses;
+            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (isIOS && sesler.length === 0) {
+                setTimeout(function() { announceSira(numara); }, 150);
+                return;
+            }
+            speechSynthesis.speak(u);
+        }
+
+        function renderUI() {
+            const wrap = document.getElementById('spotlight-wrap');
+            const list = document.getElementById('history-list');
+            if (displayedCalls.length === 0) {
+                wrap.innerHTML = '';
+                list.innerHTML = '<div class="ekran-empty"><div class="ekran-empty-icon">⏳</div>Sıradaki çağrı bekleniyor...</div>';
+                lastCagriId = null;
+                return;
+            }
+            const latest = displayedCalls[0];
+            const now = Date.now();
+            const elapsed = now - (seenIds[latest.id] || now);
+            const animate = elapsed < 5000;
+            const spotlightNumara = latest.numara || '—';
+            const spotlightNumaraChanged = (lastSpotlightNumara !== null && lastSpotlightNumara !== spotlightNumara);
+            lastSpotlightNumara = spotlightNumara;
+            wrap.innerHTML = '<div class="ekran-spotlight' + (animate ? ' animate' : '') + '">' +
+                '<span class="ekran-spotlight-badge">SIRA SİZDE</span>' +
+                '<div class="ekran-numara"><span class="ekran-numara-inner' + (spotlightNumaraChanged ? ' ekran-numara-spin' : '') + '">' + spotlightNumara + '</span></div>' +
+                '<div class="ekran-spotlight-detay">' +
+                '<div class="ekran-spotlight-servis">' + servisLabel(latest) + '</div>' +
+                (latest.konum ? '<div class="ekran-spotlight-konum">📍 ' + latest.konum + '</div>' : '') +
+                '</div></div>';
+            const rest = displayedCalls.slice(1, 6);
+            list.innerHTML = rest.map(function(c, i) {
+                const numara = c.numara || '—';
+                const numaraChanged = (lastRestNumeras[i] !== undefined && lastRestNumeras[i] !== numara);
+                return '<div class="ekran-cagri-item">' +
+                    '<span class="ekran-cagri-numara' + (numaraChanged ? ' ekran-cagri-numara-spin' : '') + '">' + numara + '</span>' +
+                    '<div class="ekran-cagri-detay">' +
+                    '<span class="ekran-cagri-servis">' + servisLabel(c) + '</span>' +
+                    (c.konum ? '<span class="ekran-cagri-konum">' + c.konum + '</span>' : '') +
+                    '</div></div>';
+            }).join('');
+            lastRestNumeras = rest.map(function(c) { return c.numara || '—'; });
+            if (spotlightNumaraChanged) {
+                setTimeout(function() {
+                    var el = wrap.querySelector('.ekran-numara-inner.ekran-numara-spin');
+                    if (el) el.classList.remove('ekran-numara-spin');
+                }, 580);
+            }
+            setTimeout(function() {
+                list.querySelectorAll('.ekran-cagri-numara.ekran-cagri-numara-spin').forEach(function(el) { el.classList.remove('ekran-cagri-numara-spin'); });
+            }, 520);
+        }
+
+        async function cagrilariGuncelle() {
+            try {
+                let data = await api('/api/ekran/son-cagrilar/' + FIRMA_ID + '?limit=20');
+                const sIds = ekranSettings.servisIds || [];
+                const kIds = ekranSettings.kuyrukIds || [];
+                if (sIds.length || kIds.length) {
+                    data = data.filter(c => {
+                        if (kIds.length) return kIds.includes(c.kuyruk_id);
+                        return sIds.includes(c.servis_id);
+                    });
+                }
+                const now = Date.now();
+                const ordered = data.slice().reverse();
+                ordered.forEach(c => {
+                    if (!seenIds[c.id]) {
+                        seenIds[c.id] = now;
+                        if (!displayedCalls.find(x => x.id === c.id)) displayedCalls.unshift(c);
+                    }
+                });
+                displayedCalls = displayedCalls.filter(c => (now - (seenIds[c.id] || 0)) < 600000);
+                Object.keys(seenIds).forEach(id => { if (now - seenIds[id] >= 600000) delete seenIds[id]; });
+                const latest = displayedCalls[0];
+                if (latest && lastCagriId !== latest.id) {
+                    if (!isFirstLoad && !isMuted) {
+                        playDingDong();
+                        setTimeout(() => announceSira(latest.numara), 2400);
+                    }
+                    lastCagriId = latest.id;
+                }
+                isFirstLoad = false;
+                renderUI();
+            } catch (err) { console.warn('Çağrı güncelleme:', err); }
+        }
+
+        function handleFastCall(sira) {
+            const kIds = ekranSettings.kuyrukIds || [];
+            const sIds = ekranSettings.servisIds || [];
+            if (kIds.length && !kIds.includes(parseInt(sira.kuyruk_id, 10))) return;
+            if (sIds.length && !sIds.includes(parseInt(sira.servis_id, 10))) return;
+            const now = Date.now();
+            seenIds[sira.id] = now;
+            const idx = displayedCalls.findIndex(c => c.id == sira.id);
+            if (idx >= 0) displayedCalls.splice(idx, 1);
+            displayedCalls.unshift(sira);
+            renderUI();
+            playDingDong();
+            setTimeout(() => announceSira(sira.numara), 2400);
+            lastCagriId = sira.id;
+        }
+
+        function debouncedUpdate() {
+            if (updateTimer) clearTimeout(updateTimer);
+            updateTimer = setTimeout(cagrilariGuncelle, 250);
+        }
+
+        function saatGuncelle() {
+            const splitClock = document.getElementById('flip-clock-split');
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const digits = (h + m + s).split('');
+            for (let i = 0; i < 6; i++) {
+                const digit = digits[i];
+                if (splitClock) {
+                    const wrap = splitClock.querySelector('.flip-digit-split[data-pos="' + i + '"]');
+                    if (wrap) {
+                        const leaf = wrap.querySelector('.flip-split-leaf');
+                        const front = leaf && leaf.querySelector('.flip-face.flip-front');
+                        const back = leaf && leaf.querySelector('.flip-face.flip-back');
+                        const bottomInner = wrap.querySelector('.flip-split-bottom-inner');
+                        const behind = wrap.querySelector('.flip-split-behind');
+                        if (leaf && front && back && bottomInner && behind) {
+                            if (!flipClockInited) {
+                                front.textContent = digit;
+                                back.textContent = digit;
+                                bottomInner.textContent = digit;
+                                behind.textContent = digit;
+                            } else if (digit !== flipClockPrev[i]) {
+                                back.textContent = digit;
+                                behind.textContent = digit;
+                                leaf.classList.add('flipping');
+                                leaf.addEventListener('transitionend', function onEnd() {
+                                    leaf.removeEventListener('transitionend', onEnd);
+                                    leaf.classList.remove('flipping');
+                                    front.textContent = digit;
+                                    back.textContent = digit;
+                                    bottomInner.textContent = digit;
+                                    behind.textContent = digit;
+                                    flipClockPrev[i] = digit;
+                                }, { once: true });
+                            } else {
+                                front.textContent = digit;
+                                back.textContent = digit;
+                                bottomInner.textContent = digit;
+                                behind.textContent = digit;
+                            }
+                        }
+                    }
+                }
+            }
+            flipClockInited = true;
+        }
+
+        function baslatEkran() {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+            const ov = document.getElementById('start-overlay');
+            if (ov) {
+                ov.style.transition = 'opacity 0.5s ease';
+                ov.style.opacity = '0';
+                setTimeout(() => { ov.style.display = 'none'; }, 550);
+            }
+            applyDisplay();
+        }
+
+        window.addEventListener('click', () => {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
+        });
+
+        async function initFirma() {
+            var retryWrap = document.getElementById('firma-retry-wrap');
+            var retryBtn = document.getElementById('firma-retry-btn');
+            if (retryWrap) retryWrap.style.display = 'none';
+            try {
+                document.getElementById('firma-adi').textContent = 'Yükleniyor...';
+                const firma = await api('/api/firma/' + FIRMA_ID);
+                if (firma && firma.ad) {
+                    document.getElementById('firma-adi').textContent = firma.ad;
+                    document.title = firma.ad + ' - Ekran';
+                } else document.getElementById('firma-adi').textContent = 'Firma yok';
+                await registerDevice();
+                await syncFromBackend();
+            } catch (err) {
+                document.getElementById('firma-adi').textContent = 'Yüklenemedi';
+                if (retryWrap) retryWrap.style.display = 'block';
+            }
+        }
+
+        function onRetryFirma() {
+            initFirma().then(function() { cagrilariGuncelle(); });
+        }
+
+        loadSavedSettings();
+        if (window.speechSynthesis) {
+            speechSynthesis.onvoiceschanged = cacheVoices;
+            cacheVoices();
+        }
+        initFirma().then(() => cagrilariGuncelle());
+        document.getElementById('firma-retry-btn').addEventListener('click', onRetryFirma);
+        setInterval(saatGuncelle, 1000);
+        document.getElementById('password-input').onkeypress = function(e) { if (e.key === 'Enter') verifyPassword(); };
+
+        window.openSettings = openSettings;
+        window.closeSettings = closeSettings;
+        window.closePasswordModal = closePasswordModal;
+        window.verifyPassword = verifyPassword;
+        window.saveSettings = saveSettings;
+        window.resetSettings = resetSettings;
+        window.baslatEkran = baslatEkran;
+
+        if (window.initWebSocket) {
+            initWebSocket(function(data) {
+                if (data.type === 'call_ticket') handleFastCall(data.sira);
+                else if (['new_ticket', 'complete_ticket', 'start_ticket'].includes(data.type)) debouncedUpdate();
+            });
+        }
+        setInterval(function() {
+            if (!window.ws || window.ws.readyState !== WebSocket.OPEN) cagrilariGuncelle();
+        }, 4000);
+})();
+    </script>
+</body>
+</html>

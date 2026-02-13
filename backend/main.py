@@ -414,6 +414,19 @@ async def bekleyen_siralar_by_firma(
     return out
 
 
+@app.post("/api/sira/bekleyen-discard")
+async def mesai_bitimi_bekleyen_discard(current_user: dict = Depends(get_current_active_user)):
+    """
+    Mesai bitimi: firmadaki tüm bekleyen biletleri 'discarded' yapar.
+    İstatistikleri bozmaz (completed sayılmaz, ortalama bekleme süresi etkilenmez).
+    """
+    firma_id = current_user.get("firma_id")
+    if not firma_id:
+        raise HTTPException(status_code=400, detail="Firma bilgisi yok")
+    adet = db.discard_bekleyen_siralar(int(firma_id))
+    return {"discarded": adet}
+
+
 @app.get("/api/sira/istatistik/gunluk/{firma_id}")
 async def gunluk_istatistik(
     firma_id: str,
@@ -1044,6 +1057,11 @@ async def kiosk_init(firma_id: int):
 async def cihaz_kayit(request: CihazKayitRequest):
     """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
     try:
+        metadata = dict(request.metadata or {})
+        if request.cihaz_tipi:
+            metadata["cihaz_tipi"] = request.cihaz_tipi
+        if request.kullanim_tipi:
+            metadata["kullanim_tipi"] = request.kullanim_tipi
         result = db.register_device(
             firma_id=request.firma_id,
             ad=request.ad,
@@ -1052,7 +1070,7 @@ async def cihaz_kayit(request: CihazKayitRequest):
             mac_address=request.mac_address,
             ip=request.ip,
             ayarlar=request.ayarlar,
-            metadata=request.metadata
+            metadata=metadata
         )
         return {
             "status": "success",
@@ -1084,23 +1102,29 @@ async def update_cihaz_ayarlari(
 ):
     """Cihaz ayarlarını güncelle"""
     try:
-        # Ayarlar içinden opsiyonel cihaz adı (deviceName) ve setup bilgisi alanlarını çıkar
+        # Ayarlar içinden opsiyonel cihaz adı, cihaz_tipi, kullanim_tipi ve setup bilgisi alanlarını çıkar
         device_name = None
         setup_completed = None
+        cihaz_tipi = None
+        kullanim_tipi = None
         try:
             if request.ayarlar and isinstance(request.ayarlar, dict):
                 raw_name = request.ayarlar.get("deviceName") or request.ayarlar.get("device_name")
                 if raw_name:
                     device_name = str(raw_name)
-                # Setup bilgisi: initialSetupDone true ise setup_tamamlandi = True
                 if "initialSetupDone" in request.ayarlar:
                     setup_completed = bool(request.ayarlar.get("initialSetupDone"))
                     logging.info(f"[SETUP] Cihaz {device_id} için setup durumu: {setup_completed}")
+                ct = request.ayarlar.get("cihaz_tipi")
+                kt = request.ayarlar.get("kullanim_tipi")
+                if ct:
+                    cihaz_tipi = str(ct)
+                if kt:
+                    kullanim_tipi = str(kt)
         except Exception as parse_err:
-            logging.warning(f"Cihaz ayarlarından deviceName okunamadı: {parse_err}")
+            logging.warning(f"Cihaz ayarları parse hatası: {parse_err}")
 
-        logging.info(f"[SETUP] update_device_settings çağrılıyor: device_id={device_id}, setup_completed={setup_completed}")
-        success = db.update_device_settings(device_id, request.ayarlar, device_name, setup_completed)
+        success = db.update_device_settings(device_id, request.ayarlar, device_name, setup_completed, cihaz_tipi, kullanim_tipi)
         if success:
             return {
                 "status": "success",

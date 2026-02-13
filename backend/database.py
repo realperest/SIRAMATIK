@@ -53,10 +53,12 @@ class Database:
             self._create_memnuniyet_table(session)
             # Tablet/Cihaz yönetim tablosunu oluştur
             self._create_cihazlar_table(session)
+     
             # Cihaz tipleri ve kullanım tipleri referans tablosunu oluştur
             self._create_cihaz_tipleri_table(session)
-            # Eski tip kolonu üzerinden cihaz_tipi ve kullanim_tipi alanlarını geriye dönük doldur
+            # Eski tip kolonu varsa bir kez cihaz_tipi/kullanim_tipi doldur, sonra tip kolonunu kaldır
             self._backfill_device_types(session)
+            self._drop_cihazlar_tip_column(session)
             # Sistem ayarları tablosunu oluştur
             self._create_sistem_ayarlari_table(session)
             # Rapor şablonları tablosunu oluştur
@@ -727,6 +729,17 @@ class Database:
             AND s.durum = 'waiting'
             ORDER BY COALESCE(s.oncelik, 0) DESC, s.olusturulma ASC
         """, {"firma_id": firma_id})
+
+    def discard_bekleyen_siralar(self, firma_id: int) -> int:
+        """Mesai bitimi: firmadaki tüm bekleyen biletleri 'discarded' yap. İstatistikleri bozmaz (completed sayılmaz)."""
+        local_now = self._local_now_sql()
+        r = self.execute_query("""
+            UPDATE siramatik.siralar
+            SET durum = 'discarded', tamamlanma = """ + local_now + """
+            WHERE firma_id = :firma_id AND durum = 'waiting'
+            RETURNING id
+        """, {"firma_id": firma_id})
+        return len(r) if r else 0
         
     def get_gunluk_istatistik(self, firma_id: str, kullanici_id: Optional[str] = None) -> Dict:
         """Günlük istatistikleri getir"""
@@ -851,14 +864,14 @@ class Database:
             LEFT JOIN siramatik.servisler s ON c.servis_id = s.id
             LEFT JOIN siramatik.kuyruklar k ON c.kuyruk_id = k.id
             WHERE c.firma_id = :firma_id
-            ORDER BY c.tip, c.ad
+            ORDER BY c.kullanim_tipi, c.ad
         """, {"firma_id": firma_id})
 
     def get_cihaz(self, cihaz_id: int) -> Optional[Dict]:
         """Cihaz bilgisini getir (cihaz_tipi, kullanim_tipi dahil)"""
         result = self.execute_query("""
                 SELECT 
-                id, firma_id, ad, tip, cihaz_tipi, kullanim_tipi, device_fingerprint, mac_address, ip,
+                id, firma_id, ad, cihaz_tipi, kullanim_tipi, device_fingerprint, mac_address, ip,
                 durum, son_gorulen, ayarlar, metadata, olusturulma, guncelleme,
                 servis_id, kuyruk_id, setup_tamamlandi
             FROM siramatik.cihazlar 
@@ -884,19 +897,18 @@ class Database:
         return result[0] if result else None
 
     def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: str = None, metadata: dict = {}) -> Dict:
-        """Cihazın aktif olduğunu bildir (Upsert)"""
-        # MAC adresi yoksa Ad üzerinden eşle
-        # NOT: Bu fonksiyon eski endpoint için, device_fingerprint yok
-        # Yeni kayıtlar için /api/cihaz/kayit endpoint'i kullanılmalı
-        # ÖNEMLİ: Cihaz zamanları yerel saat dilimine göre kaydedilir (timezone_offset)
+        """Cihazın aktif olduğunu bildir (Upsert). Eski endpoint; tip değeri cihaz_tipi/kullanim_tipi olarak türetilir."""
         local_now = self.get_local_now()
+        leg = (tip or "").lower()
+        cihaz_tipi = {"kiosk": "TABLET", "tablet": "TABLET", "ekran": "TV", "pc": "PC"}.get(leg)
+        kullanim_tipi = {"kiosk": "KIOSK", "tablet": "KIOSK", "ekran": "EKRAN", "pc": "KULLANICI_EKRANI"}.get(leg)
         result = self.execute_query(f"""
-            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, durum, son_gorulen, metadata)
-            VALUES (:firma_id, :ad, :tip, :mac, 'active', {local_now}, :metadata::jsonb)
+            INSERT INTO siramatik.cihazlar (firma_id, ad, cihaz_tipi, kullanim_tipi, mac_address, durum, son_gorulen, metadata)
+            VALUES (:firma_id, :ad, :cihaz_tipi, :kullanim_tipi, :mac, 'active', {local_now}, :metadata::jsonb)
             ON CONFLICT (device_fingerprint) DO UPDATE 
-            SET durum = 'active', son_gorulen = {local_now}, tip = :tip, metadata = :metadata::jsonb
+            SET durum = 'active', son_gorulen = {local_now}, cihaz_tipi = COALESCE(EXCLUDED.cihaz_tipi, cihazlar.cihaz_tipi), kullanim_tipi = COALESCE(EXCLUDED.kullanim_tipi, cihazlar.kullanim_tipi), metadata = EXCLUDED.metadata
             RETURNING *
-        """, {"firma_id": firma_id, "ad": ad, "tip": tip, "mac": mac or ad, "metadata": json.dumps(metadata)})
+        """, {"firma_id": firma_id, "ad": ad, "cihaz_tipi": cihaz_tipi, "kullanim_tipi": kullanim_tipi, "mac": mac or ad, "metadata": json.dumps(metadata)})
         return result[0] if result else None
 
     # --- İSTATİSTİKLER ---
@@ -1254,12 +1266,12 @@ class Database:
     # --- CIHAZ YONETIMI ---
 
     def cihaz_bildir(self, firma_id: int, ad: str, tip: str, mac: Optional[str], metadata: dict) -> Dict:
-        """Cihaz kalp atışı - Kayıt yoksa oluştur, varsa güncelle"""
-        
-        # MAC adresi ile veya AD ile kontrol et (Varsa güncelle)
+        """Cihaz kalp atışı - Kayıt yoksa oluştur, varsa güncelle. tip değeri cihaz_tipi/kullanim_tipi olarak türetilir."""
+        leg = (tip or "").lower()
+        cihaz_tipi = {"kiosk": "TABLET", "tablet": "TABLET", "ekran": "TV", "pc": "PC"}.get(leg)
+        kullanim_tipi = {"kiosk": "KIOSK", "tablet": "KIOSK", "ekran": "EKRAN", "pc": "KULLANICI_EKRANI"}.get(leg)
         existing = None
         local_now = self.get_local_now()
-        
         if mac:
             existing_list = self.execute_query(
                 "SELECT * FROM siramatik.cihazlar WHERE mac_address = :mac AND firma_id = :firma_id",
@@ -1276,26 +1288,27 @@ class Database:
         if existing:
             updated = self.execute_query(f"""
                 UPDATE siramatik.cihazlar 
-                SET son_gorulen = {local_now}, metadata = :metadata, ad = :ad, tip = :tip
+                SET son_gorulen = {local_now}, metadata = :metadata, ad = :ad, cihaz_tipi = COALESCE(:cihaz_tipi, cihaz_tipi), kullanim_tipi = COALESCE(:kullanim_tipi, kullanim_tipi)
                 WHERE id = :id
                 RETURNING *
             """, {
                 "id": existing["id"],
                 "metadata": json.dumps(metadata),
                 "ad": ad,
-                "tip": tip
+                "cihaz_tipi": cihaz_tipi,
+                "kullanim_tipi": kullanim_tipi
             })
             return updated[0]
 
-        # Yeni kayıt oluştur
         result = self.execute_query(f"""
-            INSERT INTO siramatik.cihazlar (firma_id, ad, tip, mac_address, metadata, son_gorulen)
-            VALUES (:firma_id, :ad, :tip, :mac_address, :metadata, {local_now})
+            INSERT INTO siramatik.cihazlar (firma_id, ad, cihaz_tipi, kullanim_tipi, mac_address, metadata, son_gorulen)
+            VALUES (:firma_id, :ad, :cihaz_tipi, :kullanim_tipi, :mac_address, :metadata, {local_now})
             RETURNING *
         """, {
             "firma_id": firma_id,
             "ad": ad,
-            "tip": tip,
+            "cihaz_tipi": cihaz_tipi,
+            "kullanim_tipi": kullanim_tipi,
             "mac_address": mac,
             "metadata": json.dumps(metadata)
         })
@@ -1317,7 +1330,7 @@ class Database:
         params = {"id": cihaz_id}
         
         for key, value in data.items():
-            if key in ['ad', 'tip', 'konum_id', 'aktif', 'servis_id', 'kuyruk_id', 'durum', 'cihaz_tipi', 'kullanim_tipi']:
+            if key in ['ad', 'konum_id', 'aktif', 'servis_id', 'kuyruk_id', 'durum', 'cihaz_tipi', 'kullanim_tipi']:
                 fields.append(f"{key} = :{key}")
                 params[key] = value
                 
@@ -1545,7 +1558,6 @@ class Database:
                     id SERIAL PRIMARY KEY,
                     firma_id INTEGER NOT NULL REFERENCES siramatik.firmalar(id) ON DELETE CASCADE,
                     ad VARCHAR(255) NOT NULL,
-                    tip VARCHAR(50) NOT NULL CHECK (tip IN ('kiosk', 'ekran', 'tablet', 'pc')),
                     cihaz_tipi VARCHAR(50),
                     kullanim_tipi VARCHAR(50),
                     device_fingerprint VARCHAR(500) UNIQUE,
@@ -1561,7 +1573,7 @@ class Database:
                 );
                 
                 CREATE INDEX IF NOT EXISTS idx_cihazlar_firma_id ON siramatik.cihazlar(firma_id);
-                CREATE INDEX IF NOT EXISTS idx_cihazlar_tip ON siramatik.cihazlar(tip);
+                CREATE INDEX IF NOT EXISTS idx_cihazlar_kullanim_tipi ON siramatik.cihazlar(kullanim_tipi);
                 CREATE INDEX IF NOT EXISTS idx_cihazlar_durum ON siramatik.cihazlar(durum);
                 CREATE INDEX IF NOT EXISTS idx_cihazlar_fingerprint ON siramatik.cihazlar(device_fingerprint);
                 CREATE INDEX IF NOT EXISTS idx_cihazlar_son_gorulen ON siramatik.cihazlar(son_gorulen);
@@ -1702,11 +1714,18 @@ class Database:
     
     def _backfill_device_types(self, session):
         """
-        Eski kayıtlarda sadece tip kolonu dolu olabilir.
-        Bu fonksiyon, cihaz_tipi ve kullanim_tipi alanlarını bir kereye mahsus
-        tip değerine göre doldurur. Birden fazla kez çalıştırılsa da zararsızdır.
+        Eski kayıtlarda sadece tip kolonu dolu olabilir. tip kolonu varsa
+        cihaz_tipi ve kullanim_tipi alanlarını tip değerine göre doldurur.
+        Birden fazla kez çalıştırılsa da zararsızdır.
         """
         try:
+            # tip kolonu var mı kontrol et
+            check = session.execute(text("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'siramatik' AND table_name = 'cihazlar' AND column_name = 'tip'
+            """)).first()
+            if not check:
+                return
             backfill_query = text("""
                 UPDATE siramatik.cihazlar
                 SET 
@@ -1737,6 +1756,17 @@ class Database:
         except Exception as e:
             print(f"[WARN] cihaz_tipi/kullanim_tipi backfill hatasi: {e}")
             session.rollback()
+
+    def _drop_cihazlar_tip_column(self, session):
+        """cihazlar tablosundan eski tip kolonunu kaldır (migration)."""
+        try:
+            session.execute(text("ALTER TABLE siramatik.cihazlar DROP COLUMN IF EXISTS tip;"))
+            session.execute(text("DROP INDEX IF EXISTS idx_cihazlar_tip;"))
+            session.commit()
+            print("[OK] cihazlar.tip kolonu kaldırıldı")
+        except Exception as e:
+            print(f"[WARN] cihazlar.tip kolonu kaldırılamadı: {e}")
+            session.rollback()
     
     # ============================================
     # CİHAZ YÖNETİM METODLARI
@@ -1745,17 +1775,15 @@ class Database:
     # Sabit saat yok: 2, 3, 6, -5 vb. tablodaki değere göre değişir.
     # ============================================
     
-    def register_device(self, firma_id: int, ad: str, tip: str, 
-                       device_fingerprint: str, mac_address: Optional[str] = None,
+    def register_device(self, firma_id: int, ad: str, tip: Optional[str] = None,
+                       device_fingerprint: str = "", mac_address: Optional[str] = None,
                        ip: Optional[str] = None, ayarlar: Dict = {},
                        metadata: Dict = {}) -> Dict[str, Any]:
-        """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
+        """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle. Sadece cihaz_tipi ve kullanim_tipi kullanılır."""
         with Session(self.engine) as session:
             try:
                 local_now = self.get_local_now()
-                # Kullanım ve cihaz tiplerini belirle (geriye dönük uyumlu)
                 legacy_tip = (tip or "").lower()
-                # metadata içinde açıkça tipler varsa onları kullan (frontend ileride gönderebilir)
                 cihaz_tipi = None
                 kullanim_tipi = None
                 try:
@@ -1764,118 +1792,68 @@ class Database:
                         kullanim_tipi = metadata.get("kullanim_tipi") or metadata.get("usage_type")
                 except Exception:
                     pass
-
                 if not cihaz_tipi:
-                    if legacy_tip in ("kiosk", "tablet"):
-                        cihaz_tipi = "TABLET"
-                    elif legacy_tip == "ekran":
-                        cihaz_tipi = "TV"
-                    elif legacy_tip == "pc":
-                        cihaz_tipi = "PC"
+                    if legacy_tip in ("kiosk", "tablet"): cihaz_tipi = "TABLET"
+                    elif legacy_tip == "ekran": cihaz_tipi = "TV"
+                    elif legacy_tip == "pc": cihaz_tipi = "PC"
                 if not kullanim_tipi:
-                    if legacy_tip in ("kiosk", "tablet"):
-                        kullanim_tipi = "KIOSK"
-                    elif legacy_tip == "ekran":
-                        kullanim_tipi = "EKRAN"
-                    elif legacy_tip == "pc":
-                        kullanim_tipi = "KULLANICI_EKRANI"
+                    if legacy_tip in ("kiosk", "tablet"): kullanim_tipi = "KIOSK"
+                    elif legacy_tip == "ekran": kullanim_tipi = "EKRAN"
+                    elif legacy_tip == "pc": kullanim_tipi = "KULLANICI_EKRANI"
 
-                # Fingerprint ile cihaz var mı kontrol et
                 check_query = text("""
                     SELECT id, firma_id FROM siramatik.cihazlar
                     WHERE device_fingerprint = :fingerprint
                 """)
-                result = session.execute(check_query, {
-                    "fingerprint": device_fingerprint
-                }).first()
+                result = session.execute(check_query, {"fingerprint": device_fingerprint}).first()
                 
                 if result:
-                    # Mevcut cihazı güncelle
                     device_id = result[0]
                     existing_firma_id = result[1]
-                    
-                    # Firma farklıysa güncelle
                     if existing_firma_id != firma_id:
                         update_query = text(f"""
                             UPDATE siramatik.cihazlar
-                            SET firma_id = :firma_id,
-                                ad = :ad,
-                                tip = :tip,
+                            SET firma_id = :firma_id, ad = :ad,
                                 cihaz_tipi = COALESCE(:cihaz_tipi, cihaz_tipi),
                                 kullanim_tipi = COALESCE(:kullanim_tipi, kullanim_tipi),
-                                ip = :ip,
-                                son_gorulen = {local_now},
-                                guncelleme = {local_now},
-                                durum = 'active'
+                                ip = :ip, son_gorulen = {local_now}, guncelleme = {local_now}, durum = 'active'
                             WHERE id = :device_id
-                            RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
+                            RETURNING id, firma_id, ad, durum, ayarlar, metadata
                         """)
                     else:
-                        # Sadece heartbeat güncelle
                         update_query = text(f"""
                             UPDATE siramatik.cihazlar
-                            SET son_gorulen = {local_now},
-                                durum = 'active',
-                                ip = COALESCE(:ip, ip)
+                            SET son_gorulen = {local_now}, durum = 'active', ip = COALESCE(:ip, ip)
                             WHERE id = :device_id
-                            RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
+                            RETURNING id, firma_id, ad, durum, ayarlar, metadata
                         """)
-                    
                     result = session.execute(update_query, {
-                        "device_id": device_id,
-                        "firma_id": firma_id,
-                        "ad": ad,
-                        "tip": tip,
-                        "cihaz_tipi": cihaz_tipi,
-                        "kullanim_tipi": kullanim_tipi,
-                        "ip": ip
+                        "device_id": device_id, "firma_id": firma_id, "ad": ad,
+                        "cihaz_tipi": cihaz_tipi, "kullanim_tipi": kullanim_tipi, "ip": ip
                     }).first()
-                    
                     session.commit()
-                    
                     return {
-                        "id": result[0],
-                        "firma_id": result[1],
-                        "ad": result[2],
-                        "tip": result[3],
-                        "durum": result[4],
-                        "ayarlar": result[5] if result[5] else {},
-                        "metadata": result[6] if result[6] else {},
-                        "is_new": False
+                        "id": result[0], "firma_id": result[1], "ad": result[2],
+                        "durum": result[3], "ayarlar": result[4] if result[4] else {},
+                        "metadata": result[5] if result[5] else {}, "is_new": False
                     }
                 
-                # Yeni cihaz kaydı (yerel saat kullanılır)
                 insert_query = text(f"""
                     INSERT INTO siramatik.cihazlar 
-                    (firma_id, ad, tip, cihaz_tipi, kullanim_tipi, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen, olusturulma, guncelleme)
-                    VALUES (:firma_id, :ad, :tip, :cihaz_tipi, :kullanim_tipi, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', {local_now}, {local_now}, {local_now})
-                    RETURNING id, firma_id, ad, tip, durum, ayarlar, metadata
+                    (firma_id, ad, cihaz_tipi, kullanim_tipi, device_fingerprint, mac_address, ip, ayarlar, metadata, durum, son_gorulen, olusturulma, guncelleme)
+                    VALUES (:firma_id, :ad, :cihaz_tipi, :kullanim_tipi, :fingerprint, :mac, :ip, :ayarlar, :metadata, 'active', {local_now}, {local_now}, {local_now})
+                    RETURNING id, firma_id, ad, durum, ayarlar, metadata
                 """)
-                
                 result = session.execute(insert_query, {
-                    "firma_id": firma_id,
-                    "ad": ad,
-                    "tip": tip,
-                    "cihaz_tipi": cihaz_tipi,
-                    "kullanim_tipi": kullanim_tipi,
-                    "fingerprint": device_fingerprint,
-                    "mac": mac_address,
-                    "ip": ip,
-                    "ayarlar": json.dumps(ayarlar),
-                    "metadata": json.dumps(metadata)
+                    "firma_id": firma_id, "ad": ad, "cihaz_tipi": cihaz_tipi, "kullanim_tipi": kullanim_tipi,
+                    "fingerprint": device_fingerprint, "mac": mac_address, "ip": ip,
+                    "ayarlar": json.dumps(ayarlar), "metadata": json.dumps(metadata)
                 }).first()
-                
                 session.commit()
-                
                 return {
-                    "id": result[0],
-                    "firma_id": result[1],
-                    "ad": result[2],
-                    "tip": result[3],
-                    "durum": result[4],
-                    "ayarlar": result[5] if result[5] else {},
-                    "metadata": result[6] if result[6] else {},
-                    "is_new": True
+                    "id": result[0], "firma_id": result[1], "ad": result[2],
+                    "durum": result[3], "ayarlar": result[4] if result[4] else {},
+                    "metadata": result[5] if result[5] else {}, "is_new": True
                 }
                 
             except Exception as e:
@@ -1886,10 +1864,8 @@ class Database:
         """Cihaz ayarlarını getir"""
         with Session(self.engine) as session:
             query = text("""
-                SELECT id, firma_id, ad, tip, ayarlar, metadata, durum, son_gorulen, 
-                       setup_tamamlandi,
-                       cihaz_tipi,
-                       kullanim_tipi
+                SELECT id, firma_id, ad, ayarlar, metadata, durum, son_gorulen,
+                       setup_tamamlandi, cihaz_tipi, kullanim_tipi
                 FROM siramatik.cihazlar
                 WHERE id = :device_id
             """)
@@ -1902,18 +1878,18 @@ class Database:
                 "id": result[0],
                 "firma_id": result[1],
                 "ad": result[2],
-                "tip": result[3],
-                "ayarlar": result[4] if result[4] else {},
-                "metadata": result[5] if result[5] else {},
-                "durum": result[6],
-                "son_gorulen": result[7],
-                "setup_tamamlandi": result[8] if len(result) > 8 else False,
-                "cihaz_tipi": result[9] if len(result) > 9 else None,
-                "kullanim_tipi": result[10] if len(result) > 10 else None
+                "ayarlar": result[3] if result[3] else {},
+                "metadata": result[4] if result[4] else {},
+                "durum": result[5],
+                "son_gorulen": result[6],
+                "setup_tamamlandi": result[7] if len(result) > 7 else False,
+                "cihaz_tipi": result[8] if len(result) > 8 else None,
+                "kullanim_tipi": result[9] if len(result) > 9 else None
             }
     
-    def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any], device_name: Optional[str] = None, setup_completed: Optional[bool] = None) -> bool:
-        """Cihaz ayarlarını güncelle (ayarlar JSON + opsiyonel cihaz adı + setup flag)"""
+    def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any], device_name: Optional[str] = None, setup_completed: Optional[bool] = None,
+                               cihaz_tipi: Optional[str] = None, kullanim_tipi: Optional[str] = None) -> bool:
+        """Cihaz ayarlarını güncelle (ayarlar JSON + opsiyonel cihaz adı, cihaz_tipi, kullanim_tipi + setup flag)"""
         with Session(self.engine) as session:
             try:
                 local_now = self.get_local_now()
@@ -1925,11 +1901,15 @@ class Database:
                 setup_result = session.execute(check_setup_query, {"device_id": device_id}).first()
                 existing_setup_completed = setup_result[0] if setup_result else False
                 
-                # Eğer setup zaten tamamlanmışsa ve device_name gönderilmişse, device_name'i ignore et
-                # (Sadece admin panelinden değiştirilebilir)
-                if existing_setup_completed and device_name:
-                    print(f"[SETUP] Cihaz {device_id} için setup tamamlanmış, device_name güncellemesi reddedildi (sadece admin panelinden değiştirilebilir)")
-                    device_name = None
+                # Eğer setup zaten tamamlanmışsa saha tarafından gönderilen alanları ignore et (sadece admin değiştirebilir)
+                if existing_setup_completed:
+                    if device_name:
+                        print(f"[SETUP] Cihaz {device_id} için setup tamamlanmış, device_name güncellemesi reddedildi")
+                        device_name = None
+                    if cihaz_tipi:
+                        cihaz_tipi = None
+                    if kullanim_tipi:
+                        kullanim_tipi = None
                 
                 # Ayarlar içinden özet bölüm/kuyruk bilgisini çek (ilk seçilenler)
                 servis_id = None
@@ -1951,6 +1931,8 @@ class Database:
                         UPDATE siramatik.cihazlar
                         SET ayarlar = :ayarlar,
                             ad = COALESCE(:device_name, ad),
+                            cihaz_tipi = COALESCE(:cihaz_tipi, cihaz_tipi),
+                            kullanim_tipi = COALESCE(:kullanim_tipi, kullanim_tipi),
                             servis_id = COALESCE(:servis_id, servis_id),
                             kuyruk_id = COALESCE(:kuyruk_id, kuyruk_id),
                             guncelleme = {local_now}
@@ -1961,17 +1943,22 @@ class Database:
                         "device_id": device_id,
                         "ayarlar": json.dumps(ayarlar),
                         "device_name": device_name,
+                        "cihaz_tipi": cihaz_tipi,
+                        "kullanim_tipi": kullanim_tipi,
                         "servis_id": servis_id,
                         "kuyruk_id": kuyruk_id,
                     }
                 else:
                     print(f"[SETUP] setup_tamamlandi güncelleniyor: device_id={device_id}, setup_tamamlandi={setup_completed}")
-                    # setup_completed=True ise device_name'i ignore et (sadece ilk kurulumda değiştirilebilir)
                     final_device_name = None if setup_completed else device_name
+                    final_cihaz_tipi = None if setup_completed else cihaz_tipi
+                    final_kullanim_tipi = None if setup_completed else kullanim_tipi
                     query = text(f"""
                         UPDATE siramatik.cihazlar
                         SET ayarlar = :ayarlar,
                             ad = COALESCE(:device_name, ad),
+                            cihaz_tipi = COALESCE(:cihaz_tipi, cihaz_tipi),
+                            kullanim_tipi = COALESCE(:kullanim_tipi, kullanim_tipi),
                             servis_id = COALESCE(:servis_id, servis_id),
                             kuyruk_id = COALESCE(:kuyruk_id, kuyruk_id),
                             setup_tamamlandi = :setup_tamamlandi,
@@ -1983,6 +1970,8 @@ class Database:
                         "device_id": device_id,
                         "ayarlar": json.dumps(ayarlar),
                         "device_name": final_device_name,
+                        "cihaz_tipi": final_cihaz_tipi,
+                        "kullanim_tipi": final_kullanim_tipi,
                         "servis_id": servis_id,
                         "kuyruk_id": kuyruk_id,
                         "setup_tamamlandi": setup_completed
@@ -2032,32 +2021,14 @@ class Database:
         with Session(self.engine) as session:
             query = text(f"""
                 SELECT 
-                    c.id, 
-                    c.firma_id, 
-                    c.ad, 
-                    c.tip, 
-                    c.device_fingerprint,
-                    c.mac_address,
-                    c.ip,
-                    c.durum, 
-                    c.son_gorulen, 
-                    c.ayarlar, 
-                    c.metadata,
-                    c.olusturulma,
-                    c.guncelleme,
-                    c.servis_id,
-                    c.kuyruk_id,
-                    c.setup_tamamlandi,
-                    c.cihaz_tipi,
-                    c.kullanim_tipi,
-                    s.ad as servis_ad,
-                    s.kod as servis_kod,
-                    k.ad as kuyruk_ad,
-                    k.kod as kuyruk_kod,
-                    CASE 
-                        WHEN c.son_gorulen > {self._local_now_minus_interval("30 seconds")} THEN 'online'
-                        ELSE 'offline'
-                    END as online_status
+                    c.id, c.firma_id, c.ad,
+                    c.device_fingerprint, c.mac_address, c.ip,
+                    c.durum, c.son_gorulen, c.ayarlar, c.metadata,
+                    c.olusturulma, c.guncelleme, c.servis_id, c.kuyruk_id,
+                    c.setup_tamamlandi, c.cihaz_tipi, c.kullanim_tipi,
+                    s.ad as servis_ad, s.kod as servis_kod,
+                    k.ad as kuyruk_ad, k.kod as kuyruk_kod,
+                    CASE WHEN c.son_gorulen > {self._local_now_minus_interval("30 seconds")} THEN 'online' ELSE 'offline' END as online_status
                 FROM siramatik.cihazlar c
                 LEFT JOIN siramatik.servisler s ON c.servis_id = s.id
                 LEFT JOIN siramatik.kuyruklar k ON c.kuyruk_id = k.id
@@ -2072,26 +2043,25 @@ class Database:
                     "id": row[0],
                     "firma_id": row[1],
                     "ad": row[2],
-                    "tip": row[3],
-                    "device_fingerprint": row[4],
-                    "mac_address": row[5],
-                    "ip": row[6],  # Supabase'de 'ip' kolonu
-                    "durum": row[7],
-                    "son_gorulen": row[8],
-                    "ayarlar": row[9] if row[9] else {},
-                    "metadata": row[10] if row[10] else {},
-                    "olusturulma": row[11],
-                    "guncelleme": row[12],
-                    "servis_id": row[13],
-                    "kuyruk_id": row[14],
-                    "setup_tamamlandi": row[15],
-                    "cihaz_tipi": row[16],
-                    "kullanim_tipi": row[17],
-                    "servis_ad": row[18],
-                    "servis_kod": row[19],
-                    "kuyruk_ad": row[20],
-                    "kuyruk_kod": row[21],
-                    "online_status": row[22]
+                    "device_fingerprint": row[3],
+                    "mac_address": row[4],
+                    "ip": row[5],
+                    "durum": row[6],
+                    "son_gorulen": row[7],
+                    "ayarlar": row[8] if row[8] else {},
+                    "metadata": row[9] if row[9] else {},
+                    "olusturulma": row[10],
+                    "guncelleme": row[11],
+                    "servis_id": row[12],
+                    "kuyruk_id": row[13],
+                    "setup_tamamlandi": row[14],
+                    "cihaz_tipi": row[15],
+                    "kullanim_tipi": row[16],
+                    "servis_ad": row[17],
+                    "servis_kod": row[18],
+                    "kuyruk_ad": row[19],
+                    "kuyruk_kod": row[20],
+                    "online_status": row[21]
                 })
             
             return devices

@@ -3,35 +3,49 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sıra Numarası Al - Sıramatik</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>S</text></svg>">
     <link rel="stylesheet" href="static/style.css">
     <style>
+        /* Responsive: 7" tablet ~320px, 8" ~400px, 10" ~600px, 15" ~1366px, 60" TV ~1920px+ */
+        :root {
+            --kiosk-header-h1: clamp(16px, 4vw, 36px);
+            --kiosk-header-p: clamp(12px, 2.2vw, 18px);
+            --kiosk-banner-title: clamp(14px, 3vw, 24px);
+            --kiosk-banner-sub: clamp(11px, 1.8vw, 18px);
+            --kiosk-section-title: clamp(18px, 4vw, 36px);
+            --kiosk-card-pad: clamp(8px, 1.5vw, 24px);
+            --kiosk-grid-gap: clamp(8px, 1.5vw, 20px);
+            --kiosk-grid-min: min(160px, 38vw);
+        }
+
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-align: center;
-            padding: 10px 20px;
+            padding: clamp(6px, 1.2vw, 20px) clamp(10px, 2vw, 20px);
             height: 100vh;
+            height: 100dvh;
             margin: 0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            /* Scroll tamamen engellendi */
+            box-sizing: border-box;
         }
 
         .header {
-            margin-bottom: 20px;
+            margin-bottom: clamp(8px, 1.5vh, 20px);
+            flex-shrink: 0;
         }
 
         .header h1 {
-            font-size: 36px;
-            margin-bottom: 5px;
+            font-size: var(--kiosk-header-h1);
+            margin-bottom: 2px;
         }
 
         .header p {
-            font-size: 18px;
+            font-size: var(--kiosk-header-p);
             opacity: 0.9;
         }
 
@@ -80,35 +94,34 @@
 
         .departman-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(var(--kiosk-grid-min), 1fr));
+            gap: var(--kiosk-grid-gap);
             width: 100%;
-            max-width: 1400px;
+            max-width: min(1400px, 98vw);
             margin: 0 auto;
             flex: 1;
-            /* Mevcut boşluğu doldur */
+            min-height: 0;
             align-content: center;
-            /* Dikeyde ortala */
-            padding: 10px;
+            padding: clamp(6px, 1vw, 16px);
+            box-sizing: border-box;
         }
 
         .departman-card {
             background: white;
             color: #667eea;
-            padding: 2vh 20px;
-            /* Ekrana göre padding */
-            border-radius: 20px;
+            padding: var(--kiosk-card-pad);
+            border-radius: clamp(12px, 2vw, 20px);
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            /* Sabit min-height kaldırıldı, içerik sığmak için küçülebilecek */
-            max-height: 40vh;
-            /* Çok büyümesini engelle */
+            min-height: 0;
+            max-height: 45vh;
             overflow: hidden;
             will-change: transform;
+            box-sizing: border-box;
         }
 
         .departman-card:hover {
@@ -117,26 +130,25 @@
         }
 
         .departman-card h2 {
-            font-size: clamp(18px, 2.5vh, 28px);
-            /* Dinamik font */
-            margin: 10px 0;
+            font-size: clamp(14px, 2.2vmin, 28px);
+            margin: clamp(4px, 1vh, 10px) 0;
         }
 
         .departman-card .kod {
-            font-size: clamp(24px, 4vh, 48px);
-            /* Dinamik font */
+            font-size: clamp(20px, 4vmin, 48px);
             font-weight: bold;
             color: #764ba2;
         }
 
         .departman-card .bekleyen {
-            font-size: clamp(12px, 1.5vh, 16px);
+            font-size: clamp(10px, 1.4vmin, 16px);
             color: #666;
-            margin-top: 5px;
+            margin-top: 2px;
         }
 
         #departman-secimi {
             flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -145,18 +157,19 @@
 
         #alt-secenekler-konteynir {
             flex: 1;
+            min-height: 0;
             display: none;
             flex-direction: column;
             justify-content: center;
-            margin-top: 20px !important;
-            padding: 20px !important;
+            margin-top: clamp(8px, 1.5vh, 20px) !important;
+            padding: clamp(10px, 2vw, 20px) !important;
             overflow: hidden;
         }
 
+        /* --- Numara alındı / Bilet ekranı (responsive 7"-60") --- */
         #numara-ekrani {
             display: none;
             position: fixed;
-            /* Tam ekran kaplayacak */
             top: 0;
             left: 0;
             width: 100%;
@@ -165,82 +178,146 @@
             z-index: 9999;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: clamp(10px, 2vw, 20px);
             animation: fadeInSimple 0.15s ease-out;
-            overflow: hidden;
+            overflow: auto;
             will-change: opacity;
+            box-sizing: border-box;
         }
 
         @keyframes fadeInSimple {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .bilet-konteynir {
             display: grid;
-            grid-template-columns: 450px 320px;
-            /* Sabit genişlikler */
-            gap: 30px;
+            grid-template-columns: minmax(200px, 1fr) minmax(180px, 320px);
+            gap: clamp(12px, 2.5vw, 30px);
             background: rgba(255, 255, 255, 0.15);
-            padding: 40px;
-            border-radius: 40px;
+            padding: clamp(16px, 3vw, 40px);
+            border-radius: clamp(16px, 3vw, 40px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
             align-items: center;
-            width: fit-content;
+            width: 100%;
+            max-width: min(800px, 96vw);
+            box-sizing: border-box;
         }
 
-        @media (max-width: 992px) {
+        @media (max-width: 700px) {
             .bilet-konteynir {
                 grid-template-columns: 1fr;
+                max-width: min(420px, 96vw);
             }
         }
 
+        #numara-ekrani .info-section {
+            min-width: 0;
+        }
+
+        #numara-ekrani .info-section h2 {
+            font-size: clamp(18px, 4vw, 32px);
+            opacity: 0.9;
+        }
+
         #numara-ekrani .numara {
-            font-size: 140px;
+            font-size: clamp(48px, 18vmin, 140px);
             font-weight: 900;
-            margin: 20px 0;
+            margin: clamp(8px, 1.5vh, 20px) 0;
             text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             color: #fff;
         }
 
-        .qr-section {
-            background: white;
-            padding: 30px;
-            border-radius: 30px;
-            color: #2c3e50;
-            text-align: center;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        #numara-ekrani .mesaj {
+            font-size: clamp(14px, 2.8vw, 24px);
+            min-height: 1.2em;
         }
 
-        .qr-section p {
-            margin: 15px 0 5px;
-            font-size: 22px;
-            font-weight: bold;
+        #numara-ekrani .bekleme-info {
+            background: rgba(255,255,255,0.2);
+            padding: clamp(8px, 1.5vw, 15px);
+            border-radius: clamp(8px, 1.5vw, 15px);
+            display: inline-block;
+            margin-top: clamp(6px, 1vh, 10px);
+            font-size: clamp(11px, 2vw, 16px);
+        }
+
+        #numara-ekrani .tahmini-bekleme {
+            margin-top: clamp(6px, 1vh, 10px);
+            font-size: clamp(12px, 2vw, 17px);
+            opacity: 0.95;
+            font-weight: 600;
         }
 
         .print-btn {
             background: #2ecc71;
             color: white;
             border: none;
-            padding: 25px 40px;
-            border-radius: 20px;
-            font-size: 24px;
+            padding: clamp(12px, 2vw, 25px) clamp(16px, 3vw, 40px);
+            border-radius: clamp(10px, 2vw, 20px);
+            font-size: clamp(14px, 2.5vw, 24px);
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px;
+            gap: clamp(8px, 1.5vw, 15px);
             width: 100%;
-            margin-top: 30px;
+            margin-top: clamp(12px, 2vh, 30px);
             box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
+        }
+
+        .qr-section {
+            background: white;
+            padding: clamp(12px, 2.5vw, 30px);
+            border-radius: clamp(12px, 2.5vw, 30px);
+            color: #2c3e50;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: min(280px, 75vw);
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .qr-section p {
+            margin: clamp(8px, 1.5vh, 15px) 0 5px;
+            font-size: clamp(14px, 2.5vw, 22px);
+            font-weight: bold;
+        }
+
+        #qrcode {
+            display: inline-block;
+            max-width: 100%;
+            height: auto;
+            padding: clamp(4px, 1vw, 6px);
+            background: white;
+        }
+
+        #qrcode canvas, #qrcode img {
+            max-width: min(200px, 55vw) !important;
+            height: auto !important;
+        }
+
+        .qr-section .back-btn {
+            padding: clamp(6px, 1.2vw, 10px) clamp(10px, 2vw, 14px);
+            font-size: clamp(11px, 2vw, 13px);
+        }
+
+        #qr-sayac {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-bottom: clamp(8px, 1.5vw, 12px);
+            font-size: clamp(12px, 2vw, 16px);
+        }
+
+        .qr-aciklama {
+            font-size: clamp(11px, 1.8vw, 13px);
+            color: #7f8c8d;
+            margin-bottom: clamp(8px, 1.5vw, 12px);
+            text-align: center;
         }
 
         .print-btn:hover {
@@ -509,6 +586,64 @@
         .btn-reset:hover {
             background: #d68910;
         }
+
+        /* Akıllı takip bannerı - ekran boyutuna göre ölçeklenir */
+        .kiosk-banner {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: clamp(8px, 1.5vh, 15px) clamp(10px, 2vw, 25px);
+            border-radius: clamp(8px, 1.5vw, 15px);
+            margin: 0 auto clamp(6px, 1vh, 15px);
+            max-width: min(900px, 96vw);
+            box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4);
+            animation: pulse 3s infinite;
+            will-change: transform;
+            flex-shrink: 0;
+        }
+        .kiosk-banner-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 2vw, 20px);
+            flex-wrap: wrap;
+        }
+        .kiosk-banner-icon { font-size: clamp(24px, 5vw, 48px); }
+        .kiosk-banner-text { text-align: left; }
+        .kiosk-banner-title {
+            font-size: var(--kiosk-banner-title);
+            font-weight: bold;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .kiosk-banner-sub {
+            font-size: var(--kiosk-banner-sub);
+            opacity: 0.95;
+        }
+
+        .kiosk-section-title {
+            font-size: var(--kiosk-section-title);
+            margin-bottom: clamp(12px, 2vh, 40px);
+            flex-shrink: 0;
+        }
+
+        .alt-secenekler-konteynir {
+            display: none;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+            justify-content: center;
+            margin-top: clamp(12px, 2vh, 50px);
+            padding: clamp(12px, 2.5vw, 40px);
+            background: rgba(255,255,255,0.1);
+            border-radius: clamp(12px, 2vw, 30px);
+            border: 2px dashed rgba(255,255,255,0.3);
+            overflow: hidden;
+        }
+        .kiosk-alt-baslik {
+            font-size: clamp(18px, 3.5vw, 32px);
+            margin-bottom: clamp(12px, 2vh, 30px);
+            color: #ffd700;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 
@@ -555,6 +690,30 @@
                             style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;"
                             placeholder="Örn: LABORATUVAR GİRİŞ TABLETİ">
                     </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="kiosk-cihaz-tipi" style="display:block; margin-bottom:6px; font-size:14px; color:#475569; font-weight:500;">Cihaz Tipi</label>
+                        <select id="kiosk-cihaz-tipi" class="admin-input" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;">
+                            <option value="">Seçiniz</option>
+                            <option value="TABLET">TABLET</option>
+                            <option value="TV">TV</option>
+                            <option value="PC">PC</option>
+                            <option value="TELEFON">TELEFON</option>
+                            <option value="EL_MODULU">EL MODÜLÜ</option>
+                        </select>
+                        <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">Sadece ilk kurulumda değiştirilebilir.</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="kiosk-kullanim-tipi" style="display:block; margin-bottom:6px; font-size:14px; color:#475569; font-weight:500;">Kullanım Tipi</label>
+                        <select id="kiosk-kullanim-tipi" class="admin-input" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;">
+                            <option value="">Seçiniz</option>
+                            <option value="KIOSK">KIOSK</option>
+                            <option value="EKRAN">EKRAN</option>
+                            <option value="KULLANICI_EKRANI">KULLANICI EKRANI</option>
+                            <option value="TELEFON">TELEFON</option>
+                            <option value="EL_MODULU">EL MODÜLÜ</option>
+                        </select>
+                        <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">Sadece ilk kurulumda değiştirilebilir.</small>
+                    </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="device-fingerprint-display" style="display:block; margin-bottom:6px; font-size:14px; color:#475569; font-weight:500;">Tablet Kodu (Parmak İzi)</label>
                         <input id="device-fingerprint-display" type="text"
@@ -583,10 +742,10 @@
                         <select id="orientation-select" class="admin-input" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px;">
                             <option value="auto">Otomatik (Cihazın yönüne göre)</option>
                             <option value="portrait">Dikey odaklı</option>
-                            <option value="landscape">Yatay odaklı</option>
+                            <option value="landscape" selected>Yatay odaklı</option>
                         </select>
                         <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">
-                            Tarayıcı donanım kısıtları nedeniyle yön kilidi garanti edilemez; bu ayar daha çok tasarım/düzen için kullanılır.
+                            Yatay kilidi birçok tarayıcıda yalnızca tam ekranda çalışır. iOS Safari ve bazı cihazlarda işletim sistemi yön kilidine izin vermeyebilir.
                         </small>
                     </div>
                 </div>
@@ -663,18 +822,12 @@
     </div>
 
     <!-- Akıllı Takip Uyarısı -->
-    <div
-        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px 25px; border-radius: 15px; margin: 0 auto 15px; max-width: 900px; box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4); animation: pulse 3s infinite; will-change: transform;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
-            <div style="font-size: 48px;"></div>
-            <div style="text-align: left;">
-                <div
-                    style="font-size: 24px; font-weight: bold; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                    BU CİHAZ AKILLI SIRA TAKİP SİSTEMİ KULLANIR
-                </div>
-                <div style="font-size: 18px; opacity: 0.95;">
-                     Lütfen seçimden önce cep telefonunuzun kamerasını açınız
-                </div>
+    <div class="kiosk-banner">
+        <div class="kiosk-banner-inner">
+            <div class="kiosk-banner-icon"></div>
+            <div class="kiosk-banner-text">
+                <div class="kiosk-banner-title">BU CİHAZ AKILLI SIRA TAKİP SİSTEMİ KULLANIR</div>
+                <div class="kiosk-banner-sub">Lütfen seçimden önce cep telefonunuzun kamerasını açınız</div>
             </div>
         </div>
     </div>
@@ -703,57 +856,29 @@
             max-width: 1200px;
         }
 
-        /* Küçük ekranlar için responsive düzen */
-        @media (max-width: 768px) {
-            .bilet-konteynir {
-                flex-direction: column;
-                align-items: center;
-                gap: 20px;
+        /* Küçük ekranlar (8" tablet vb.): grid daha dar hücreler */
+        @media (max-width: 600px), (max-height: 500px) {
+            :root {
+                --kiosk-grid-min: min(120px, 42vw);
             }
+        }
 
-            .info-section h2 {
-                font-size: 24px !important;
-            }
-
-            .numara {
-                font-size: 48px !important;
-            }
-
-            .mesaj {
-                font-size: 18px !important;
-            }
-
-            .bekleme-info {
-                padding: 10px !important;
-                font-size: 13px !important;
-            }
-
-            .print-btn {
-                padding: 10px 16px !important;
-                font-size: 14px !important;
-            }
-
+        /* Küçük ekranlarda bilet ekranı tek kolon (yukarıdaki clamp’ler boyutları zaten ölçekliyor) */
+        @media (max-width: 700px) {
             .qr-section {
-                width: 220px !important;
-            }
-
-            #qrcode {
-                width: 180px !important;
-                height: 180px !important;
+                justify-self: center;
             }
         }
     </style>
 
     <div id="departman-secimi">
-        <h2 style="font-size: 36px; margin-bottom: 40px;">Hangi Bölüme Gideceksiniz?</h2>
+        <h2 class="kiosk-section-title">Hangi Bölüme Gideceksiniz?</h2>
         <div class="departman-grid" id="departman-listesi"></div>
     </div>
 
     <!-- Alt seçenekler alanı -->
-    <div id="alt-secenekler-konteynir"
-        style="display:none; margin-top: 50px; padding: 40px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 2px dashed rgba(255,255,255,0.3);">
-        <h3 id="alt-secenek-baslik" style="font-size: 32px; margin-bottom: 30px; color: #ffd700;">Hizmet Türü
-            Seçiniz</h3>
+    <div id="alt-secenekler-konteynir" class="alt-secenekler-konteynir">
+        <h3 id="alt-secenek-baslik" class="kiosk-alt-baslik">Hizmet Türü Seçiniz</h3>
         <div id="alt-secenek-listesi" class="departman-grid"></div>
     </div>
 
@@ -781,14 +906,11 @@
         <div class="bilet-konteynir">
             <!-- Sol Panel: Bilet Bilgileri -->
             <div class="info-section">
-                <h2 style="font-size: 32px; opacity: 0.9;">Sıra Numaranız</h2>
+                <h2>Sıra Numaranız</h2>
                 <div class="numara" id="numara"></div>
-                <p class="mesaj" id="mesaj" style="font-size: 24px; min-height: 40px;"></p>
-
-                <div class="bekleme-info" id="bekleme-info"
-                    style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; display: inline-block; margin-top: 10px;">
-                </div>
-
+                <p class="mesaj" id="mesaj"></p>
+                <div class="bekleme-info" id="bekleme-info"></div>
+                <div class="tahmini-bekleme" id="tahmini-bekleme"></div>
                 <button onclick="fisBastir()" class="print-btn">
                     <i class="fas fa-print"></i>
                     FİŞ YAZDIR
@@ -796,19 +918,12 @@
             </div>
 
             <!-- Sağ Panel: QR Kod -->
-            <div class="qr-section" style="width: 260px; flex-shrink: 0;">
-                <div id="qrcode"
-                    style="display: inline-block; padding: 6px; background: white;"></div>
-                <p style="margin-top:10px; font-size:14px;">Karekod Okut</p>
-                <div style="font-size: 13px; color: #7f8c8d; margin-bottom: 12px; text-align:center;">
-                    Sıranızı telefondan canlı takip edin
-                </div>
-                <div id="qr-sayac" style="color: #e74c3c; font-size: 16px; font-weight: bold; margin-bottom: 12px;">
-                </div>
-
-                <button onclick="location.reload()" class="back-btn" style="padding:8px 14px; font-size:13px;">
-                    ANA SAYFAYA DÖN
-                </button>
+            <div class="qr-section">
+                <div id="qrcode"></div>
+                <p>Karekod Okut</p>
+                <div class="qr-aciklama">Sıranızı telefondan canlı takip edin</div>
+                <div id="qr-sayac"></div>
+                <button onclick="location.reload()" class="back-btn">ANA SAYFAYA DÖN</button>
             </div>
         </div>
     </div>
@@ -889,7 +1004,7 @@
             initialSetupDone: false,
             deviceName: null,
             fullscreen: true,
-            orientation: 'auto' // 'auto' | 'portrait' | 'landscape'
+            orientation: 'landscape' // 'auto' | 'portrait' | 'landscape' — varsayılan yatay
         };
 
         // ============================================
@@ -1094,9 +1209,11 @@
                     if (deviceResponse.status === 'success' && deviceResponse.device) {
                         const setupCompleted = deviceResponse.device.setup_tamamlandi || false;
                         if (setupCompleted) {
-                            // Setup tamamlandıysa deviceName'i ayarlardan çıkar (sadece admin panelinden değiştirilebilir)
-                            console.log('[SETUP] Setup tamamlanmış, deviceName backend\'e gönderilmeyecek');
+                            // Setup tamamlandıysa saha tarafından değiştirilemeyen alanları gönderme (sadece admin değiştirebilir)
+                            console.log('[SETUP] Setup tamamlanmış, deviceName/cihaz_tipi/kullanim_tipi backend\'e gönderilmeyecek');
                             delete settingsToSend.deviceName;
+                            delete settingsToSend.cihaz_tipi;
+                            delete settingsToSend.kullanim_tipi;
                         }
                     }
                 } catch (err) {
@@ -1268,12 +1385,18 @@
             const deviceName = deviceNameInput ? deviceNameInput.value.trim() : '';
             const fullscreenCheckbox = document.getElementById('fullscreen-checkbox');
             const orientationSelect = document.getElementById('orientation-select');
+            const cihazTipiSelect = document.getElementById('kiosk-cihaz-tipi');
+            const kullanimTipiSelect = document.getElementById('kiosk-kullanim-tipi');
+            const cihazTipi = cihazTipiSelect ? cihazTipiSelect.value || 'TABLET' : 'TABLET';
+            const kullanimTipi = kullanimTipiSelect ? kullanimTipiSelect.value || 'KIOSK' : 'KIOSK';
 
             kioskSettings = {
                 servisIds: selectedServisIds,
                 kuyrukIds: selectedKuyrukIds,
                 hideServisSelection: document.getElementById('hide-servis-checkbox').checked,
                 deviceName: deviceName || kioskSettings.deviceName || `TABLET-${(DEVICE_FINGERPRINT || 'XXXXXXX').substring(3, 10)}`,
+                cihaz_tipi: cihazTipi,
+                kullanim_tipi: kullanimTipi,
                 fullscreen: fullscreenCheckbox ? fullscreenCheckbox.checked : kioskSettings.fullscreen,
                 orientation: orientationSelect ? orientationSelect.value : kioskSettings.orientation,
                 initialSetupDone: true // Bu fonksiyon çağrıldığında kurulum tamamlandı kabul ediyoruz
@@ -1363,6 +1486,20 @@
                 const checkbox = document.getElementById('hide-servis-checkbox');
                 if (checkbox) checkbox.checked = kioskSettings.hideServisSelection;
 
+                // Backend'den cihaz bilgisini tek seferde al (setup durumu + cihaz_tipi, kullanim_tipi için)
+                let deviceData = null;
+                if (DEVICE_ID) {
+                    try {
+                        const deviceResponse = await apiCall(`/api/cihaz/${DEVICE_ID}/ayarlar`);
+                        if (deviceResponse.status === 'success' && deviceResponse.device) {
+                            deviceData = deviceResponse.device;
+                        }
+                    } catch (err) {
+                        console.warn('[SETUP] Cihaz ayarları alınamadı:', err);
+                    }
+                }
+                const setupCompleted = (deviceData && deviceData.setup_tamamlandi) || (DEVICE_ID && kioskSettings.initialSetupDone);
+
                 // Cihaz adı ve fingerprint alanlarını doldur
                 const nameInput = document.getElementById('device-name-input');
                 const fpInput = document.getElementById('device-fingerprint-display');
@@ -1372,23 +1509,7 @@
                 if (nameInput) {
                     const defaultName = `TABLET-${(DEVICE_FINGERPRINT || localStorage.getItem('device_fingerprint') || 'XXXXXXX').substring(3, 10)}`;
                     nameInput.value = kioskSettings.deviceName || defaultName;
-                    
-                    // Setup tamamlandıysa veya cihaz zaten kaydedilmişse tablet adını readonly yap
-                    // Backend'den setup durumunu kontrol et
-                    let setupCompleted = false;
-                    if (DEVICE_ID) {
-                        try {
-                            const deviceResponse = await apiCall(`/api/cihaz/${DEVICE_ID}/ayarlar`);
-                            if (deviceResponse.status === 'success' && deviceResponse.device) {
-                                setupCompleted = deviceResponse.device.setup_tamamlandi || false;
-                            }
-                        } catch (err) {
-                            console.warn('[SETUP CHECK] Backend setup durumu kontrol edilemedi:', err);
-                        }
-                    }
-                    
-                    // Eğer setup tamamlandıysa veya cihaz kaydedilmişse readonly yap
-                    if (setupCompleted || (DEVICE_ID && kioskSettings.initialSetupDone)) {
+                    if (setupCompleted) {
                         nameInput.readOnly = true;
                         nameInput.style.background = '#f1f5f9';
                         nameInput.style.cursor = 'not-allowed';
@@ -1403,12 +1524,40 @@
                     }
                 }
 
+                // Cihaz tipi ve kullanım tipi alanlarını doldur; setup tamamsa sadece göster (değiştirilemez)
+                const cihazTipiSelect = document.getElementById('kiosk-cihaz-tipi');
+                const kullanimTipiSelect = document.getElementById('kiosk-kullanim-tipi');
+                if (cihazTipiSelect && kullanimTipiSelect) {
+                    const ct = (deviceData && deviceData.cihaz_tipi) ? String(deviceData.cihaz_tipi).toUpperCase() : (kioskSettings.cihaz_tipi || 'TABLET');
+                    const kt = (deviceData && deviceData.kullanim_tipi) ? String(deviceData.kullanim_tipi).toUpperCase() : (kioskSettings.kullanim_tipi || 'KIOSK');
+                    if (ct && Array.from(cihazTipiSelect.options).some(o => o.value === ct)) cihazTipiSelect.value = ct;
+                    else cihazTipiSelect.value = 'TABLET';
+                    if (kt && Array.from(kullanimTipiSelect.options).some(o => o.value === kt)) kullanimTipiSelect.value = kt;
+                    else kullanimTipiSelect.value = 'KIOSK';
+                    if (setupCompleted) {
+                        cihazTipiSelect.disabled = true;
+                        kullanimTipiSelect.disabled = true;
+                        cihazTipiSelect.style.background = '#f1f5f9';
+                        kullanimTipiSelect.style.background = '#f1f5f9';
+                        cihazTipiSelect.title = 'Sadece ilk kurulumda değiştirilebilir; artık admin panelinden düzenleyin.';
+                        kullanimTipiSelect.title = 'Sadece ilk kurulumda değiştirilebilir; artık admin panelinden düzenleyin.';
+                    } else {
+                        cihazTipiSelect.disabled = false;
+                        kullanimTipiSelect.disabled = false;
+                        cihazTipiSelect.style.background = '';
+                        kullanimTipiSelect.style.background = '';
+                        cihazTipiSelect.title = '';
+                        kullanimTipiSelect.title = '';
+                    }
+                }
+
                 // Ekran ayarlarını doldur
                 const fullscreenCheckbox = document.getElementById('fullscreen-checkbox');
                 const orientationSelect = document.getElementById('orientation-select');
                 if (fullscreenCheckbox) fullscreenCheckbox.checked = kioskSettings.fullscreen !== false;
-                if (orientationSelect && kioskSettings.orientation) {
-                    orientationSelect.value = kioskSettings.orientation;
+                if (orientationSelect) {
+                    const o = kioskSettings.orientation;
+                    orientationSelect.value = (o === 'portrait' || o === 'landscape') ? o : 'landscape';
                 }
 
             } catch (error) {
@@ -1518,18 +1667,34 @@
         function applyDisplaySettings() {
             try {
                 // Tam ekran
-                if (kioskSettings.fullscreen && document.fullscreenEnabled && !document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(e => {
-                        console.warn('[DISPLAY] Tam ekran başlatılamadı:', e);
-                    });
-                }
-
-                // Yön sınıfları
+                // Yön sınıfları (sayfa düzeni)
                 document.body.classList.remove('orientation-portrait', 'orientation-landscape');
                 if (kioskSettings.orientation === 'portrait') {
                     document.body.classList.add('orientation-portrait');
-                } else if (kioskSettings.orientation === 'landscape') {
+                } else {
                     document.body.classList.add('orientation-landscape');
+                }
+
+                const orient = kioskSettings.orientation || 'landscape';
+                const tryLockOrientation = () => {
+                    if (orient === 'auto' || !screen.orientation || typeof screen.orientation.lock !== 'function') return;
+                    const lockMode = orient === 'portrait' ? 'portrait-primary' : 'landscape-primary';
+                    screen.orientation.lock(lockMode).then(() => {
+                        console.log('[DISPLAY] Ekran yönü kilitlendi:', lockMode);
+                    }).catch(err => {
+                        console.warn('[DISPLAY] Yön kilidi (çoğu tarayıcıda sadece tam ekranda çalışır):', err.message);
+                    });
+                };
+
+                if (kioskSettings.fullscreen && document.fullscreenEnabled && !document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().then(() => {
+                        tryLockOrientation();
+                    }).catch(e => {
+                        console.warn('[DISPLAY] Tam ekran başlatılamadı:', e);
+                        tryLockOrientation();
+                    });
+                } else {
+                    tryLockOrientation();
                 }
             } catch (e) {
                 console.warn('[DISPLAY] Ekran ayarları uygulanamadı:', e);
@@ -1622,8 +1787,10 @@
                 return;
             }
 
-            // Eleman sayısına göre grid yapısını kolon sayısına zorla
-            const columnCount = Math.min(servisler.length, 4);
+            // Ekran genişliğine göre kolon sayısı (7"-60" uyumlu)
+            const w = window.innerWidth || 800;
+            const maxCols = w < 480 ? 2 : w < 768 ? 3 : Math.min(servisler.length, 4);
+            const columnCount = Math.min(servisler.length, maxCols);
             list.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`;
 
             list.innerHTML = servisler.map(s => `
@@ -1668,8 +1835,10 @@
                 else exitBtn.classList.add('show');
             }
 
-            // Eleman sayısına göre grid yapısını kolon sayısına zorla
-            const columnCount = Math.min(kuyruklar.length, 3);
+            // Ekran genişliğine göre kolon sayısı
+            const w = window.innerWidth || 800;
+            const maxCols = w < 480 ? 2 : w < 768 ? 3 : 4;
+            const columnCount = Math.min(kuyruklar.length, maxCols);
             subList.style.gridTemplateColumns = `repeat(${columnCount}, 1fr)`;
 
             subList.innerHTML = kuyruklar.map(k => `
@@ -1708,6 +1877,18 @@
                 if (mesajEl) mesajEl.textContent = response.mesaj || (response.numara + " numaralı sıranız alındı.");
                 const beklemeInfoEl = document.getElementById('bekleme-info');
                 if (beklemeInfoEl) beklemeInfoEl.textContent = `Sıranızdan önce ${Math.max(0, response.bekleyen_sayisi - 1)} kişi var.`;
+
+                const tahminiEl = document.getElementById('tahmini-bekleme');
+                if (tahminiEl) {
+                    const dk = response.tahmini_sure_dk;
+                    if (dk != null && dk > 0) {
+                        tahminiEl.textContent = `Yaklaşık bekleme süresi: ${dk} dakika`;
+                        tahminiEl.style.display = '';
+                    } else {
+                        tahminiEl.textContent = '';
+                        tahminiEl.style.display = 'none';
+                    }
+                }
 
                 const depSecimi = document.getElementById('departman-secimi');
                 const numEkrani = document.getElementById('numara-ekrani');

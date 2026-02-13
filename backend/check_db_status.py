@@ -15,6 +15,6 @@ print(f"DB Server Local Time (NOW()): {time_check[0]['local_now']}")
 print(f"DB Server Timezone Setting: {time_check[0]['timezone_setting']}")
 
 print("\n--- DEVICES ---")
-devices = db.execute_query("SELECT id, ad, tip, durum, son_gorulen, metadata FROM siramatik.cihazlar")
+devices = db.execute_query("SELECT id, ad, cihaz_tipi, kullanim_tipi, durum, son_gorulen, metadata FROM siramatik.cihazlar")
 for d in devices:
     print(json.dumps(dict(d), default=json_serial, indent=2))
