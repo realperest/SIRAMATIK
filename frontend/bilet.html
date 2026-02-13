@@ -21,7 +21,7 @@
             align-items: flex-start;
             min-height: 100vh;
             margin: 0;
-            padding: 15px 20px;
+            padding: 10px 20px;
             overscroll-behavior-y: contain;
             /* Pull-to-refresh engelleme */
         }
@@ -59,12 +59,12 @@
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px;
+            padding: 20px 24px;
             text-align: center;
         }
 
         .content {
-            padding: 40px 30px;
+            padding: 24px 24px;
             text-align: center;
             border-top: 2px dashed #eee;
         }
@@ -73,7 +73,7 @@
             font-size: 84px;
             font-weight: 900;
             color: #764ba2;
-            margin: 20px 0;
+            margin: 12px 0;
             letter-spacing: -2px;
         }
 
@@ -86,7 +86,7 @@
 
         .footer {
             background: #f8f9fa;
-            padding: 20px;
+            padding: 14px 20px;
             text-align: center;
             font-size: 14px;
             color: #95a5a6;
@@ -236,6 +236,24 @@
             animation: number-decrease 0.6s ease;
         }
 
+        /* Değer balonu (önünüzdeki kişi / tahmini dakika) - sadece sayı */
+        .value-bubble {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(118, 75, 162, 0.15);
+            color: #764ba2;
+            border-radius: 12px;
+            font-size: inherit;
+            font-weight: 700;
+        }
+        .value-bubble-old {
+            text-decoration: line-through;
+            opacity: 0.85;
+            background: rgba(118, 75, 162, 0.08);
+        }
+        .value-bubble-new {
+            margin-left: 6px;
+        }
         /* Tahmini Bekleme Süresi */
         .estimated-time {
             display: inline-block;
@@ -246,6 +264,9 @@
             font-size: 13px;
             font-weight: 600;
             margin-top: 15px;
+        }
+        .estimated-time .value-bubble {
+            font-size: 13px;
         }
 
         /* Gizli element (HTML tekrarı düzeltmesi için) */
@@ -258,7 +279,7 @@
             background: rgba(118, 75, 162, 0.06);
         }
         .erteleme-inner {
-            padding: 16px 20px;
+            padding: 12px 20px 14px;
             border-top: 2px dashed #eee;
             text-align: center;
         }
@@ -372,7 +393,7 @@
         .erteleme-overlay-panel {
             position: relative;
             z-index: 1;
-            width: min(320px, 85vw);
+            width: min(340px, 90vw);
             max-width: 100%;
             background: #fff;
             box-shadow: -4px 0 24px rgba(0,0,0,0.15);
@@ -380,9 +401,42 @@
             overflow-y: auto;
             transform: translateX(100%);
             transition: transform 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
         }
         .erteleme-overlay[data-open="true"] .erteleme-overlay-panel {
             transform: translateX(0);
+        }
+        .erteleme-overlay-title {
+            margin-bottom: 6px;
+        }
+        .erteleme-estimate-above {
+            font-size: 18px;
+            font-weight: 600;
+            color: #475569;
+            margin: 0 0 16px 0;
+            text-align: center;
+        }
+        .erteleme-estimate-above strong {
+            color: #764ba2;
+            font-size: 20px;
+        }
+        .erteleme-overlay-wheel-wrap {
+            width: 100%;
+            justify-content: center;
+            margin: 0 0 16px 0;
+        }
+        .erteleme-overlay-wheel-mask {
+            height: 160px;
+        }
+        .erteleme-overlay-panel .erteleme-wheel-item {
+            font-size: 28px;
+        }
+        .erteleme-overlay-submit {
+            width: 100%;
+            max-width: 280px;
         }
         .erteleme-overlay-close {
             position: absolute;
@@ -413,7 +467,6 @@
         }
         .erteleme-estimate strong {
             color: #764ba2;
-            cursor: not-allowed;
         }
 
         /* Ekran Yönlendirme Kilidi - Sadece Portre Mod */
@@ -580,7 +633,7 @@
             <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
             <div class="status" id="wait-info">Giriş Yapılıyor...</div>
             <div class="estimated-time" id="estimated-time" style="display: none;">
-                ⏱ Tahmini <span id="est-minutes">--</span> dakika
+                ⏱ Tahmini <span id="est-minutes-wrap"><span id="est-minutes" class="value-bubble">--</span></span> dakika
             </div>
         </div>
         <div class="footer">
@@ -600,17 +653,17 @@
     <div id="erteleme-overlay" class="erteleme-overlay" style="display: none;">
         <div class="erteleme-overlay-panel">
             <button type="button" id="erteleme-overlay-close" class="erteleme-overlay-close" aria-label="Kapat">×</button>
-            <div class="label" style="margin-bottom: 8px;">Kaç dakika geciktirmek istiyorsunuz?</div>
-            <div class="erteleme-wheel-container">
-                <div class="erteleme-wheel-mask">
-                    <div id="erteleme-wheel" class="erteleme-wheel" role="listbox" aria-label="Dakika seçin">
+            <div class="label erteleme-overlay-title">Kaç dakika geciktirmek istiyorsunuz?</div>
+            <div id="erteleme-estimate" class="erteleme-estimate erteleme-estimate-above">Yaklaşık <strong>0</strong> sıra geri düşersiniz.</div>
+            <div class="erteleme-wheel-container erteleme-overlay-wheel-wrap">
+                <div class="erteleme-wheel-mask erteleme-overlay-wheel-mask">
+                    <div id="erteleme-wheel" class="erteleme-wheel erteleme-overlay-wheel" role="listbox" aria-label="Dakika seçin">
                         <div class="erteleme-wheel-spacer"></div>
                     </div>
                 </div>
                 <div class="erteleme-wheel-unit">dakika</div>
             </div>
-            <div id="erteleme-estimate" class="erteleme-estimate">Yaklaşık <strong>0</strong> sıra geri düşersiniz.</div>
-            <button type="button" id="erteleme-btn" class="erteleme-btn" style="margin-top: 12px;">Ertelemeyi Uygula</button>
+            <button type="button" id="erteleme-btn" class="erteleme-btn erteleme-overlay-submit">Ertelemeyi Uygula</button>
         </div>
         <div class="erteleme-overlay-backdrop" id="erteleme-overlay-backdrop"></div>
     </div>
@@ -751,6 +804,7 @@
         let lastCount = -1;
         let isAudioUnlocked = false;
         let isFirstLoad = true;
+        let ertelemeJustApplied = null;
         let ws = null; // WebSocket bağlantısı
         let pollingInterval = null; // Polling interval referansı
         let isPageVisible = true; // Sayfa görünürlük durumu
@@ -1094,7 +1148,7 @@
         document.getElementById('ticket-number').textContent = numara;
         document.getElementById('queue-name').textContent = kuyruk_ad;
         document.getElementById('hospital-name').textContent = firma_ad;
-        document.getElementById('wait-info').textContent = `Önünüzde ${ticketSpecs.bekleyen} kişi var`;
+        document.getElementById('wait-info').innerHTML = 'Önünüzde <span class="value-bubble">' + (ticketSpecs.bekleyen || '0') + '</span> kişi var';
 
         // İlk bekleyen sayısını kaydet (URL'den)
         const bekleyen_url = ticketSpecs.bekleyen;
@@ -1310,9 +1364,16 @@
                     statusEl.style.fontWeight = "bold";
                     updateEstimatedTime(0);
                 } else {
-                    statusEl.textContent = `Önünüzde ${count} kişi var`;
+                    const showErtelemeDiff = ertelemeJustApplied && ertelemeJustApplied.oldBekleyen !== undefined;
+                    const oldMinutesForEst = showErtelemeDiff ? ertelemeJustApplied.oldMinutes : undefined;
+                    if (showErtelemeDiff) {
+                        statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + ertelemeJustApplied.oldBekleyen + '</span> <span class="value-bubble value-bubble-new">' + count + '</span> kişi var';
+                        ertelemeJustApplied = null;
+                    } else {
+                        statusEl.innerHTML = 'Önünüzde <span class="value-bubble">' + count + '</span> kişi var';
+                    }
                     statusEl.style.color = "#667eea";
-                    updateEstimatedTime(count);
+                    updateEstimatedTime(count, oldMinutesForEst);
                 }
 
                 // Metin değiştiyse sesli olarak oku
@@ -1358,21 +1419,23 @@
             document.getElementById('current-time').textContent = new Date().toLocaleTimeString('tr-TR');
         }
 
-        // Tahmini bekleme süresini güncelle
-        function updateEstimatedTime(count) {
+        // Tahmini bekleme süresini güncelle (erteleme sonrası oldMinutes verilirse eski üstü çizili + yeni balon)
+        function updateEstimatedTime(count, oldMinutes) {
             const estimatedEl = document.getElementById('estimated-time');
-            const minutesEl = document.getElementById('est-minutes');
+            const wrapEl = document.getElementById('est-minutes-wrap');
 
-            if (count === 0) {
-                estimatedEl.style.display = 'none';
-            } else {
-                // Dinamik ortalama süre ile hesapla
-                const minutes = Math.ceil(count * avgProcessTime);
-                minutesEl.textContent = minutes;
-                estimatedEl.style.display = 'inline-block';
-
-                console.log(`⏱ Tahmini bekleme: ${count} kişi × ${avgProcessTime} dk = ${minutes} dk`);
+            if (count === 0 || !wrapEl) {
+                if (estimatedEl) estimatedEl.style.display = 'none';
+                return;
             }
+            const minutes = Math.ceil(count * avgProcessTime);
+            if (oldMinutes !== undefined && oldMinutes !== null) {
+                wrapEl.innerHTML = '<span class="value-bubble value-bubble-old">' + oldMinutes + '</span> <span class="value-bubble value-bubble-new">' + minutes + '</span>';
+            } else {
+                wrapEl.innerHTML = '<span id="est-minutes" class="value-bubble">' + minutes + '</span>';
+            }
+            estimatedEl.style.display = 'inline-block';
+            console.log(`⏱ Tahmini bekleme: ${count} kişi × ${avgProcessTime} dk = ${minutes} dk`);
         }
 
         // Sayfa başlığını güncelle (Arka plan bildirimleri için)
@@ -1408,6 +1471,10 @@
                 const data = await r.json().catch(() => ({}));
                 if (r.ok && data.success) {
                     if (data.mesaj) alert(data.mesaj);
+                    ertelemeJustApplied = {
+                        oldBekleyen: lastCount >= 0 ? lastCount : 0,
+                        oldMinutes: lastCount >= 0 ? Math.ceil(lastCount * (typeof avgProcessTime !== 'undefined' ? avgProcessTime : 5)) : 0
+                    };
                     updateStatus();
                     closeErtelemeOverlay();
                 } else {
