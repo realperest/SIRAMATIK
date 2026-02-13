@@ -345,6 +345,74 @@
         }
         .erteleme-btn:disabled {
             opacity: 0.6;
+        }
+        /* Erteleme overlay - sağ üst katman */
+        .erteleme-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            display: flex;
+            justify-content: flex-end;
+            align-items: stretch;
+            pointer-events: none;
+        }
+        .erteleme-overlay[data-open="true"] {
+            pointer-events: auto;
+        }
+        .erteleme-overlay-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .erteleme-overlay[data-open="true"] .erteleme-overlay-backdrop {
+            opacity: 1;
+        }
+        .erteleme-overlay-panel {
+            position: relative;
+            z-index: 1;
+            width: min(320px, 85vw);
+            max-width: 100%;
+            background: #fff;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+            padding: 20px 52px 24px 16px;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+        }
+        .erteleme-overlay[data-open="true"] .erteleme-overlay-panel {
+            transform: translateX(0);
+        }
+        .erteleme-overlay-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 24px;
+            line-height: 1;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .erteleme-overlay-close:active {
+            background: #e2e8f0;
+        }
+        .erteleme-estimate {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .erteleme-estimate strong {
+            color: #764ba2;
             cursor: not-allowed;
         }
 
@@ -519,24 +587,32 @@
             <div id="current-time">--:--:--</div>
             <div style="margin-top: 5px;">Lütfen ekranlardan numaranızı takip ediniz.</div>
         </div>
-        <!-- Erteleme (firma erteleme açıksa ve hakkı varsa gösterilir) - iPhone tarzı dakika çarkı -->
+        <!-- Erteleme: önce sadece buton; tıklanınca sağ üstte çark overlay açılır -->
         <div id="erteleme-wrap" class="erteleme-wrap" style="display: none;">
             <div class="erteleme-inner">
-                <div class="label" style="margin-bottom: 8px;">Sıranızı kaç dakika geciktirmek istiyorsunuz?</div>
-                <div class="erteleme-wheel-container">
-                    <div class="erteleme-wheel-mask">
-                        <div id="erteleme-wheel" class="erteleme-wheel" role="listbox" aria-label="Dakika seçin">
-                            <!-- scroll-snap için üst boşluk -->
-                            <div class="erteleme-wheel-spacer"></div>
-                            <!-- 1-60 dakika -->
-                        </div>
-                    </div>
-                    <div class="erteleme-wheel-unit">dakika</div>
-                </div>
-                <button type="button" id="erteleme-btn" class="erteleme-btn">Erteleme İste</button>
+                <button type="button" id="erteleme-open-btn" class="erteleme-btn">Erteleme İste</button>
                 <small id="erteleme-hakki" style="display:block; margin-top:8px; color:#7f8c8d; font-size:12px;"></small>
             </div>
         </div>
+    </div>
+
+    <!-- Erteleme çark overlay - sağ üst, "Erteleme İste" tıklanınca açılır -->
+    <div id="erteleme-overlay" class="erteleme-overlay" style="display: none;">
+        <div class="erteleme-overlay-panel">
+            <button type="button" id="erteleme-overlay-close" class="erteleme-overlay-close" aria-label="Kapat">×</button>
+            <div class="label" style="margin-bottom: 8px;">Kaç dakika geciktirmek istiyorsunuz?</div>
+            <div class="erteleme-wheel-container">
+                <div class="erteleme-wheel-mask">
+                    <div id="erteleme-wheel" class="erteleme-wheel" role="listbox" aria-label="Dakika seçin">
+                        <div class="erteleme-wheel-spacer"></div>
+                    </div>
+                </div>
+                <div class="erteleme-wheel-unit">dakika</div>
+            </div>
+            <div id="erteleme-estimate" class="erteleme-estimate">Yaklaşık <strong>0</strong> sıra geri düşersiniz.</div>
+            <button type="button" id="erteleme-btn" class="erteleme-btn" style="margin-top: 12px;">Ertelemeyi Uygula</button>
+        </div>
+        <div class="erteleme-overlay-backdrop" id="erteleme-overlay-backdrop"></div>
     </div>
 
     <!-- Memnuniyet Anketi -->
@@ -1333,6 +1409,7 @@
                 if (r.ok && data.success) {
                     if (data.mesaj) alert(data.mesaj);
                     updateStatus();
+                    closeErtelemeOverlay();
                 } else {
                     alert(data.detail || 'Erteleme yapılamadı.');
                 }
@@ -1341,8 +1418,32 @@
                 alert('Bağlantı hatası. Lütfen tekrar deneyin.');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Erteleme İste';
+                btn.textContent = 'Ertelemeyi Uygula';
             }
+        }
+
+        function updateErtelemeEstimate() {
+            const dakika = getErtelemeWheelValue ? getErtelemeWheelValue() : 10;
+            const estEl = document.getElementById('erteleme-estimate');
+            if (!estEl) return;
+            const avg = typeof avgProcessTime !== 'undefined' ? avgProcessTime : 5;
+            const x = avg > 0 ? Math.max(0, Math.round(dakika / avg)) : 0;
+            estEl.innerHTML = 'Yaklaşık <strong>' + x + '</strong> sıra geri düşersiniz.';
+        }
+
+        function openErtelemeOverlay() {
+            const overlay = document.getElementById('erteleme-overlay');
+            if (!overlay) return;
+            overlay.style.display = 'flex';
+            overlay.setAttribute('data-open', 'true');
+            buildErtelemeWheel();
+            updateErtelemeEstimate();
+        }
+        function closeErtelemeOverlay() {
+            const overlay = document.getElementById('erteleme-overlay');
+            if (!overlay) return;
+            overlay.style.display = 'none';
+            overlay.removeAttribute('data-open');
         }
 
         const ERTELEME_ITEM_HEIGHT = 40;
@@ -1373,6 +1474,7 @@
                 clearTimeout(wheel._scrollTimer);
                 wheel._scrollTimer = setTimeout(function () { snapErtelemeWheel(); }, 150);
             }, { passive: true });
+            updateErtelemeEstimate();
         }
         function getErtelemeWheelValue() {
             const wheel = document.getElementById('erteleme-wheel');
@@ -1392,17 +1494,12 @@
             if (!wheel) return;
             const v = getErtelemeWheelValue();
             setErtelemeWheelValue(v);
+            updateErtelemeEstimate();
         }
         document.getElementById('erteleme-btn').addEventListener('click', requestErteleme);
-        document.addEventListener('DOMContentLoaded', function () {
-            const wrap = document.getElementById('erteleme-wrap');
-            if (wrap) {
-                const obs = new MutationObserver(function () {
-                    if (wrap.style.display !== 'none') buildErtelemeWheel();
-                });
-                obs.observe(wrap, { attributes: true, attributeFilter: ['style'] });
-            }
-        });
+        document.getElementById('erteleme-open-btn').addEventListener('click', openErtelemeOverlay);
+        document.getElementById('erteleme-overlay-close').addEventListener('click', closeErtelemeOverlay);
+        document.getElementById('erteleme-overlay-backdrop').addEventListener('click', closeErtelemeOverlay);
 
         // Sayfa yüklendiğinde
         setInterval(updateTime, 1000);
