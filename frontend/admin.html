@@ -338,6 +338,18 @@
             border-radius: 8px !important;
             border: 1px solid var(--glass-border) !important;
         }
+
+        /* Cihaz listesi tablolarını sıkılaştır (yatay scroll'u azalt) */
+        #view-cihazlar table thead th {
+            white-space: nowrap;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        #view-cihazlar table tbody td {
+            padding: 6px 8px;
+            font-size: 12px;
+        }
         
         .stats-grid {
             display: grid !important;
@@ -806,7 +818,7 @@
                 </div>
                 <div class="stat-card" style="background: linear-gradient(135deg, #92400e 0%, #b45309 100%);">
                     <h3 id="stat-tablet-cihaz">0</h3>
-                    <p>Tablet</p>
+                    <p>Kiosk</p>
                 </div>
             </div>
 
@@ -817,12 +829,13 @@
                         <tr>
                             <th>Durum</th>
                             <th>Ad</th>
-                            <th>Tip</th>
+                            <th>Kullanım Tipi</th>
+                            <th>Cihaz Tipi</th>
                             <th>
                                 <div class="th-with-filter">
                                     <span>Bölüm</span>
                                     <select id="filter-servis">
-                                        <option value="">Tüm Bölümler</option>
+                                        <option value="">Tüm Böl.</option>
                                     </select>
                                 </div>
                             </th>
@@ -830,23 +843,22 @@
                                 <div class="th-with-filter">
                                     <span>Kuyruk</span>
                                     <select id="filter-kuyruk">
-                                        <option value="">Tüm Kuyruklar</option>
+                                        <option value="">Tüm Kuyr.</option>
                                     </select>
                                 </div>
                             </th>
-                            <th>IP Adresi</th>
+                            <th>IP</th>
                             <th>
                                 <div class="th-with-filter">
                                     <span>Tarayıcı</span>
                                     <select id="filter-browser">
-                                        <option value="">Tüm Tarayıcılar</option>
+                                        <option value="">Tümü</option>
                                     </select>
                                 </div>
                             </th>
                             <th>Parmak İzi</th>
                             <th class="th-small">
-                                <span>Son</span><br/>
-                                <span>Görülme</span>
+                                <span>Son Gör.</span>
                             </th>
                             <th>
                                 <div class="th-with-filter">
@@ -864,7 +876,7 @@
                     </thead>
                     <tbody id="cihaz-listesi">
                         <tr>
-                            <td colspan="12" style="text-align: center; padding: 40px;">
+                            <td colspan="13" style="text-align: center; padding: 40px;">
                                 <i class="fas fa-spinner fa-spin"></i> Yükleniyor...
                             </td>
                         </tr>
@@ -1367,8 +1379,28 @@
                 <!-- Sağ Sütun -->
                 <div class="cihaz-detail-column">
                     <div class="form-group">
-                        <label>Tip</label>
-                        <input type="text" id="detail-tip" readonly class="readonly-input">
+                        <label>Cihaz Tipi</label>
+                        <select id="detail-cihaz-tipi">
+                            <option value="">Seçiniz</option>
+                            <option value="TABLET">Tablet</option>
+                            <option value="TV">TV / Monitör</option>
+                            <option value="PC">PC / Dizüstü</option>
+                            <option value="TELEFON">Telefon</option>
+                            <option value="EL_MODULU">El Modülü</option>
+                        </select>
+                        <small style="color:var(--text-muted)">Fiziksel cihaz türü</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Kullanım Tipi</label>
+                        <select id="detail-kullanim-tipi">
+                            <option value="">Seçiniz</option>
+                            <option value="KIOSK">Kiosk / Sıra Alma</option>
+                            <option value="EKRAN">Sıra Ekranı</option>
+                            <option value="KULLANICI_EKRANI">Personel / Kullanıcı Ekranı</option>
+                            <option value="TELEFON">Telefon Uygulaması</option>
+                            <option value="EL_MODULU">El Modülü</option>
+                        </select>
+                        <small style="color:var(--text-muted)">Bu cihaz sistemde hangi amaçla kullanılıyor?</small>
                     </div>
 
                     <div class="form-group">
@@ -1616,7 +1648,9 @@
                 const deviceInfo = {
                     firma_id: parseInt(currentUser.firma_id),
                     ad: 'ADMIN-' + currentUser.ad_soyad,
-                    tip: 'pc',
+                    tip: 'pc', // legacy alan (kullanım tipi)
+                    cihaz_tipi: 'PC',
+                    kullanim_tipi: 'KULLANICI_EKRANI',
                     device_fingerprint: fingerprint,
                     mac_address: null,
                     ip: null,
@@ -1625,7 +1659,9 @@
                         browser: detectBrowser(),
                         browser_version: navigator.userAgent,
                         screen_resolution: `${screen.width}x${screen.height}`,
-                        platform: navigator.platform
+                        platform: navigator.platform,
+                        cihaz_tipi: 'PC',
+                        kullanim_tipi: 'KULLANICI_EKRANI'
                     }
                 };
 
@@ -2522,7 +2558,10 @@
                     const toplamCihaz = devices.length;
                     const onlineCihaz = devices.filter(d => d.online_status === 'online').length;
                     const offlineCihaz = toplamCihaz - onlineCihaz;
-                    const tabletCihaz = devices.filter(d => d.tip === 'tablet').length;
+                    // Kiosk: kullanım tipi KIOSK veya eski tip kiosk/tablet
+                    const tabletCihaz = devices.filter(d => 
+                        (d.kullanim_tipi || '').toUpperCase() === 'KIOSK' || d.tip === 'kiosk' || d.tip === 'tablet'
+                    ).length;
                     
                     document.getElementById('stat-toplam-cihaz').textContent = toplamCihaz;
                     document.getElementById('stat-online-cihaz').textContent = onlineCihaz;
@@ -2574,6 +2613,56 @@
                 }
             }
             return browserName;
+        }
+
+        function getDeviceTypeLabel(kullanimTipi) {
+            const t = (kullanimTipi || '').toUpperCase();
+            switch (t) {
+                case 'KIOSK':
+                    return 'KİOSK';
+                case 'EKRAN':
+                    return 'EKRAN';
+                case 'KULLANICI_EKRANI':
+                    return 'KULLANICI EKRANI';
+                case 'TELEFON':
+                    return 'TELEFON';
+                case 'EL_MODULU':
+                    return 'EL MODÜLÜ';
+                default:
+                    // Eski kayıtlar için legacy tip üzerinden yorum yap
+                    if (!t) return '-';
+                    return t;
+            }
+        }
+
+        function getCihazTipiLabel(cihazTipi) {
+            const c = (cihazTipi || '').toUpperCase();
+            switch (c) {
+                case 'TABLET':
+                    return 'TABLET';
+                case 'TV':
+                    return 'TV';
+                case 'PC':
+                    return 'PC';
+                case 'TELEFON':
+                    return 'TELEFON';
+                case 'EL_MODULU':
+                    return 'EL MODÜLÜ';
+                default:
+                    return c || '-';
+            }
+        }
+
+        /** Eski tip alanından kullanım tipi kodu üretir (sadece gösterim için, kayıt cihaz_tipi/kullanim_tipi'nde) */
+        function legacyKullanimTipiFromTip(tip) {
+            // Artık sadece geriye dönük veri doldurma için backend'de kullanılıyor.
+            // Frontend tarafında kullanım tipi doğrudan cihaz_tipi/kullanim_tipi kolonlarından okunuyor.
+            return null;
+        }
+
+        /** Eski tip alanından cihaz tipi kodu üretir (sadece gösterim için) */
+        function legacyCihazTipiFromTip(tip) {
+            return null;
         }
 
         function applyDeviceFilters() {
@@ -2645,11 +2734,11 @@
             const tbody = document.getElementById('cihaz-listesi');
             
             if (devices.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px;">Henüz kayıtlı cihaz yok</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 40px;">Henüz kayıtlı cihaz yok</td></tr>';
                 return;
             }
             
-            tbody.innerHTML = devices.map(device => {
+                tbody.innerHTML = devices.map(device => {
                 const onlineStatus = device.online_status === 'online';
                 
                 // Durum değişikliğini kontrol et
@@ -2686,7 +2775,11 @@
                     ? `${gecenDakika} dk önce`
                     : `${Math.floor(gecenDakika / 60)} saat önce`;
                 
-                const tipIkon = device.tip === 'tablet' ? '' : device.tip === 'kiosk' ? '' : '';
+                // Kullanım tipi ve cihaz tipi: doğrudan cihaz_tipi / kullanim_tipi kolonlarından
+                const kullanimTipiGoster = device.kullanim_tipi;
+                const cihazTipiGoster = device.cihaz_tipi;
+                const kullanimTipiLabel = getDeviceTypeLabel(kullanimTipiGoster);
+                const cihazTipiLabel = getCihazTipiLabel(cihazTipiGoster);
                 
                 const ayarlarCount = device.ayarlar ? 
                     (device.ayarlar.servisIds || []).length + (device.ayarlar.kuyrukIds || []).length : 0;
@@ -2743,7 +2836,8 @@
                     <tr>
                         <td>${statusBadge}</td>
                         <td><strong>${displayName}</strong></td>
-                        <td>${tipIkon} ${device.tip.toUpperCase()}</td>
+                        <td>${kullanimTipiLabel}</td>
+                        <td>${cihazTipiLabel}</td>
                         <td>${servisAd}</td>
                         <td>${kuyrukAd}</td>
                         <td>${ipAddress}</td>
@@ -2786,7 +2880,36 @@
                     document.getElementById('detail-ad').value = device.ad || '';
                     // device_fingerprint backend'den gelmeli
                     document.getElementById('detail-fingerprint').value = device.device_fingerprint || '(Parmak izi kaydedilmemiş)';
-                    document.getElementById('detail-tip').value = device.tip.toUpperCase();
+
+                    // Cihaz tipi ve kullanım tipi - boşsa legacy tipten türet
+                    const cihazTipiSelect = document.getElementById('detail-cihaz-tipi');
+                    const kullanimTipiSelect = document.getElementById('detail-kullanim-tipi');
+
+                    let cihazTipi = (device.cihaz_tipi || '').toUpperCase();
+                    let kullanimTipi = (device.kullanim_tipi || '').toUpperCase();
+                    const legacyTip = (device.tip || '').toLowerCase();
+
+                    if (!cihazTipi) {
+                        if (legacyTip === 'kiosk' || legacyTip === 'tablet') cihazTipi = 'TABLET';
+                        else if (legacyTip === 'ekran') cihazTipi = 'TV';
+                        else if (legacyTip === 'pc') cihazTipi = 'PC';
+                    }
+                    if (!kullanimTipi) {
+                        if (legacyTip === 'kiosk' || legacyTip === 'tablet') kullanimTipi = 'KIOSK';
+                        else if (legacyTip === 'ekran') kullanimTipi = 'EKRAN';
+                        else if (legacyTip === 'pc') kullanimTipi = 'KULLANICI_EKRANI';
+                    }
+
+                    if (cihazTipi && Array.from(cihazTipiSelect.options).some(o => o.value === cihazTipi)) {
+                        cihazTipiSelect.value = cihazTipi;
+                    } else {
+                        cihazTipiSelect.value = '';
+                    }
+                    if (kullanimTipi && Array.from(kullanimTipiSelect.options).some(o => o.value === kullanimTipi)) {
+                        kullanimTipiSelect.value = kullanimTipi;
+                    } else {
+                        kullanimTipiSelect.value = '';
+                    }
                     document.getElementById('detail-durum').value = device.durum || 'active';
                     
                     // Son görülme
@@ -2858,8 +2981,31 @@
         document.getElementById('cihaz-detail-form').onsubmit = async (e) => {
             e.preventDefault();
             const deviceId = document.getElementById('detail-cihaz-id').value;
+
+            const cihazTipi = document.getElementById('detail-cihaz-tipi').value || null;
+            const kullanimTipi = document.getElementById('detail-kullanim-tipi').value || null;
+
+            // Legacy tip alanını, kullanım tipine göre belirle (geriye dönük uyum)
+            let legacyTip = null;
+            switch ((kullanimTipi || '').toUpperCase()) {
+                case 'KIOSK':
+                    legacyTip = 'kiosk';
+                    break;
+                case 'EKRAN':
+                    legacyTip = 'ekran';
+                    break;
+                case 'KULLANICI_EKRANI':
+                    legacyTip = 'pc';
+                    break;
+                default:
+                    legacyTip = null;
+            }
+
             const data = {
                 ad: document.getElementById('detail-ad').value,
+                tip: legacyTip,
+                cihaz_tipi: cihazTipi,
+                kullanim_tipi: kullanimTipi,
                 servis_id: document.getElementById('detail-servis-id').value ? parseInt(document.getElementById('detail-servis-id').value) : null,
                 kuyruk_id: document.getElementById('detail-kuyruk-id').value ? parseInt(document.getElementById('detail-kuyruk-id').value) : null,
                 durum: document.getElementById('detail-durum').value

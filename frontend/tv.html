@@ -985,14 +985,18 @@
                 const deviceInfo = {
                     firma_id: parseInt(FIRMA_ID),
                     ad: 'TV-' + FIRMA_ID,
-                    tip: 'ekran',
+                    tip: 'ekran', // legacy alan (kullanım tipi)
+                    cihaz_tipi: 'TV',
+                    kullanim_tipi: 'EKRAN',
                     device_fingerprint: fingerprint,
                     mac_address: null,
                     ip: null,
                     ayarlar: tvSettings,
                     metadata: {
                         servis_ids: tvSettings.servisIds,
-                        ekran_tipi: tvSettings.ekranTipi
+                        ekran_tipi: tvSettings.ekranTipi,
+                        cihaz_tipi: 'TV',
+                        kullanim_tipi: 'EKRAN'
                     }
                 };
 
