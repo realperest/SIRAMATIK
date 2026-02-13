@@ -50,13 +50,14 @@
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
             display: none;
             /* Başlangıçta gizli */
             align-items: center;
             gap: 10px;
             box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
             z-index: 1000;
+            will-change: transform;
         }
 
         .exit-button:hover {
@@ -98,7 +99,7 @@
             /* Ekrana göre padding */
             border-radius: 20px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
@@ -107,6 +108,7 @@
             max-height: 40vh;
             /* Çok büyümesini engelle */
             overflow: hidden;
+            will-change: transform;
         }
 
         .departman-card:hover {
@@ -164,8 +166,9 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
-            animation: fadeInSimple 0.2s ease-in;
+            animation: fadeInSimple 0.15s ease-out;
             overflow: hidden;
+            will-change: opacity;
         }
 
         @keyframes fadeInSimple {
@@ -309,13 +312,14 @@
         }
 
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            animation: fadeIn 0.3s ease-out;
+            will-change: opacity, transform;
         }
 
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(10px);
             }
 
             to {
@@ -622,7 +626,7 @@
 
     <!-- Akıllı Takip Uyarısı -->
     <div
-        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px 25px; border-radius: 15px; margin: 0 auto 15px; max-width: 900px; box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4); animation: pulse 2s infinite;">
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px 25px; border-radius: 15px; margin: 0 auto 15px; max-width: 900px; box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4); animation: pulse 3s infinite; will-change: transform;">
         <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
             <div style="font-size: 48px;"></div>
             <div style="text-align: left;">
@@ -900,7 +904,7 @@
          */
         async function registerOrUpdateDevice() {
             try {
-                console.log('[DEBUG] Cihaz kaydı kontrol ediliyor...');
+                // Cihaz kaydı kontrol ediliyor
                 
                 let fingerprint = localStorage.getItem('device_fingerprint');
                 if (!fingerprint) {
@@ -1056,7 +1060,7 @@
                 return;
             }
             
-            console.log(`[HEARTBEAT] Gönderiliyor... Device ID: ${DEVICE_ID}`);
+            // Heartbeat gönderiliyor
             try {
                 await apiCall(`/api/cihaz/${DEVICE_ID}/heartbeat`, {
                     method: 'POST',
@@ -1447,25 +1451,17 @@
 
         // Tüm verileri yükle
         async function verileriYukle(silent = false) {
-            console.log("Servis ve kuyruk verileri yükleniyor...");
             const errorDiv = document.createElement('div');
             errorDiv.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;background:rgba(231,76,60,0.95);color:white;padding:15px;border-radius:10px;z-index:10000;font-size:14px;';
             
             try {
                 if (!silent) showLoading(true);
                 
-                console.log('[SEARCH] Servisler çağrılıyor...');
-                // Public servis listesi endpoint'i: /api/servisler/{firma_id}
-                const servisler = await apiCall(`/api/servisler/${FIRMA_ID}`);
-                console.log('[OK] Servisler geldi:', servisler);
-                
-                console.log('[SEARCH] Kuyruklar çağrılıyor...');
-                // Public kuyruk listesi endpoint'i: /api/kuyruklar/firma/{firma_id}
-                const kuyruklar = await apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`);
-                console.log('[OK] Kuyruklar geldi:', kuyruklar);
-
-                console.log("Gelen Servisler:", servisler.length);
-                console.log("Gelen Kuyruklar:", kuyruklar.length);
+                // API çağrılarını paralel yap (daha hızlı)
+                const [servisler, kuyruklar] = await Promise.all([
+                    apiCall(`/api/servisler/${FIRMA_ID}`),
+                    apiCall(`/api/kuyruklar/firma/${FIRMA_ID}`)
+                ]);
 
                 // Kiosk ayarlarına göre filtrele
                 const filtered = applyFilters(servisler || [], kuyruklar || []);
@@ -1475,8 +1471,6 @@
                 if (!silent) showLoading(false);
             } catch (error) {
                 console.error("[ERR] VERİ YÜKLEME HATASI:", error);
-                console.error("Hata Detayı:", error.message);
-                console.error("Stack:", error.stack);
                 
                 if (!silent) showLoading(false);
                 
@@ -1502,7 +1496,6 @@
 
             // Bilet ekranı AÇIKSA (display flex ise), arka plan güncellemelerinin onu kapatmasını engelle
             if (numEkrani && numEkrani.style.display === 'flex') {
-                console.log("Bilet ekranı açık, arka plan güncellemesi bilet ekranını kapatmayacak.");
                 // Sadece verileri güncellemek için devam et ama ekranı bozma
             } else if (numEkrani) {
                 numEkrani.style.display = 'none';
@@ -1540,8 +1533,6 @@
         }
 
         function servisSecildi(servisId, servisAd) {
-            console.log("Servis seçildi:", servisAd, servisId);
-
             document.querySelectorAll('.departman-card').forEach(el => el.classList.remove('active'));
             const selectedIcon = document.getElementById(`servis-card-${servisId}`);
             if (selectedIcon) selectedIcon.classList.add('active');
@@ -1751,15 +1742,17 @@
             try {
                 showLoading(true);
                 
-                // 1. CİHAZ KAYIT VE AYAR SENKRONİZASYONU
-                await registerOrUpdateDevice();
+                // 1. CİHAZ KAYIT VE AYAR SENKRONİZASYONU (Paralel başlat)
+                const devicePromise = registerOrUpdateDevice();
                 
-                // 2. Firma bilgilerini yükle
-                await initFirma();
+                // 2. Firma bilgilerini paralel yükle
+                const firmaPromise = initFirma();
+                
+                // İkisini de bekle
+                await Promise.all([devicePromise, firmaPromise]);
 
                 // 3. İlk kurulum gerekiyor mu kontrol et
                 if (isInitialSetupRequired()) {
-                    console.log('[SETUP] Bu cihaz için ilk kurulum gerekli, sihirbaz açılıyor.');
                     await openInitialSetupWizard(); // loadSettingsData içinden servis/kuyruk verilerini alıyor
                 } else {
                     // 3b. Normal mod: Servis ve Kuyruklar yükle
@@ -1770,7 +1763,6 @@
                 applyDisplaySettings();
 
                 // 5. Heartbeat Başlat (10 saniyede bir)
-                console.log('[OK] Heartbeat sistemi başlatılıyor...');
                 sendHeartbeat(); // İlk heartbeat hemen gönder
                 setInterval(() => {
                     sendHeartbeat();
@@ -1783,12 +1775,18 @@
             }
         }
 
+        // Debounce için timer
+        let verileriYukleTimer = null;
+        
         baslat();
-        // WebSocket Dinleyici
+        // WebSocket Dinleyici (debounce ile optimize edildi)
         initWebSocket((data) => {
             if (['new_ticket', 'call_ticket', 'complete_ticket', 'delete_ticket'].includes(data.type)) {
-                // Sessiz güncelleme (loader göstermeden)
-                verileriYukle(true);
+                // Debounce: Aynı anda gelen birden fazla event'i tek bir çağrıya indir
+                if (verileriYukleTimer) clearTimeout(verileriYukleTimer);
+                verileriYukleTimer = setTimeout(() => {
+                    verileriYukle(true);
+                }, 300); // 300ms debounce
             }
         });
 
