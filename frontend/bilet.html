@@ -247,13 +247,27 @@
             font-weight: 700;
         }
         .value-bubble-old {
-            text-decoration: line-through;
-            -webkit-text-decoration: line-through;
-            text-decoration-line: line-through;
-            text-decoration-color: #764ba2;
-            text-decoration-thickness: 2px;
+            position: relative;
             opacity: 0.9;
             background: rgba(118, 75, 162, 0.12);
+        }
+        /* Eski değerin üzerinde X (çarpı) işareti - kırmızı */
+        .value-bubble-old::before,
+        .value-bubble-old::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 120%;
+            height: 2px;
+            background: #dc2626;
+            transform-origin: center;
+        }
+        .value-bubble-old::before {
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+        .value-bubble-old::after {
+            transform: translate(-50%, -50%) rotate(45deg);
         }
         .value-bubble-new {
             margin-left: 6px;
