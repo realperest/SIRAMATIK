@@ -1022,19 +1022,6 @@
                                 ve Kiosk ekranlarında çark simgesine tıklandığında sorulacak şifredir.</small>
                         </div>
                         
-                        <div class="form-group" style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <label style="display:block; margin-bottom:8px; opacity:0.8; font-weight: 600;">Saat Dilimi (UTC Offset)</label>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <input type="number" id="setting-timezone-offset" class="admin-input" 
-                                    min="-12" max="14" step="1" value="3" 
-                                    style="width: 100px; text-align: center;">
-                                <span style="opacity:0.7;">saat</span>
-                            </div>
-                            <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">
-                                UTC'ye göre saat farkı. Türkiye için +3 (varsayılan). Yeni kayıtlar bu saat diliminde kaydedilecektir.
-                            </small>
-                        </div>
-                        
                         <div style="margin-top: 30px;">
                             <button type="submit" class="btn-action">
                                 <i class="fas fa-save"></i> Değişiklikleri Kaydet
@@ -1528,17 +1515,6 @@
                         passInput.style.cursor = "auto";
                     }
                 }
-                
-                // Sistem ayarlarını yükle (timezone_offset)
-                try {
-                    const sistemAyarlari = await apiCall('/api/admin/sistem-ayarlari');
-                    if (sistemAyarlari && sistemAyarlari.ayarlar && sistemAyarlari.ayarlar.timezone_offset) {
-                        document.getElementById('setting-timezone-offset').value = 
-                            sistemAyarlari.ayarlar.timezone_offset.deger || '3';
-                    }
-                } catch (err) {
-                    console.warn("Sistem ayarları yüklenemedi, varsayılan değer kullanılıyor:", err);
-                }
             } catch (err) { console.error("Firma settings load error", err); }
         }
 
@@ -1554,13 +1530,6 @@
                 await apiCall(`/api/admin/firma/${currentUser.firma_id}`, {
                     method: 'PUT',
                     body: JSON.stringify(firmaData)
-                });
-                
-                // Sistem ayarlarını kaydet (timezone_offset)
-                const timezoneOffset = document.getElementById('setting-timezone-offset').value;
-                await apiCall(`/api/admin/sistem-ayarlari/timezone_offset`, {
-                    method: 'PUT',
-                    body: JSON.stringify({ deger: timezoneOffset })
                 });
                 
                 showToast("Sistem ayarları başarıyla kaydedildi.", "success");
@@ -2705,7 +2674,7 @@
                     }
                 }
                 
-                // son_gorulen yerel saat ile geliyor (backend'de timezone ayarlı)
+                // son_gorulen direkt DB'den geliyor (Supabase timezone zaten doğru ayarlı)
                 const sonGorulen = new Date(device.son_gorulen);
                 const sonGorulenStr = sonGorulen.toLocaleString('tr-TR');
                 // Date.now() ve sonGorulen.getTime() yerel saat milisaniyeleri - doğru karşılaştırma

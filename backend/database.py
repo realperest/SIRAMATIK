@@ -101,27 +101,11 @@ class Database:
                     # print(f"Migration Log: {e}") 
                     pass
     
-    def _set_session_timezone(self, session: Session):
-        """
-        Session için timezone'u tablodan okunan offset'e göre ayarlar.
-        Tüm Session kullanımlarında bu fonksiyonu çağırın.
-        """
-        try:
-            offset = self.get_timezone_offset()
-            timezone_str = self._offset_to_timezone_string(offset)
-            session.execute(text(f"SET timezone = '{timezone_str}'"))
-        except Exception as e:
-            print(f"[WARN] Timezone ayarlanamadı, varsayılan kullanılıyor: {e}")
-    
     def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """
         SQL sorgusu çalıştır.
-        Her sorguda timezone'u tablodan okunan offset'e göre dinamik olarak ayarlar.
         """
         with Session(self.engine) as session:
-            # Timezone'u ayarla
-            self._set_session_timezone(session)
-            
             result = session.execute(text(query), params or {})
             
             # SELECT sorguları için sonuçları döndür
@@ -151,25 +135,6 @@ class Database:
             
             if result:
                 print("[OK] sistem_ayarlari tablosu zaten var")
-                # Varsayılan değeri kontrol et ve yoksa ekle
-                try:
-                    session.execute(text("""
-                        DO $$ 
-                        BEGIN
-                            -- timezone_offset ayarı yoksa ekle (default +3)
-                            IF NOT EXISTS (
-                                SELECT 1 FROM siramatik.sistem_ayarlari 
-                                WHERE anahtar = 'timezone_offset'
-                            ) THEN
-                                INSERT INTO siramatik.sistem_ayarlari (anahtar, deger, aciklama)
-                                VALUES ('timezone_offset', '3', 'Saat dilimi offset (UTC+X, default: +3 Türkiye)');
-                            END IF;
-                        END $$;
-                    """))
-                    session.commit()
-                except Exception as e:
-                    print(f"[WARN] Sistem ayarları kontrol hatası: {e}")
-                    session.rollback()
                 return
             
             # Yeni tabloyu oluştur
@@ -185,12 +150,7 @@ class Database:
                 
                 CREATE INDEX IF NOT EXISTS idx_sistem_ayarlari_anahtar ON siramatik.sistem_ayarlari(anahtar);
                 
-                -- Varsayılan timezone_offset değerini ekle
-                INSERT INTO siramatik.sistem_ayarlari (anahtar, deger, aciklama)
-                VALUES ('timezone_offset', '3', 'Saat dilimi offset (UTC+X, default: +3 Türkiye)')
-                ON CONFLICT (anahtar) DO NOTHING;
-                
-                COMMENT ON TABLE siramatik.sistem_ayarlari IS 'Sistem genel ayarları (timezone, vb.)';
+                COMMENT ON TABLE siramatik.sistem_ayarlari IS 'Sistem genel ayarları';
             """)
             
             session.execute(create_table_query)
@@ -201,78 +161,24 @@ class Database:
             print(f"[WARN] Sistem ayarları tablosu olusturma hatasi: {e}")
             session.rollback()
     
-    def get_timezone_offset(self) -> int:
-        """
-        Sistem saat dilimi offset'ini getir. Her zaman siramatik.sistem_ayarlari
-        tablosundaki timezone_offset değerine bakar (UTC+X veya UTC-X).
-        Örnek: 3 = Türkiye, 6 = Doğu Asya, -5 = EST. Hiçbir yerde sabit saat kullanılmaz.
-        """
-        try:
-            # execute_query'yi kullanmadan direkt sorgu yap (circular dependency önlemek için)
-            with Session(self.engine) as session:
-                result = session.execute(text(
-                    "SELECT deger FROM siramatik.sistem_ayarlari WHERE anahtar = 'timezone_offset'"
-                ))
-                row = result.fetchone()
-                if row:
-                    return int(row[0])
-        except Exception as e:
-            print(f"[WARN] Timezone offset okunamadı, yedek değer kullanılıyor: {e}")
-        return 3  # Yalnızca tablo okunamazsa (kurulum varsayılanı)
-    
-    def _offset_to_timezone_string(self, offset: int) -> str:
-        """
-        Offset'i PostgreSQL timezone string'ine çevirir.
-        Örnek: 3 → 'Europe/Istanbul', -5 → 'America/New_York'
-        
-        NOT: Offset yerine timezone name kullanmak daha güvenilir.
-        """
-        # Yaygın offset'ler için timezone name mapping
-        offset_to_tz = {
-            3: 'Europe/Istanbul',
-            2: 'Europe/Athens',
-            1: 'Europe/Paris',
-            0: 'UTC',
-            -5: 'America/New_York',
-            -6: 'America/Chicago',
-            -8: 'America/Los_Angeles',
-        }
-        
-        # Mapping'de varsa timezone name kullan
-        if offset in offset_to_tz:
-            return offset_to_tz[offset]
-        
-        # Yoksa offset string'i kullan (fallback)
-        sign = '+' if offset >= 0 else '-'
-        hours = abs(offset)
-        return f"{sign}{hours:02d}:00"
-    
     def get_local_now(self) -> str:
         """
         Veritabanına yazılacak 'şu an' zamanı (SQL ifadesi).
-        
-        ÖNEMLİ: execute_query() fonksiyonu her sorguda timezone'u otomatik ayarladığı için,
-        NOW() direkt yerel saati döndürür. Ek INTERVAL eklemeye gerek yok.
-        
-        Bu fonksiyon sadece INSERT/UPDATE işlemlerinde kullanılır.
-        SELECT sorgularında direkt sütun adını kullanın (ek dönüşüm yapmayın).
+        Direkt NOW() döndürür - Supabase database timezone'u zaten doğru ayarlı.
         """
-        # Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan
         return "NOW()"
 
     def _local_date_sql(self, column_expr: str = "s.olusturulma") -> str:
         """
-        Verdiğiniz sütunun yerel tarihini döndüren SQL ifadesi.
-        
-        ÖNEMLİ: Kayıtlar zaten yerel saat ile kaydediliyor (get_local_now() kullanılarak),
-        bu yüzden ek dönüşüm yapmaya gerek yok. Direkt tarih olarak alınır.
+        Verdiğiniz sütunun tarihini döndüren SQL ifadesi.
+        Direkt tarih olarak alınır - Supabase database timezone'u zaten doğru ayarlı.
         """
         return f"{column_expr}::date"
 
     def _today_local_sql(self) -> str:
         """
-        Yerel saate göre 'bugün' tarihini döndüren SQL ifadesi.
-        Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan.
+        'Bugün' tarihini döndüren SQL ifadesi.
+        Direkt NOW() kullan - Supabase database timezone'u zaten doğru ayarlı.
         """
         return "NOW()::date"
 
@@ -282,21 +188,15 @@ class Database:
     
     def _local_now_minus_interval(self, interval: str) -> str:
         """
-        Yerel saatin şu anından belirtilen interval kadar öncesini döndürür.
+        Şu anından belirtilen interval kadar öncesini döndürür.
         Örnek: interval='20 minutes' → (NOW() - INTERVAL '20 minutes')
-        
-        Kullanım: Zaman karşılaştırmaları için (örn: son 20 dakika içindeki kayıtlar)
-        Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan.
         """
         return f"(NOW() - INTERVAL '{interval}')"
     
     def _local_now_plus_interval(self, interval: str) -> str:
         """
-        Yerel saatin şu anından belirtilen interval kadar sonrasını döndürür.
+        Şu anından belirtilen interval kadar sonrasını döndürür.
         Örnek: interval='1 hour' → (NOW() + INTERVAL '1 hour')
-        
-        Kullanım: Zaman karşılaştırmaları için (örn: 1 saat sonrasına kadar)
-        Timezone zaten execute_query() tarafından ayarlandığı için direkt NOW() kullan.
         """
         return f"(NOW() + INTERVAL '{interval}')"
     
@@ -1716,8 +1616,6 @@ class Database:
                        metadata: Dict = {}) -> Dict[str, Any]:
         """Yeni cihaz kaydı oluştur veya mevcut cihazı güncelle"""
         with Session(self.engine) as session:
-            # Timezone'u ayarla
-            self._set_session_timezone(session)
             try:
                 local_now = self.get_local_now()
                 # Fingerprint ile cihaz var mı kontrol et
@@ -1845,8 +1743,6 @@ class Database:
     def update_device_settings(self, device_id: int, ayarlar: Dict[str, Any], device_name: Optional[str] = None, setup_completed: Optional[bool] = None) -> bool:
         """Cihaz ayarlarını güncelle (ayarlar JSON + opsiyonel cihaz adı + setup flag)"""
         with Session(self.engine) as session:
-            # Timezone'u ayarla
-            self._set_session_timezone(session)
             try:
                 local_now = self.get_local_now()
                 # Ayarlar içinden özet bölüm/kuyruk bilgisini çek (ilk seçilenler)
@@ -1920,8 +1816,6 @@ class Database:
         """Cihaz heartbeat güncelle (son_gorulen)"""
         local_now = self.get_local_now()
         with Session(self.engine) as session:
-            # Timezone'u ayarla
-            self._set_session_timezone(session)
             try:
                 query = text(f"""
                     UPDATE siramatik.cihazlar

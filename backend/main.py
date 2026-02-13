@@ -1228,15 +1228,6 @@ async def update_sistem_ayari(
         if current_user['rol'] not in ['admin', 'superadmin']:
             raise HTTPException(status_code=403, detail="Yetkisiz erişim")
         
-        # Timezone offset için validasyon
-        if anahtar == 'timezone_offset':
-            try:
-                offset = int(request.deger)
-                if offset < -12 or offset > 14:
-                    raise HTTPException(status_code=400, detail="Timezone offset -12 ile 14 arasında olmalıdır")
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Timezone offset sayı olmalıdır")
-        
         local_now = db.get_local_now()
         result = db.execute_query(f"""
             INSERT INTO siramatik.sistem_ayarlari (anahtar, deger, guncelleme)
