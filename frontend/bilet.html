@@ -249,9 +249,11 @@
         .value-bubble-old {
             text-decoration: line-through;
             -webkit-text-decoration: line-through;
+            text-decoration-line: line-through;
             text-decoration-color: #764ba2;
-            opacity: 0.85;
-            background: rgba(118, 75, 162, 0.08);
+            text-decoration-thickness: 2px;
+            opacity: 0.9;
+            background: rgba(118, 75, 162, 0.12);
         }
         .value-bubble-new {
             margin-left: 6px;
@@ -1404,6 +1406,24 @@
                 const count = (highPriority.count || 0) + (samePriorityBefore.count || 0);
                 console.log(`[SEARCH] Sayaç: Yüksek:${highPriority.count}, Aynı:${samePriorityBefore.count}, Toplam:${count}`);
 
+                // Erteleme var mı? (etkin_olusturulma > olusturulma ise bilet ertelenmiş demektir)
+                const olusturulmaMs = me.olusturulma ? new Date(me.olusturulma).getTime() : 0;
+                const etkinMs = etkinOlusturulma ? new Date(etkinOlusturulma).getTime() : 0;
+                const ertelemeVar = olusturulmaMs > 0 && etkinMs > olusturulmaMs;
+                let oldCountForDiff = null;
+                if (ertelemeVar && me.olusturulma) {
+                    const samePriorityBeforeByOlusturulma = await _supabase
+                        .schema('siramatik')
+                        .from('siralar')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('kuyruk_id', kid)
+                        .eq('durum', 'waiting')
+                        .eq('oncelik', me.oncelik)
+                        .lt('olusturulma', me.olusturulma);
+                    if (!samePriorityBeforeByOlusturulma.error)
+                        oldCountForDiff = (highPriority.count || 0) + (samePriorityBeforeByOlusturulma.count || 0);
+                }
+
                 // Gelişmiş sıra azalma kontrolü
                 if (isFirstLoad) {
                     // İlk yükleme: Sadece kaydet
@@ -1449,11 +1469,16 @@
                     statusEl.style.fontWeight = "bold";
                     updateEstimatedTime(0);
                 } else {
-                    const showErtelemeDiff = ertelemeJustApplied && ertelemeJustApplied.oldBekleyen !== undefined;
-                    const oldMinutesForEst = showErtelemeDiff ? ertelemeJustApplied.oldMinutes : undefined;
+                    // Eski balon üstü çizili: ya az önce erteleme yapıldı (ertelemeJustApplied) ya da bilet zaten ertelenmiş (etkin_olusturulma > olusturulma)
+                    const oldBekleyen = (ertelemeJustApplied && ertelemeJustApplied.oldBekleyen !== undefined)
+                        ? ertelemeJustApplied.oldBekleyen
+                        : (ertelemeVar && oldCountForDiff !== null ? oldCountForDiff : null);
+                    const oldMinutesForEst = (ertelemeJustApplied && ertelemeJustApplied.oldMinutes !== undefined)
+                        ? ertelemeJustApplied.oldMinutes
+                        : (oldBekleyen !== null ? Math.ceil(oldBekleyen * (typeof avgProcessTime !== 'undefined' ? avgProcessTime : 5)) : undefined);
+                    const showErtelemeDiff = oldBekleyen !== null;
                     if (showErtelemeDiff) {
-                        statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + ertelemeJustApplied.oldBekleyen + '</span> <span class="value-bubble value-bubble-new">' + count + '</span> kişi var';
-                        // ertelemeJustApplied temizlenmez: eski hep üstü çizili, yeni (count) her poll'da güncellenir
+                        statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + oldBekleyen + '</span> <span class="value-bubble value-bubble-new">' + count + '</span> kişi var';
                     } else {
                         statusEl.innerHTML = 'Önünüzde <span class="value-bubble">' + count + '</span> kişi var';
                     }
@@ -1586,10 +1611,16 @@
                 hideErtelemeError();
                 if (r.ok && data.success) {
                     if (data.mesaj) alert(data.mesaj);
-                    ertelemeJustApplied = {
-                        oldBekleyen: lastCount >= 0 ? lastCount : 0,
-                        oldMinutes: lastCount >= 0 ? Math.ceil(lastCount * (typeof avgProcessTime !== 'undefined' ? avgProcessTime : 5)) : 0
-                    };
+                    const oldB = lastCount >= 0 ? lastCount : 0;
+                    const oldM = lastCount >= 0 ? Math.ceil(lastCount * (typeof avgProcessTime !== 'undefined' ? avgProcessTime : 5)) : 0;
+                    ertelemeJustApplied = { oldBekleyen: oldB, oldMinutes: oldM };
+                    // Hemen DOM güncelle: eski üstü çizili görünsün, yeni değer fetch gelince dolacak
+                    const statusEl = document.getElementById('wait-info');
+                    const wrapEl = document.getElementById('est-minutes-wrap');
+                    if (statusEl) statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + oldB + '</span> <span class="value-bubble value-bubble-new">…</span> kişi var';
+                    if (wrapEl) wrapEl.innerHTML = '<span class="value-bubble value-bubble-old">' + oldM + '</span> <span class="value-bubble value-bubble-new" id="est-minutes">…</span>';
+                    const estBlock = document.getElementById('estimated-time');
+                    if (estBlock) estBlock.style.display = 'inline-block';
                     updateStatus();
                     closeErtelemeOverlay();
                 } else {
