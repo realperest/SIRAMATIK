@@ -888,6 +888,11 @@
             if (window.location.hostname.indexOf('github.io') !== -1 && BILET_BACKEND_URL) return BILET_BACKEND_URL.replace(/\/$/, '');
             return window.location.origin;
         }
+        // Sayfa açılır açılmaz backend’i uyandır (Railway cold start; erteleme tıklanınca hazır olsun)
+        (function () {
+            var base = getApiBase();
+            if (base) fetch(base + '/health', { method: 'GET', mode: 'cors' }).catch(function () {});
+        })();
 
         // Supabase Bağlantısı
         const supabaseUrl = 'https://wyursjdrnnjabpfeucyi.supabase.co';
@@ -1521,7 +1526,7 @@
             }
         }
 
-        var ERTELEME_FETCH_TIMEOUT_MS = 25000;
+        var ERTELEME_FETCH_TIMEOUT_MS = 45000;
         async function requestErteleme() {
             const btn = document.getElementById('erteleme-btn');
             if (!sira_id || !btn) return;
@@ -1530,7 +1535,8 @@
             btn.disabled = true;
             btn.textContent = 'İşleniyor...';
             var base = getApiBase();
-            var retried = false;
+            var attempt = 0;
+            var maxAttempts = 3;
             function doFetch() {
                 var ctrl = new AbortController();
                 var t = setTimeout(function () { ctrl.abort(); }, ERTELEME_FETCH_TIMEOUT_MS);
@@ -1538,16 +1544,20 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ dakika: dakika }),
-                    signal: ctrl.signal
+                    signal: ctrl.signal,
+                    mode: 'cors'
                 }).finally(function () { clearTimeout(t); });
             }
             try {
                 var r = null;
-                try {
-                    r = await doFetch();
-                } catch (e) {
-                    lastError = e;
-                    if (!retried) { retried = true; r = await doFetch(); } else throw e;
+                while (attempt < maxAttempts) {
+                    try {
+                        r = await doFetch();
+                        break;
+                    } catch (e) {
+                        attempt++;
+                        if (attempt >= maxAttempts) throw e;
+                    }
                 }
                 const data = await r.json().catch(function () { return {}; });
                 hideErtelemeError();
@@ -1564,7 +1574,7 @@
                 }
             } catch (e) {
                 console.error('Erteleme hatası:', e);
-                showErtelemeError('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.');
+                showErtelemeError('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin; birkaç saniye sonra \'Tekrar dene\' ile yeniden deneyin.');
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Ertelemeyi Uygula';
