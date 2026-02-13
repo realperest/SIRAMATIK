@@ -1447,6 +1447,7 @@
         }
 
         const ERTELEME_ITEM_HEIGHT = 40;
+        const ERTELEME_WHEEL_PADDING_TOP = 40; /* .erteleme-wheel { padding: 40px 24px } */
         function buildErtelemeWheel() {
             const wheel = document.getElementById('erteleme-wheel');
             if (!wheel || wheel.dataset.built === '1') return;
@@ -1467,10 +1468,12 @@
             wheel.dataset.built = '1';
             setErtelemeWheelValue(10);
             wheel.addEventListener('scroll', function () {
+                updateErtelemeEstimate();
                 clearTimeout(wheel._scrollTimer);
                 wheel._scrollTimer = setTimeout(function () { snapErtelemeWheel(); }, 100);
             });
             wheel.addEventListener('touchmove', function () {
+                updateErtelemeEstimate();
                 clearTimeout(wheel._scrollTimer);
                 wheel._scrollTimer = setTimeout(function () { snapErtelemeWheel(); }, 150);
             }, { passive: true });
@@ -1480,13 +1483,13 @@
             const wheel = document.getElementById('erteleme-wheel');
             if (!wheel || !wheel.children.length) return 10;
             const st = wheel.scrollTop;
-            const value = Math.round((st + ERTELEME_ITEM_HEIGHT) / ERTELEME_ITEM_HEIGHT);
+            const value = Math.round((st - ERTELEME_WHEEL_PADDING_TOP) / ERTELEME_ITEM_HEIGHT) + 1;
             return Math.max(1, Math.min(60, value));
         }
         function setErtelemeWheelValue(dakika) {
             const wheel = document.getElementById('erteleme-wheel');
             if (!wheel) return;
-            const targetScroll = (dakika - 1) * ERTELEME_ITEM_HEIGHT;
+            const targetScroll = ERTELEME_WHEEL_PADDING_TOP + (dakika - 1) * ERTELEME_ITEM_HEIGHT;
             wheel.scrollTop = targetScroll;
         }
         function snapErtelemeWheel() {
