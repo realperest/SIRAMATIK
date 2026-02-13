@@ -1138,7 +1138,7 @@
                 clearInterval(pollingInterval);
             }
             
-            // WebSocket bağlı değilse polling başlat (10 saniyede bir)
+            // WebSocket bağlı değilse polling başlat (biraz daha sık: 3 saniyede bir)
             pollingInterval = setInterval(() => {
                 if (!isWebSocketConnected()) {
                     // WebSocket yoksa polling ile güncelle
@@ -1147,7 +1147,7 @@
                     // WebSocket bağlandıysa polling'i durdur
                     stopPolling();
                 }
-            }, 10000); // 10 saniye
+            }, 3000); // 3 saniye
         }
         
         function stopPolling() {

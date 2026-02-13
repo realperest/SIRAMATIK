@@ -50,7 +50,7 @@ class ManuelSiraRequest(BaseModel):
     kuyruk_id: int
     servis_id: int
     firma_id: int
-    numara: str
+    numara: Optional[str] = None  # Boş veya sadece seri (X) ise backend günlük X001, X002... atar
     oncelik: int = 0
     notlar: Optional[str] = None
 
@@ -58,9 +58,12 @@ class SiraResponse(BaseModel):
     id: int
     numara: str
     durum: str
-    oncelik: int
+    oncelik: Optional[int] = 0
     olusturulma: datetime
     cagirilma: Optional[datetime] = None
+
+    class Config:
+        extra = "allow"
 
 
 # --- KUYRUK MODELS ---

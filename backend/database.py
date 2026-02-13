@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 import os
 import json
+import re
 from dotenv import load_dotenv
 
 # .env dosyasını yükle
@@ -424,10 +425,35 @@ class Database:
         })
         return result[0] if result else None
     
+    def get_next_manuel_numara(self, firma_id: int, prefix: str = "X") -> str:
+        """Bugün için verilen ön ek (X, K vb.) ile bir sonraki numarayı döndürür. Her gün 001'den başlar."""
+        if not prefix or not prefix.strip():
+            prefix = "X"
+        prefix = str(prefix).strip().upper()[:1]  # Tek harf
+        today_filter = self._today_filter_sql("olusturulma")  # Tablo alias yok, direkt sütun adı
+        # Bugün aynı firma ve aynı ön ekle başlayan numaralardan en büyük sayıyı bul
+        rows = self.execute_query(f"""
+            SELECT numara FROM siramatik.siralar
+            WHERE firma_id = :firma_id AND numara LIKE :prefix_pattern {today_filter}
+        """, {"firma_id": firma_id, "prefix_pattern": prefix + "%"})
+        next_num = 1
+        if rows:
+            for r in rows:
+                numara = (r.get("numara") or "")
+                # Ön eki çıkar, kalanı sayıya çevir (X001 -> 1, X002 -> 2)
+                suffix = re.sub(r"^[A-Za-z]+", "", numara)
+                if suffix.isdigit():
+                    next_num = max(next_num, int(suffix) + 1)
+        return f"{prefix}{next_num:03d}"
+
     def create_manuel_sira(self, kuyruk_id: int, servis_id: int, firma_id: int, 
-                           numara: str, oncelik: int = 0, notlar: str = None) -> Dict:
-        """Manuel sıra oluştur (Özel numara ile)"""
+                           numara: Optional[str], oncelik: int = 0, notlar: str = None) -> Dict:
+        """Manuel sıra oluştur. numara boş veya sadece seri harfi (X) ise bugün için otomatik artan numara atanır (X001, X002, ...)."""
         local_now = self.get_local_now()
+        prefix = (numara or "X").strip().upper()
+        # Boş, sadece harf veya sadece seri ise otomatik numara üret
+        if not numara or not numara.strip() or (len(prefix) <= 1 and prefix.isalpha()):
+            numara = self.get_next_manuel_numara(firma_id, prefix if prefix else "X")
         result = self.execute_query(f"""
             INSERT INTO siramatik.siralar (kuyruk_id, servis_id, firma_id, oncelik, notlar, numara, olusturulma)
             VALUES (:kuyruk_id, :servis_id, :firma_id, :oncelik, :notlar, :numara, {local_now})
@@ -695,8 +721,8 @@ class Database:
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
-            ORDER BY s.oncelik DESC, s.olusturulma ASC
-        """, {"prefix_removed_already_handled": None, "firma_id": firma_id})
+            ORDER BY COALESCE(s.oncelik, 0) DESC, s.olusturulma ASC
+        """, {"firma_id": firma_id})
         
     def get_gunluk_istatistik(self, firma_id: str, kullanici_id: Optional[str] = None) -> Dict:
         """Günlük istatistikleri getir"""

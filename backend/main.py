@@ -2,8 +2,9 @@
 Sıramatik - Ana FastAPI Uygulaması
 Kuyruk Yönetim Sistemi - Sektör Agnostik
 """
-from fastapi import FastAPI, HTTPException, Depends, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Depends, status, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from typing import List, Optional
 import uvicorn
 import json
@@ -92,14 +93,55 @@ app = FastAPI(
     description="Queue Management System API - Sector Agnostic"
 )
 
-# CORS middleware - Tüm originlere izin ver (mobil ve farklı portlar için)
+# CORS: localhost:3000 (personel paneli) mutlaka izin listesinde olsun
+CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r".*",  # Tüm originlere izin ver
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _cors_headers(origin: Optional[str] = None) -> dict:
+    """Hata yanıtlarına eklenecek CORS başlıkları (500 vb. için tarayıcı engelini kaldırır)."""
+    if origin and origin in CORS_ORIGINS:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    return {"Access-Control-Allow-Origin": CORS_ORIGINS[0], "Access-Control-Allow-Credentials": "true"}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """HTTP hatalarında da CORS başlığı olsun."""
+    origin = request.headers.get("origin")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail} if isinstance(exc.detail, str) else exc.detail,
+        headers=_cors_headers(origin),
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Beklenmeyen hatalarda CORS başlığı dön (personel sayfası 500'de de yanıtı görebilsin)."""
+    logging.exception("Unhandled exception: %s", exc)
+    origin = request.headers.get("origin")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Sunucu hatası.", "type": type(exc).__name__},
+        headers=_cors_headers(origin),
+    )
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -350,17 +392,26 @@ async def bekleyen_siralar(
     return siralar
 
 
-@app.get("/api/sira/bekleyen/{firma_id}", response_model=List[SiraResponse])
+@app.get("/api/sira/bekleyen/{firma_id}")
 async def bekleyen_siralar_by_firma(
     firma_id: int,
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Firmaya ait tüm bekleyen sıraları listele
+    Firmaya ait tüm bekleyen sıraları listele. Personel paneli için; 500 önlemek için ham liste dönüyoruz.
     """
     siralar = db.get_tum_bekleyen_siralar(firma_id)
-    print(f"\n[DEBUG] Bekleyenler: {siralar}\n")
-    return siralar
+    # Pydantic doğrulaması yok; tarih/None güvenli JSON için normalize et
+    out = []
+    for s in siralar or []:
+        row = dict(s)
+        if row.get("oncelik") is None:
+            row["oncelik"] = 0
+        for key in ("olusturulma", "cagirilma", "tamamlanma", "islem_baslangic"):
+            if key in row and row[key] is not None and hasattr(row[key], "isoformat"):
+                row[key] = row[key].isoformat()
+        out.append(row)
+    return out
 
 
 @app.get("/api/sira/istatistik/gunluk/{firma_id}")
@@ -861,6 +912,13 @@ async def update_cihaz(
 
 
 # --- MANUEL SIRA ---
+@app.get("/api/admin/sira/manuel/next-numara")
+async def manuel_next_numara(prefix: str = "X", current_user: dict = Depends(get_current_active_user)):
+    """Modal açıldığında gösterilmek üzere bugün için bir sonraki manuel numarayı döndürür (X001, X002, ...)."""
+    next_full = db.get_next_manuel_numara(current_user["firma_id"], prefix or "X")
+    return {"numara": next_full}
+
+
 @app.post("/api/admin/sira/manuel")
 async def manuel_sira_al(request: ManuelSiraRequest, current_user: dict = Depends(get_current_active_user)):
     """Personel tarafından manuel sıra oluşturma"""

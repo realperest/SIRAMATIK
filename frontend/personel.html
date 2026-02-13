@@ -15,35 +15,91 @@
 
         .header {
             background: white;
-            padding: 20px 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 14px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
         }
 
-        .header h1 {
-            color: #667eea;
-            margin: 0;
-        }
-
-        .user-info {
-            text-align: right;
+        #active-settings-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        #active-settings-info .header-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+        }
+
+        #active-settings-info .header-badge {
+            flex-shrink: 0;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        #active-settings-info .header-badge--konum {
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+        }
+
+        #active-settings-info .header-badge--none {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            text-align: right;
         }
 
         .user-info .name {
             font-weight: 600;
-            color: #2c3e50;
+            color: #334155;
+            font-size: 14px;
         }
 
         .user-info .role {
-            font-size: 14px;
-            color: #7f8c8d;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .user-info .header-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-info .header-buttons .btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .status-badge-personel .status-text {
+            margin-left: 4px;
         }
 
         .stats {
@@ -195,8 +251,11 @@
         }
 
         .sira-item.priority {
-            border-left-color: #ef4444;
+            /* Arka planı eski haline döndür (çok koyu olmasın) */
             background: linear-gradient(90deg, #fef2f2 0%, #ffffff 100%);
+            /* Öncelikli satırın etrafına koyu bir çerçeve ekle */
+            border: 2px solid #ef4444;
+            border-left-width: 6px; /* Sol şerit biraz daha kalın kalsın */
         }
 
         .sira-item.priority .numara {
@@ -289,6 +348,179 @@
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
+        }
+
+        /* Genel modal stilleri */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.75);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35);
+            padding: 28px 30px;
+            width: 100%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .settings-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .settings-modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-modal-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .settings-modal-close {
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+            border-radius: 999px;
+            transition: background 0.15s, color 0.15s, transform 0.1s;
+        }
+
+        .settings-modal-close:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+            transform: scale(1.05);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 18px 20px;
+            margin-bottom: 18px;
+        }
+
+        .settings-grid .form-group {
+            margin-bottom: 0;
+        }
+
+        .settings-switch-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .settings-switch-title {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-switch-desc {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .settings-actions {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        .settings-actions button {
+            padding: 11px 10px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.1s ease;
+        }
+
+        .settings-actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.15);
+            opacity: 0.95;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 12px 14px;
+                margin-bottom: 16px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .user-info {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .user-info .role {
+                display: none;
+            }
+
+            /* Durum rozeti: mobilde sadece renkli nokta gibi olsun */
+            .status-badge-personel {
+                padding: 4px 8px;
+                border-radius: 999px;
+                font-size: 0;
+            }
+
+            .status-badge-personel .pulse-icon {
+                width: 10px !important;
+                height: 10px !important;
+            }
+
+            .status-badge-personel::after {
+                content: '';
+            }
+            .modal-content {
+                max-width: 100%;
+                padding: 20px 18px;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-actions {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         .sira-actions .btn-cagir {
@@ -422,11 +654,18 @@
 
         .active-ticket-header-actions {
             display: flex;
+            flex-direction: row;
             gap: 8px;
             align-items: center;
             flex-shrink: 0;
             /* ÜSTTEKİ 3 KÜÇÜK DÜĞME (ve bitir düğmeleri) HER ZAMAN TEK SATIRDA YAN YANA KALSIN */
             flex-wrap: nowrap;
+        }
+
+        /* "BİTİR VE YENİ ÇAĞIR" ve "SADECE BİTİR" butonları yan yana, metinleri tek satırda kalsın */
+        .active-ticket-header-actions .action-btn-compact {
+            flex: 0 0 auto;
+            white-space: nowrap;
         }
 
         .active-ticket-card .numara {
@@ -602,40 +841,62 @@
             }
 
             .header {
-                flex-direction: column;
-                align-items: flex-start;
-                padding: 15px;
+                flex-direction: row;
+                align-items: center;
+                padding: 10px 12px;
                 gap: 10px;
-                margin-bottom: 15px;
-            }
-
-            .header h1 {
-                font-size: 18px;
-                line-height: 1.3;
-            }
-
-            .user-info {
-                width: 100%;
-                justify-content: space-between;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-
-            .user-info > div {
-                width: 100%;
-            }
-
-            .user-info button {
-                min-height: 44px; /* Touch-friendly */
-                font-size: 14px;
-                padding: 10px 15px;
+                margin-bottom: 12px;
             }
 
             #active-settings-info {
+                flex: 1;
+                min-width: 0;
+                flex-wrap: wrap;
+                gap: 6px !important;
+            }
+
+            #active-settings-info .header-title {
+                font-size: 14px;
+                line-height: 1.2;
+                display: block;
                 width: 100%;
-                flex-direction: column;
-                align-items: flex-start !important;
-                gap: 5px !important;
+            }
+
+            #active-settings-info .header-badge {
+                font-size: 10px;
+                padding: 3px 8px;
+            }
+
+            .header .user-info {
+                flex-shrink: 0;
+                gap: 8px;
+            }
+
+            .user-info .name {
+                font-size: 13px;
+            }
+
+            .user-info .role {
+                display: none;
+            }
+
+            /* Mobilde sadece yeşil/kırmızı daire; metin gizli */
+            .status-badge-personel .status-text {
+                display: none !important;
+            }
+
+            .status-badge-personel {
+                padding: 6px !important;
+                min-width: 0;
+            }
+
+            .status-badge-personel .pulse-icon {
+                margin: 0 !important;
+            }
+
+            .user-info .header-buttons .btn {
+                padding: 8px 10px;
+                font-size: 12px;
             }
 
             .stats {
@@ -724,19 +985,40 @@
             }
 
             /* Aktif Bilet Kartı - Mobil Kompakt */
-            /* Aktif bilet kartı mobilde de yatay düzenini korusun,
-               yalnızca boyutları biraz küçülsün */
             .active-ticket-card {
-                padding: 12px 15px;
+                padding: 10px 12px;
                 top: 0;
             }
 
+            .active-ticket-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .active-ticket-header-left {
+                width: 100%;
+                justify-content: space-between;
+            }
+
             .active-ticket-card .numara {
-                font-size: 40px;
+                font-size: 32px;
             }
 
             .active-ticket-timer {
-                font-size: 20px;
+                font-size: 18px;
+            }
+
+            .active-ticket-header-actions {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+
+            .active-ticket-header-actions .action-btn-compact {
+                flex: 1 1 48%;
+                font-size: 12px;
+                padding: 8px 6px;
             }
 
             .sira-listesi {
@@ -830,36 +1112,24 @@
     <!-- Ana Panel -->
     <div id="main-panel" style="display: none;">
         <div class="header">
-            <div id="active-settings-info" style="flex:1; display:flex; align-items:center; gap:15px;">
-                <!-- Dinamik olarak dolacak: Servis Adları (Büyük) + Konum Badge -->
+            <div id="active-settings-info">
+                <!-- JS: header-title + header-badge -->
             </div>
             <div class="user-info">
-                <div style="text-align: right; margin-right: 15px;">
-                    <div id="personel-status-container">
-                        <span class="status-badge-personel status-available">
-                            <span class="pulse-icon"
-                                style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block;"></span>
-                            Aktif Çalışıyor
-                        </span>
-                    </div>
+                <div id="personel-status-container">
+                    <span class="status-badge-personel status-available">
+                        <span class="pulse-icon" style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block;"></span>
+                        <span class="status-text">Aktif Çalışıyor</span>
+                    </span>
                 </div>
-                <div style="margin-right: 20px;">
+                <div>
                     <div class="name" id="user-name"></div>
                     <div class="role" id="user-role"></div>
                 </div>
-
-                <div style="display:flex; gap:10px;">
-                    <button onclick="toggleMola()" id="btn-mola" class="btn"
-                        style="background: #fbbf24; color: #92400e; font-weight: 600; padding: 8px 15px; border-radius: 10px; border:none; cursor:pointer;">
-                        ☕ MOLAYA ÇIK
-                    </button>
-                    <button onclick="openSettingsModal()" class="btn"
-                        style="background: #f1f5f9; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; color: #475569;"
-                        title="Çalışma Ayarları">
-                        ⚙️
-                    </button>
-                    <button onclick="logout()" class="btn"
-                        style="background: #fee2e2; color: #b91c1c; padding: 8px 15px; border-radius: 10px; border:none; font-weight:600; cursor:pointer;">ÇIKIŞ</button>
+                <div class="header-buttons">
+                    <button type="button" onclick="toggleMola()" id="btn-mola" class="btn" style="background:#fbbf24; color:#92400e;" title="Molaya çık">☕ MOLAYA ÇIK</button>
+                    <button type="button" onclick="openSettingsModal()" class="btn" style="background:#f1f5f9; color:#475569;" title="Çalışma Ayarları">⚙️</button>
+                    <button type="button" onclick="logout()" class="btn" style="background:#fee2e2; color:#b91c1c;">ÇIKIŞ</button>
                 </div>
             </div>
         </div>
@@ -979,40 +1249,42 @@
     </div>
 
     <!-- AYARLAR MODAL -->
-    <div id="settings-modal" class="modal-overlay"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
-        <div class="modal-content"
-            style="background:#fff; padding:30px; border-radius:15px; width:500px; text-align:left;">
-            <div style="text-align:center; margin-bottom:20px;">
-                <h2 style="color:#2c3e50;">⚙️ Çalışma Alanı Seçimi</h2>
-                <p style="color:#7f8c8d; font-size:14px;">Hangi bölüm ve kuyruklara hizmet vereceğinizi seçin.</p>
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="settings-modal-header">
+                <div>
+                    <div class="settings-modal-title">⚙️ Çalışma Alanı Seçimi</div>
+                    <div class="settings-modal-subtitle">Hangi bölüm ve kuyruklara hizmet vereceğinizi seçin.</div>
+                </div>
+                <button type="button" class="settings-modal-close" onclick="closeSettingsModal()" aria-label="Kapat">
+                    ✕
+                </button>
             </div>
 
             <form id="settings-form">
-                <div class="form-group">
-                    <label>Bölümler (Servisler):</label>
-                    <select id="setting-servis-ids" multiple
-                        style="width:100%; height:120px; padding:10px; border:2px solid #ddd; border-radius:5px; font-family:inherit;">
-                        <!-- JS ile dolacak -->
-                    </select>
-                    <div style="font-size:11px; color:#95a5a6; margin-top:5px;">Ctrl/Cmd tuşu ile birden fazla seçim
-                        yapabilirsiniz</div>
-                </div>
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label>Bölümler (Servisler):</label>
+                        <select id="setting-servis-ids" multiple
+                            style="width:100%; height:140px; padding:10px; border:2px solid #e2e8f0; border-radius:8px; font-family:inherit;">
+                            <!-- JS ile dolacak -->
+                        </select>
+                        <div style="font-size:11px; color:#94a3b8; margin-top:5px;">Ctrl/Cmd tuşu ile birden fazla seçim
+                            yapabilirsiniz</div>
+                    </div>
 
-                <div class="form-group" style="margin-bottom:15px;">
-                    <label style="display:block; margin-bottom:5px; font-weight:600; color:#34495e;">Hizmet Verilecek
-                        Kuyruklar</label>
-                    <select id="setting-kuyruk-ids" multiple
-                        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px; height: 120px;">
-                        <!-- JS ile dolacak -->
-                    </select>
-                    <small style="color:#95a5a6;">Birden fazla seçim için CTRL tuşuna basılı tutun</small>
-                </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom:5px; font-weight:600; color:#34495e;">Hizmet Verilecek
+                            Kuyruklar</label>
+                        <select id="setting-kuyruk-ids" multiple
+                            style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; height: 140px;">
+                            <!-- JS ile dolacak -->
+                        </select>
+                        <small style="color:#94a3b8;">Birden fazla seçim için CTRL tuşuna basılı tutun</small>
+                    </div>
 
-                <div class="switch-container"
-                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:#f8fafc; padding:10px; border-radius:8px;">
-                    <div>
-                        <div style="font-weight:600; color:#2d3748; display:flex; align-items:center; gap:8px;">
+                    <div class="settings-switch-card">
+                        <div class="settings-switch-title">
                             📍 Konum Bilgisi Gerekli
                             <label class="switch" style="margin:0;">
                                 <input type="checkbox" id="setting-konum-gerekli"
@@ -1020,75 +1292,93 @@
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div style="font-size:11px; color:#718096; margin-top:2px;">Çağrılarda oda/masa bilgisi gitsin
-                            mi?</div>
+                        <div class="settings-switch-desc">Çağrılarda oda/masa bilgisi gitsin mi?</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom:5px; font-weight:600; color:#34495e;">Çalışma Konumu
+                            (Masa/Oda)</label>
+                        <select id="setting-konum-id"
+                            style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; transition: all 0.3s ease;">
+                            <option value="none">🚫 Konum Yok</option>
+                            <option value="ask_always">❓ Her Seferinde Sor</option>
+                        </select>
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom:15px;">
-                    <label style="display:block; margin-bottom:5px; font-weight:600; color:#34495e;">Çalışma Konumu
-                        (Masa/Oda)</label>
-                    <select id="setting-konum-id"
-                        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px; transition: all 0.3s ease;">
-                        <option value="none">🚫 Konum Yok</option>
-                        <option value="ask_always">❓ Her Seferinde Sor</option>
-                    </select>
-                </div>
-
-                <div style="display:flex; gap:10px; margin-top:20px;">
+                <div class="settings-actions">
                     <button type="button" onclick="closeSettingsModal()"
-                        style="flex:1; padding:12px; border:none; background:#e74c3c; color:white; border-radius:5px; cursor:pointer; font-weight:600;">❌
-                        İptal</button>
+                        style="background:#ef4444; color:white;">❌ İptal</button>
 
                     <button type="button" onclick="clearSelections()"
-                        style="flex:1; padding:12px; border:none; background:#95a5a6; color:white; border-radius:5px; cursor:pointer; font-weight:600;"
+                        style="background:#6b7280; color:white;"
                         title="Tüm seçimleri kaldırır (Tüm hastane görülür)">
-                        🗑️ Temizle</button>
+                        🗑️ Temizle
+                    </button>
 
                     <button type="button" onclick="resetSettings()"
-                        style="flex:1.5; padding:12px; border:none; background:#f39c12; color:white; border-radius:5px; cursor:pointer; font-weight:600;"
+                        style="background:#f59e0b; color:white;"
                         title="Kullanıcı kartındaki varsayılan ayarlara döner">
-                        ↩️ Varsayılana Dön</button>
+                        ↩️ Varsayılana Dön
+                    </button>
 
                     <button type="submit"
-                        style="flex:1; padding:12px; border:none; background:#2ecc71; color:white; border-radius:5px; cursor:pointer; font-weight:600;">💾
-                        Kaydet</button>
+                        style="background:#22c55e; color:white;">💾 Kaydet</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- MANUEL SIRA MODAL -->
-    <div id="manuel-modal" class="modal-overlay"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
-        <div class="modal-content"
-            style="background:#fff; padding:30px; border-radius:15px; width:400px; text-align:left;">
-            <h2 style="color:#2c3e50; margin-bottom:20px;">➕ Manuel Sıra Oluştur</h2>
+    <div id="manuel-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="settings-modal-header">
+                <div>
+                    <div class="settings-modal-title">➕ Manuel Sıra Oluştur</div>
+                    <div class="settings-modal-subtitle">Acil/VIP vakalar veya özel durumlar için elle sıra verin.</div>
+                </div>
+                <button type="button" class="settings-modal-close" onclick="closeManuelModal()" aria-label="Kapat">
+                    ✕
+                </button>
+            </div>
 
             <form id="manuel-form">
                 <div class="form-group">
                     <label>Kuyruk Seçin</label>
                     <select id="manuel-kuyruk-id" required
-                        style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;"></select>
+                        style="width:100%; padding:10px; border:2px solid #e2e8f0; border-radius:8px;"></select>
                 </div>
 
                 <div class="form-group">
-                    <label>Özel Numara</label>
-                    <input type="text" id="manuel-numara" required placeholder="Örn: A010, PRO-1"
-                        style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px; font-size:16px;">
+                    <label>Seri Harfi ve Numara</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="manuel-seri" value="X" maxlength="2"
+                            style="width:70px; padding:10px; border:2px solid #e2e8f0; border-radius:8px; text-transform:uppercase; text-align:center; font-weight:700;">
+                        <input type="text" id="manuel-numara" placeholder="Örn: 001"
+                            style="flex:1; padding:10px; border:2px solid #e2e8f0; border-radius:8px; font-size:16px;">
+                    </div>
+                    <small style="color:#94a3b8;">Seri harfi varsayılan <strong>X</strong>. Numara boş bırakılırsa o gün için otomatik atanır (X001, X002, …); ertesi gün yine X001'den başlar.</small>
                 </div>
 
                 <div class="form-group">
                     <label>Öncelik Puanı</label>
-                    <input type="number" id="manuel-oncelik" value="10" min="0" max="100"
-                        style="width:100%; padding:10px; border:2px solid #ddd; border-radius:5px;">
+                    <input type="number" id="manuel-oncelik" value="5" min="0" max="100"
+                        style="width:100%; padding:10px; border:2px solid #e2e8f0; border-radius:8px;">
+                    <small style="color:#94a3b8;">Normal hastalar genelde 0–1, daha yüksek sayı = daha öncelikli.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Not (İsteğe Bağlı)</label>
+                    <textarea id="manuel-not" rows="2"
+                        style="width:100%; padding:10px; border:2px solid #e2e8f0; border-radius:8px; resize: vertical;"
+                        placeholder="Örn: Yatan hasta / acil öncelik..."></textarea>
                 </div>
 
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button type="button" onclick="closeManuelModal()"
-                        style="flex:1; padding:10px; border:none; background:#ecf0f1; color:#2c3e50; border-radius:5px; cursor:pointer;">İptal</button>
+                        style="flex:1; padding:10px; border:none; background:#e5e7eb; color:#111827; border-radius:8px; cursor:pointer; font-weight:600;">İptal</button>
                     <button type="submit"
-                        style="flex:1; padding:10px; border:none; background:#e67e22; color:white; border-radius:5px; cursor:pointer;">KAYDET</button>
+                        style="flex:1; padding:10px; border:none; background:#3b82f6; color:white; border-radius:8px; cursor:pointer; font-weight:600;">SIRA OLUŞTUR</button>
                 </div>
             </form>
         </div>
@@ -1475,21 +1765,13 @@
                 displayText = "Çalışma Alanı Seçilmedi";
             }
 
-            let html = `<h1 style="margin:0; font-size:24px; color:#2d3748; font-weight:800; text-transform:uppercase; letter-spacing:-0.5px; line-height:1.2;">${displayText}</h1>`;
+            let html = `<span class="header-title">${displayText}</span>`;
 
             if (activeSettings.konumGerekli) {
                 const locDisplay = activeSettings.konumId === 'ask_always' ? "❓ Her Seferinde Sor" : "📍 " + (activeSettings.konumAdi || "Konum Seçilmedi");
-                html += `
-                    <div style="background: white; color:#667eea; padding:6px 15px; border-radius:30px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:5px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); border: 2px solid #667eea; white-space:nowrap;">
-                        ${locDisplay}
-                    </div>
-                `;
-            } else if (activeSettings.konumId === 'none') {
-                html += `
-                    <div style="background: #edf2f7; color:#718096; padding:6px 15px; border-radius:30px; font-size:13px; font-weight:600; border:1px solid #e2e8f0; white-space:nowrap;">
-                        🚫 Konum Bilgisi Gönderilmiyor
-                    </div>
-                `;
+                html += `<span class="header-badge header-badge--konum">${locDisplay}</span>`;
+            } else {
+                html += `<span class="header-badge header-badge--none">🚫 Konum Gönderilmiyor</span>`;
             }
 
             el.innerHTML = html;
@@ -1660,6 +1942,150 @@
             });
         }
 
+        function openManuelModal() {
+            const modal = document.getElementById('manuel-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                
+                // Manuel modal açıldığında kuyruk dropdown'ını doldur
+                const kuyrukSelect = document.getElementById('manuel-kuyruk-id');
+                if (kuyrukSelect) {
+                    kuyrukSelect.innerHTML = '';
+                    
+                    // Eğer kuyruklar henüz yüklenmemişse, yükle
+                    if (!allQueues || allQueues.length === 0) {
+                        console.log('[PERSONEL] Manuel modal: Kuyruklar yükleniyor...');
+                        loadServicesAndQueues().then(() => {
+                            fillManuelKuyrukDropdown();
+                            loadNextManuelNumara();
+                        }).catch(err => {
+                            console.error('[PERSONEL] Manuel modal kuyruk yükleme hatası:', err);
+                            const opt = document.createElement('option');
+                            opt.value = '';
+                            opt.textContent = 'Kuyruklar yüklenemedi';
+                            kuyrukSelect.appendChild(opt);
+                        });
+                    } else {
+                        fillManuelKuyrukDropdown();
+                        loadNextManuelNumara();
+                    }
+                }
+            }
+        }
+        
+        /** Modal açıldığında bugün için bir sonraki numarayı alıp numara alanına yazar (gerekirse kullanıcı değiştirebilir). */
+        async function loadNextManuelNumara() {
+            const seriEl = document.getElementById('manuel-seri');
+            const numaraEl = document.getElementById('manuel-numara');
+            if (!numaraEl || !currentUser) return;
+            const prefix = (seriEl && seriEl.value) ? seriEl.value.trim().toUpperCase() : 'X';
+            try {
+                const res = await apiCall('/api/admin/sira/manuel/next-numara?prefix=' + encodeURIComponent(prefix));
+                const full = (res && res.numara) ? res.numara : '';
+                if (full) {
+                    var numPart = full.replace(/^[A-Za-z]+/, '');
+                    numaraEl.value = numPart || full;
+                }
+            } catch (err) {
+                console.warn('[PERSONEL] Sonraki numara alınamadı:', err);
+                numaraEl.placeholder = 'Örn: 001';
+            }
+        }
+        
+        function fillManuelKuyrukDropdown() {
+            const kuyrukSelect = document.getElementById('manuel-kuyruk-id');
+            if (!kuyrukSelect || !allQueues || allQueues.length === 0) {
+                return;
+            }
+            
+            kuyrukSelect.innerHTML = '';
+            
+            // Tüm kuyrukları göster (manuel sıra için herhangi bir kuyruk seçilebilir)
+            allQueues.forEach(q => {
+                const opt = document.createElement('option');
+                opt.value = q.id;
+                // Servis adını da göster (daha açıklayıcı)
+                const servisAd = allServices.find(s => s.id === q.servis_id)?.ad || '';
+                opt.textContent = servisAd ? `${q.kod || ''} - ${q.ad} (${servisAd})` : `${q.kod || ''} - ${q.ad}`;
+                kuyrukSelect.appendChild(opt);
+            });
+            
+            // Eğer hiç kuyruk yoksa
+            if (allQueues.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Kuyruk bulunamadı';
+                kuyrukSelect.appendChild(opt);
+            }
+        }
+
+        function closeManuelModal() {
+            const modal = document.getElementById('manuel-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        async function submitManuelForm(e) {
+            e.preventDefault();
+
+            if (!currentUser) {
+                showToast('Oturum bilgisi bulunamadı.', 'error');
+                return;
+            }
+
+            const kuyrukId = parseInt(document.getElementById('manuel-kuyruk-id').value, 10);
+            if (!kuyrukId || isNaN(kuyrukId)) {
+                showToast('Lütfen bir kuyruk seçin.', 'error');
+                return;
+            }
+            const seri = (document.getElementById('manuel-seri').value || 'X').toUpperCase();
+            const numaraPart = (document.getElementById('manuel-numara').value || '').trim();
+            const oncelik = parseInt(document.getElementById('manuel-oncelik').value || '5', 10);
+            const notText = document.getElementById('manuel-not').value || null;
+
+            const fullNumara = numaraPart ? `${seri}${numaraPart}` : `${seri}`;
+
+            try {
+                showLoading(true);
+
+                // Seçilen kuyruktan gerçek servis_id'yi bul (arka planda doğru bölüm işlensin)
+                let servisId = currentUser.servis_id || null;
+                if (allQueues && allQueues.length > 0 && !isNaN(kuyrukId)) {
+                    const q = allQueues.find(q => q.id == kuyrukId);
+                    if (q && q.servis_id) {
+                        servisId = q.servis_id;
+                    }
+                }
+
+                await apiCall('/api/admin/sira/manuel', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        kuyruk_id: kuyrukId,
+                        servis_id: servisId,
+                        firma_id: currentUser.firma_id,
+                        numara: fullNumara,
+                        oncelik: oncelik,
+                        notlar: notText
+                    })
+                });
+
+                closeManuelModal();
+                var f = document.getElementById('manuel-form');
+                if (f && f.reset) f.reset();
+                document.getElementById('manuel-seri').value = 'X';
+                document.getElementById('manuel-oncelik').value = '5';
+
+                showToast('Manuel sıra oluşturuldu.', 'success');
+                siralariYukle();
+            } catch (err) {
+                console.error('[PERSONEL] Manuel sıra hatası', err);
+                showToast('Manuel sıra oluşturulamadı: ' + (err.message || 'Bilinmeyen hata'), 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
         async function openSettingsModal() {
             document.getElementById('settings-modal').style.display = 'flex';
             
@@ -1768,6 +2194,11 @@
             showToast('Ayarlar kaydedildi', 'success');
         };
 
+        const manuelForm = document.getElementById('manuel-form');
+        if (manuelForm) {
+            manuelForm.addEventListener('submit', submitManuelForm);
+        }
+
         function saveLocalSettings() {
             // Seçimleri al
             const sSelect = document.getElementById('setting-servis-ids');
@@ -1837,15 +2268,35 @@
                 }
 
                 // 2. VERİ ZENGİNLEŞTİRME (Enrichment)
-                // Backend servis_id göndermediği için numara prefixinden buluyoruz
+                // Backend'den gelen veriyi servis_ad ve kuyruk_ad ile zenginleştir
                 const tumBekleyenler = rawData.map(s => {
                     let newS = { ...s };
 
-                    // Eğer zaten varsa elleme, yoksa bul
-                    if (!newS.servis_id && allQueues.length > 0) {
+                    // 1. ÖNCE: Eğer kuyruk_id varsa ama kuyruk_ad yoksa, allQueues'tan bul
+                    if (newS.kuyruk_id && !newS.kuyruk_ad && allQueues.length > 0) {
+                        const q = allQueues.find(q => q.id == newS.kuyruk_id);
+                        if (q) {
+                            newS.kuyruk_ad = q.ad;
+                            // Eğer servis_id yoksa, kuyruktan al
+                            if (!newS.servis_id && q.servis_id) {
+                                newS.servis_id = q.servis_id;
+                            }
+                        }
+                    }
+
+                    // 2. SONRA: Eğer servis_id varsa ama servis_ad yoksa, allServices'ten bul
+                    if (newS.servis_id && !newS.servis_ad && allServices.length > 0) {
+                        const srv = allServices.find(srv => srv.id == newS.servis_id);
+                        if (srv) {
+                            newS.servis_ad = srv.ad;
+                        }
+                    }
+
+                    // 3. SON ÇARE: Eğer hala servis_id yoksa, numara prefixinden bul (X, K, Z vb.)
+                    if (!newS.servis_id && allQueues.length > 0 && newS.numara) {
                         const matchingQueue = allQueues
-                            .filter(q => newS.numara.startsWith(q.kod))
-                            .sort((a, b) => b.kod.length - a.kod.length)[0];
+                            .filter(q => q.kod && newS.numara.startsWith(q.kod))
+                            .sort((a, b) => (b.kod?.length || 0) - (a.kod?.length || 0))[0];
 
                         if (matchingQueue) {
                             newS.kuyruk_id = matchingQueue.id;
@@ -1856,6 +2307,7 @@
                             if (srv) newS.servis_ad = srv.ad;
                         }
                     }
+
                     return newS;
                 });
 
@@ -2220,7 +2672,8 @@
             try {
                 await apiCall(`/api/sira/baslat/${activeTicket.id}`, { method: 'POST' });
                 document.getElementById('active-actions-initial').style.display = 'none';
-                document.getElementById('active-actions-serving').style.display = 'grid';
+                // BİTİR VE YENİ ÇAĞIR / SADECE BİTİR buton grubu flex satır düzeniyle gelsin
+                document.getElementById('active-actions-serving').style.display = 'flex';
                 activeTicket.durum = 'serving';
                 showToast("İşlem başlatıldı", "success");
             } catch (e) { showToast("Hata oluştu", "error"); }

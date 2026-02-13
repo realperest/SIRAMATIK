@@ -1,8 +1,9 @@
 // Sıramatik - Ortak JavaScript Fonksiyonları
 
-// API adresi: Eğer sayfa IP ile açıldıysa (mobildeki gibi), API'yi de o IP üzerinden çağır.
+// API adresi: localhost'ta 127.0.0.1 kullan (IPv6/bağlantı sorunlarını önlemek için). Diğer hostlarda aynı host.
 const currentHost = window.location.hostname || 'localhost';
-const API_URL = `http://${currentHost}:8000`;
+const apiHost = (currentHost === 'localhost' || currentHost === '127.0.0.1') ? '127.0.0.1' : currentHost;
+const API_URL = `http://${apiHost}:8000`;
 
 // API çağrısı yardımcı fonksiyonu
 async function apiCall(endpoint, options = {}) {

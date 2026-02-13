@@ -1073,7 +1073,11 @@
                 updateConnectionStatus('online');
             } catch (error) {
                 console.warn('[WARN] Heartbeat hatası:', error);
-                updateConnectionStatus('offline', 'Sunucu ile iletişim kurulamıyor');
+                var msg = 'Sunucu ile iletişim kurulamıyor';
+                if (error.message && (error.message.includes('fetch') || error.message.includes('Network'))) {
+                    msg = 'Backend\'e ulaşılamıyor. Backend çalışıyor mu? (Port 8000)';
+                }
+                updateConnectionStatus('offline', msg);
                 
                 // Eğer cihaz bulunamadı hatası alırsak (404), ID geçersizdir.
                 if (error.message && (error.message.includes('bulunamadı') || error.message.includes('404'))) {
