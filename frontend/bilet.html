@@ -882,7 +882,9 @@
         let lastCount = -1;
         let isAudioUnlocked = false;
         let isFirstLoad = true;
-        let ertelemeJustApplied = null;
+        let ertelemeJustApplied = null; // Bir kez set edilir; eski balon hep üstü çizili, yeni değer her poll'da güncellenir
+        let ertelemeKullanilan = 0;
+        let ertelemeLimit = 0;
         let ws = null; // WebSocket bağlantısı
         let pollingInterval = null; // Polling interval referansı
         let isPageVisible = true; // Sayfa görünürlük durumu
@@ -1451,8 +1453,7 @@
                     const oldMinutesForEst = showErtelemeDiff ? ertelemeJustApplied.oldMinutes : undefined;
                     if (showErtelemeDiff) {
                         statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + ertelemeJustApplied.oldBekleyen + '</span> <span class="value-bubble value-bubble-new">' + count + '</span> kişi var';
-                        // Sadece yeni sayı gerçekten değiştiyse temizle; yoksa poll erteleme-update'ten önce bitip balonu siliyordu
-                        if (count !== ertelemeJustApplied.oldBekleyen) ertelemeJustApplied = null;
+                        // ertelemeJustApplied temizlenmez: eski hep üstü çizili, yeni (count) her poll'da güncellenir
                     } else {
                         statusEl.innerHTML = 'Önünüzde <span class="value-bubble">' + count + '</span> kişi var';
                     }
@@ -1476,21 +1477,31 @@
 
                 if (me.durum === 'waiting') notificationPlayed = false;
 
-                // Erteleme bloğu: beklerken (waiting) her zaman göster; firma kapalıysa veya hakkı yoksa API tıklanınca söyler
+                // Erteleme bloğu: beklerken (waiting) her zaman göster; hakkı bittiyse buton sönük + mesaj
                 const ertelemeWrap = document.getElementById('erteleme-wrap');
                 const ertelemeHakkiEl = document.getElementById('erteleme-hakki');
+                const ertelemeOpenBtn = document.getElementById('erteleme-open-btn');
                 const ticketErtelemeKullanilan = parseInt(me.erteleme_sayisi, 10) || 0;
                 const limit = firmaErtelemeAyar.erteleme_sayisi || 0;
+                ertelemeKullanilan = ticketErtelemeKullanilan;
+                ertelemeLimit = limit;
                 const ertelemeGoster = me.durum === 'waiting';
+                const ertelemeHakkiBitti = limit > 0 && ticketErtelemeKullanilan >= limit;
                 if (ertelemeWrap) {
                     ertelemeWrap.style.display = ertelemeGoster ? 'block' : 'none';
                     if (ertelemeHakkiEl) {
-                        if (ertelemeGoster && firmaErtelemeAyar.erteleme && limit > 0 && ticketErtelemeKullanilan < limit)
+                        if (ertelemeHakkiBitti)
+                            ertelemeHakkiEl.textContent = 'Bu firma sadece ' + limit + ' erteleme hakkı tanıyor; kullandınız.';
+                        else if (ertelemeGoster && firmaErtelemeAyar.erteleme && limit > 0 && ticketErtelemeKullanilan < limit)
                             ertelemeHakkiEl.textContent = limit - ticketErtelemeKullanilan === 1 ? '1 erteleme hakkınız var.' : (limit - ticketErtelemeKullanilan) + ' erteleme hakkınız var.';
                         else if (ertelemeGoster)
                             ertelemeHakkiEl.textContent = 'Erteleme isteği gönderebilirsiniz; uygun değilse sunucu bilgi verecektir.';
                         else
                             ertelemeHakkiEl.textContent = '';
+                    }
+                    if (ertelemeOpenBtn) {
+                        ertelemeOpenBtn.disabled = ertelemeHakkiBitti;
+                        ertelemeOpenBtn.style.opacity = ertelemeHakkiBitti ? '0.6' : '';
                     }
                 }
 
@@ -1582,7 +1593,10 @@
                     updateStatus();
                     closeErtelemeOverlay();
                 } else {
-                    showErtelemeError(data.detail || 'Erteleme yapılamadı. Lütfen tekrar deneyin.');
+                    const d = String(data.detail || '');
+                    const hakKalmadi = (d.indexOf('hak') !== -1 || d.indexOf('kalmadı') !== -1 || d.indexOf('erteleme_sayisi') !== -1) && ertelemeLimit > 0;
+                    const msg = hakKalmadi ? 'Bu firma sadece ' + ertelemeLimit + ' erteleme hakkı tanıyor ve onu kullandınız.' : (data.detail || 'Erteleme yapılamadı. Lütfen tekrar deneyin.');
+                    showErtelemeError(msg);
                 }
             } catch (e) {
                 console.error('Erteleme hatası:', e);
@@ -1618,6 +1632,10 @@
             el.className = 'erteleme-backend-status' + (ok === true ? ' ok' : ok === false ? ' fail' : '');
         }
         function openErtelemeOverlay() {
+            if (ertelemeLimit > 0 && ertelemeKullanilan >= ertelemeLimit) {
+                alert('Bu firma sadece ' + ertelemeLimit + ' erteleme hakkı tanıyor ve onu kullandınız.');
+                return;
+            }
             const overlay = document.getElementById('erteleme-overlay');
             if (!overlay) return;
             overlay.style.display = 'flex';
