@@ -77,55 +77,6 @@
             letter-spacing: -2px;
         }
 
-        /* iPhone tarzı numara çarkı (tek göstergeli, ortada büyük) */
-        .bilet-numara-cark {
-            height: 200px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin: 12px 0;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .bilet-cark-mask {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            position: relative;
-        }
-
-        .bilet-cark-row {
-            flex-shrink: 0;
-            font-weight: 900;
-            color: #764ba2;
-            letter-spacing: -2px;
-            transition: transform 0.2s ease, opacity 0.2s ease;
-            line-height: 1.1;
-        }
-
-        .bilet-cark-row.cark-far {
-            font-size: 32px;
-            opacity: 0.35;
-        }
-
-        .bilet-cark-row.cark-near {
-            font-size: 52px;
-            opacity: 0.7;
-        }
-
-        .bilet-cark-row.cark-center {
-            font-size: 84px;
-            opacity: 1;
-        }
-
-        .bilet-cark-row.calling {
-            color: #22c55e !important;
-        }
-
         .label {
             color: #7f8c8d;
             font-size: 14px;
@@ -281,8 +232,7 @@
             }
         }
 
-        .number.animate-decrease,
-        .bilet-cark-row.animate-decrease {
+        .number.animate-decrease {
             animation: number-decrease 0.6s ease;
         }
 
@@ -663,103 +613,88 @@
 
         .survey-rating-row {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 20px;
             margin: 16px 0 20px 0;
             flex-shrink: 0;
         }
 
-        .survey-slider-vertical-wrap {
-            transform: rotate(-90deg);
-            width: 200px;
-            height: 44px;
+        /* iPhone tarzı puan çarkı (0-100) — numara ortada, ayrı gösterge yok */
+        .survey-wheel-container {
             display: flex;
             align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        .survey-wheel-mask {
+            height: 160px;
+            overflow: hidden;
+            position: relative;
+            border-radius: 14px;
+            background: linear-gradient(to bottom,
+                rgba(255,255,255,0) 0%,
+                rgba(248,249,250,0.96) 12%,
+                rgba(248,249,250,1) 35%,
+                rgba(248,249,250,1) 65%,
+                rgba(248,249,250,0.96) 88%,
+                rgba(255,255,255,0) 100%);
+            box-shadow: inset 0 0 24px rgba(118, 75, 162, 0.1);
+            flex: 1;
+        }
+
+        .survey-wheel-mask::before,
+        .survey-wheel-mask::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            height: 44px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .survey-wheel-mask::before {
+            top: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.98), transparent);
+        }
+        .survey-wheel-mask::after {
+            bottom: 0;
+            background: linear-gradient(to top, rgba(255,255,255,0.98), transparent);
+        }
+
+        .survey-wheel {
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+            padding: 44px 20px;
+        }
+
+        .survey-wheel-spacer {
+            height: 44px;
+            scroll-snap-align: center;
             flex-shrink: 0;
         }
 
-        .survey-slider-vertical {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 200px;
-            height: 14px;
-            padding: 0;
-            background: linear-gradient(to right, #94a3b8 0%, #667eea 50%, #764ba2 100%);
-            border-radius: 7px;
-            outline: none;
-        }
-
-        .survey-slider-vertical::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            cursor: pointer;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-            border: 3px solid #667eea;
-        }
-
-        .survey-slider-vertical::-moz-range-thumb {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            cursor: pointer;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-            border: 3px solid #667eea;
-        }
-
-        /* Ortada: çark içinde rakam + büyük surat */
-        .survey-center-display {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            min-width: 110px;
-        }
-
-        /* Çark (dişli) içinde rakam */
-        .survey-gear-wrap {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: conic-gradient(from 0deg, #764ba2 0deg 15deg, #667eea 15deg 30deg, #764ba2 30deg 45deg, #667eea 45deg 60deg, #764ba2 60deg 75deg, #667eea 75deg 90deg, #764ba2 90deg 105deg, #667eea 105deg 120deg, #764ba2 120deg 135deg, #667eea 135deg 150deg, #764ba2 150deg 165deg, #667eea 165deg 180deg, #764ba2 180deg 195deg, #667eea 195deg 210deg, #764ba2 210deg 225deg, #667eea 225deg 240deg, #764ba2 240deg 255deg, #667eea 255deg 270deg, #764ba2 270deg 285deg, #667eea 285deg 300deg, #764ba2 300deg 315deg, #667eea 315deg 330deg, #764ba2 330deg 345deg, #764ba2 345deg 360deg);
-            box-shadow: 0 4px 20px rgba(118,75,162,0.35), inset 0 2px 0 rgba(255,255,255,0.25);
-            border: 4px solid rgba(255,255,255,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .survey-gear-wrap::before {
-            content: '';
-            position: absolute;
-            inset: 6px;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
-        }
-
-        .survey-score-value {
-            position: relative;
-            z-index: 1;
-            font-size: 28px;
-            font-weight: 800;
-            color: #fff;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            min-width: 1.4em;
+        .survey-wheel-item {
+            height: 44px;
+            line-height: 44px;
+            scroll-snap-align: center;
+            scroll-snap-stop: always;
+            font-size: 26px;
+            font-weight: 700;
+            color: #764ba2;
+            flex-shrink: 0;
             text-align: center;
-            line-height: 1;
         }
 
         .survey-big-face {
-            font-size: 56px;
+            font-size: 52px;
             line-height: 1;
+            margin-top: 8px;
             transition: transform 0.2s ease;
         }
 
@@ -768,15 +703,17 @@
         }
 
         @media (min-width: 380px) {
-            .survey-gear-wrap { width: 84px; height: 84px; }
-            .survey-score-value { font-size: 34px; }
-            .survey-big-face { font-size: 64px; }
+            .survey-wheel-mask { height: 180px; }
+            .survey-wheel-item { font-size: 30px; height: 48px; line-height: 48px; }
+            .survey-wheel-spacer { height: 48px; }
+            .survey-big-face { font-size: 60px; }
         }
 
         @media (min-width: 480px) {
-            .survey-gear-wrap { width: 96px; height: 96px; }
-            .survey-score-value { font-size: 40px; }
-            .survey-big-face { font-size: 72px; }
+            .survey-wheel-mask { height: 200px; }
+            .survey-wheel-item { font-size: 34px; height: 52px; line-height: 52px; }
+            .survey-wheel-spacer { height: 52px; }
+            .survey-big-face { font-size: 68px; }
         }
 
         .survey-submit-btn {
@@ -835,15 +772,7 @@
         </div>
         <div class="content">
             <div class="label">Sıra Numaranız</div>
-            <div class="bilet-numara-cark" id="ticket-wheel-wrap" aria-label="Sıra numarası">
-                <div class="bilet-cark-mask">
-                    <div class="bilet-cark-row cark-far" id="ticket-cark-n2" aria-hidden="true">-</div>
-                    <div class="bilet-cark-row cark-near" id="ticket-cark-n1" aria-hidden="true">-</div>
-                    <div class="bilet-cark-row cark-center" id="ticket-number">---</div>
-                    <div class="bilet-cark-row cark-near" id="ticket-cark-p1" aria-hidden="true">-</div>
-                    <div class="bilet-cark-row cark-far" id="ticket-cark-p2" aria-hidden="true">-</div>
-                </div>
-            </div>
+            <div class="number" id="ticket-number">---</div>
             <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
             <div class="status" id="wait-info">Giriş Yapılıyor...</div>
             <div class="estimated-time" id="estimated-time" style="display: none;">
@@ -898,17 +827,16 @@
                 Görüşünüz bizim için değerli!
             </p>
 
-            <!-- Kaydırma çubuğu ortasında: çark içinde rakam + büyük surat -->
+            <!-- iPhone tarzı puan çarkı (0-100): ortadaki numara seçili puan, ayrı gösterge yok -->
             <div class="survey-rating-row">
-                <div class="survey-slider-vertical-wrap">
-                    <input type="range" id="survey-slider" class="survey-slider-vertical" min="0" max="100" value="50" oninput="updateSurveyFromSlider(this.value)">
-                </div>
-                <div class="survey-center-display">
-                    <div class="survey-gear-wrap">
-                        <span id="survey-score-value" class="survey-score-value">50</span>
+                <div class="survey-wheel-container">
+                    <div class="survey-wheel-mask">
+                        <div id="survey-wheel" class="survey-wheel" role="listbox" aria-label="Puan seçin (0-100)">
+                            <div class="survey-wheel-spacer"></div>
+                        </div>
                     </div>
-                    <div id="survey-big-face" class="survey-big-face" aria-hidden="true">😐</div>
                 </div>
+                <div id="survey-big-face" class="survey-big-face" aria-hidden="true">😐</div>
             </div>
 
             <!-- Yorum Alanı -->
@@ -1210,14 +1138,13 @@
             connect();
         }
 
-        // WebSocket mesajlarını işle (bilet sayfası her kuyruk haberiyle güncellenir)
+        // WebSocket mesajlarını işle (bilet sayfası her kuyruk haberiyle güncellenir — anlık güncelleme)
         function handleWebSocketMessage(data) {
             var msgKuyrukId = data.kuyruk_id != null ? data.kuyruk_id : (data.sira && data.sira.kuyruk_id != null ? data.sira.kuyruk_id : null);
             var bizimKuyruk = msgKuyrukId != null && String(msgKuyrukId) === String(kuyruk_id);
-
-            function doUpdate() {
-                updateStatus().catch(function (e) { console.warn('Bilet güncelleme hatası:', e); });
-            }
+            var bizimBilet = data.sira_id != null && String(data.sira_id) === String(sira_id);
+            var siraKuyrukId = data.sira && data.sira.kuyruk_id != null ? String(data.sira.kuyruk_id) : null;
+            var siraBizimKuyruk = siraKuyrukId !== null && siraKuyrukId === String(kuyruk_id);
 
             // ÖNCE: call_ticket — biletimiz çağrıldıysa "Sıra sizde" göster (id sayı veya string gelebilir)
             if (data.type === 'call_ticket' && data.sira) {
@@ -1225,7 +1152,7 @@
                 const calledSiraId = rawId != null ? String(rawId) : '';
                 const myId = sira_id != null ? String(sira_id) : '';
                 if (calledSiraId && myId && calledSiraId === myId) {
-                    console.log('🎯 Biletimiz çağrıldı (içeriden):', data.sira);
+                    console.log('🎯 Biletimiz çağrıldı (WebSocket):', data.sira);
                     if (sessionDurum !== 'calling') {
                         notificationPlayed = false;
                         sessionDurum = 'calling';
@@ -1233,40 +1160,58 @@
                     showCallingStatus(data.sira);
                     return;
                 }
-                if (bizimKuyruk) {
+                if (siraBizimKuyruk) {
                     console.log('📩 Kuyrukta çağrı (bilet güncelle):', data.sira.numara);
-                    doUpdate();
+                    updateStatus();
                 }
                 return;
             }
+            // İşlem tamamlandı — biletimiz tamamlandıysa anket göster
             if (data.type === 'complete_ticket' && data.sira) {
                 var completedId = data.sira.id != null ? String(data.sira.id) : (data.sira.sira_id != null ? String(data.sira.sira_id) : '');
                 if (completedId === String(sira_id)) {
-                    console.log('🎯 Biletimiz tamamlandı, anket gösterilecek:', data.sira);
+                    console.log('🎯 Biletimiz tamamlandı (WebSocket), anket gösterilecek:', data.sira);
                     sessionDurum = 'completed';
-                    doUpdate();
+                    updateStatus();
                     return;
                 }
-                if (bizimKuyruk) doUpdate();
+                if (siraBizimKuyruk) { updateStatus(); }
+                return;
+            }
+            // Yeni bilet alındı (aynı kuyruk) — önümüzdeki sayı değişir
+            if (data.type === 'new_ticket') {
+                if (bizimKuyruk) {
+                    console.log('📩 Yeni bilet (aynı kuyruk), güncelle:', data.numara);
+                    updateStatus();
+                }
+                return;
+            }
+            // İşlem başladı / iptal-gelmedi / transfer — kuyruk veya biletimiz etkileniyorsa güncelle
+            if (data.type === 'start_ticket' || data.type === 'cancel_ticket') {
+                if (siraBizimKuyruk || (data.sira && String(data.sira.id) === String(sira_id))) {
+                    console.log('📩 ' + data.type + ', bilet güncelle');
+                    updateStatus();
+                }
+                return;
+            }
+            if (data.type === 'ticket_transferred') {
+                var transferredKuyruk = data.kuyruk_id != null ? String(data.kuyruk_id) : '';
+                if (String(data.sira_id) === String(sira_id) || transferredKuyruk === String(kuyruk_id)) {
+                    console.log('📩 Transfer, bilet güncelle');
+                    updateStatus();
+                }
                 return;
             }
 
-            // Aynı kuyrukla ilgili tüm event türlerinde anlık güncelle (new_ticket, start_ticket, cancel_ticket, ticket_transferred, delete_ticket)
-            var queueEvents = ['new_ticket', 'start_ticket', 'cancel_ticket', 'ticket_transferred', 'delete_ticket'];
-            if (queueEvents.indexOf(data.type) !== -1 && bizimKuyruk) {
-                console.log('📩 Kuyruk haberi:', data.type, '- bilet güncelleniyor');
-                doUpdate();
-                return;
-            }
-
-            if (data.sira_id != null && String(data.sira_id) === String(sira_id)) {
+            // Genel: biletimiz veya kuyruğumuzla ilgili her türlü güncelleme
+            if (bizimBilet) {
                 console.log('🎯 Biletimiz için güncelleme:', data);
-                doUpdate();
+                updateStatus();
                 return;
             }
             if (bizimKuyruk) {
                 console.log('📩 Kuyruk güncellendi:', data.type || data);
-                doUpdate();
+                updateStatus();
             }
         }
         
@@ -1279,7 +1224,7 @@
             statusEl.textContent = "SIRA SİZDE!";
             statusEl.classList.add('calling-status');
             document.body.classList.add('calling-active-body');
-            if (numEl) { numEl.style.color = "#22c55e"; numEl.classList.add('calling'); }
+            numEl.style.color = "#22c55e";
             
             // Bildirim oynat (her çağrıldığında - notificationPlayed WebSocket'te reset edildi)
             if (!notificationPlayed) {
@@ -1396,21 +1341,8 @@
             }
         });
 
-        // İlk verileri URL'den bas (numara çarkı + diğer alanlar)
-        function updateBiletNumaraCark(n) {
-            var centerEl = document.getElementById('ticket-number');
-            var n2 = document.getElementById('ticket-cark-n2');
-            var n1 = document.getElementById('ticket-cark-n1');
-            var p1 = document.getElementById('ticket-cark-p1');
-            var p2 = document.getElementById('ticket-cark-p2');
-            var num = parseInt(n, 10);
-            if (centerEl) centerEl.textContent = (n != null && n !== '' && !isNaN(num)) ? num : '---';
-            if (n2) n2.textContent = (!isNaN(num)) ? Math.max(0, num - 2) : '-';
-            if (n1) n1.textContent = (!isNaN(num)) ? Math.max(0, num - 1) : '-';
-            if (p1) p1.textContent = (!isNaN(num)) ? (num + 1) : '-';
-            if (p2) p2.textContent = (!isNaN(num)) ? (num + 2) : '-';
-        }
-        updateBiletNumaraCark(numara);
+        // İlk verileri URL'den bas
+        document.getElementById('ticket-number').textContent = numara;
         document.getElementById('queue-name').textContent = kuyruk_ad;
         document.getElementById('hospital-name').textContent = firma_ad;
         document.getElementById('wait-info').innerHTML = 'Önünüzde <span class="value-bubble">' + (ticketSpecs.bekleyen || '0') + '</span> kişi var';
@@ -1659,7 +1591,7 @@
                 // Durum mesajı güncelle (waiting durumu)
                 document.body.classList.remove('calling-active-body');
                 statusEl.classList.remove('calling-status');
-                if (numEl) { numEl.style.color = "#764ba2"; numEl.classList.remove('calling'); }
+                numEl.style.color = "#764ba2";
 
                 if (count === 0) {
                     statusEl.textContent = "Sıradaki kişi sizsiniz!";
@@ -2173,11 +2105,78 @@
             }, 300);
 
             selectedRating = 50;
-            var slider = document.getElementById('survey-slider');
-            if (slider) { slider.value = 50; }
-            updateSurveyFromSlider(50);
+            buildSurveyWheel();
+            setSurveyWheelValue(50);
+            updateSurveyFromWheel(50);
             document.getElementById('survey-submit-btn').disabled = false;
             console.log('📋 Memnuniyet anketi gösterildi');
+        }
+
+        var SURVEY_WHEEL_ITEM_HEIGHT = 44;
+        var SURVEY_WHEEL_PADDING = 44;
+
+        function buildSurveyWheel() {
+            var wheel = document.getElementById('survey-wheel');
+            if (!wheel || wheel.dataset.built === '1') return;
+            wheel.innerHTML = '';
+            var topPad = document.createElement('div');
+            topPad.className = 'survey-wheel-spacer';
+            wheel.appendChild(topPad);
+            for (var i = 0; i <= 100; i++) {
+                var div = document.createElement('div');
+                div.className = 'survey-wheel-item';
+                div.setAttribute('data-value', i);
+                div.textContent = i;
+                wheel.appendChild(div);
+            }
+            var bottomPad = document.createElement('div');
+            bottomPad.className = 'survey-wheel-spacer';
+            wheel.appendChild(bottomPad);
+            wheel.dataset.built = '1';
+
+            wheel.addEventListener('scroll', function () {
+                var v = getSurveyWheelValue();
+                updateSurveyFromWheel(v);
+                clearTimeout(wheel._scrollTimer);
+                wheel._scrollTimer = setTimeout(snapSurveyWheel, 100);
+            });
+            wheel.addEventListener('touchmove', function () {
+                var v = getSurveyWheelValue();
+                updateSurveyFromWheel(v);
+                clearTimeout(wheel._scrollTimer);
+                wheel._scrollTimer = setTimeout(snapSurveyWheel, 150);
+            }, { passive: true });
+        }
+
+        function getSurveyWheelValue() {
+            var wheel = document.getElementById('survey-wheel');
+            if (!wheel || !wheel.children.length) return 50;
+            var item = wheel.querySelector('.survey-wheel-item');
+            var h = item ? item.offsetHeight : SURVEY_WHEEL_ITEM_HEIGHT;
+            var pad = wheel.querySelector('.survey-wheel-spacer');
+            var padding = pad ? pad.offsetHeight : SURVEY_WHEEL_PADDING;
+            var st = wheel.scrollTop;
+            var value = Math.round((st - padding) / h);
+            return Math.max(0, Math.min(100, value));
+        }
+
+        function setSurveyWheelValue(value) {
+            var wheel = document.getElementById('survey-wheel');
+            if (!wheel) return;
+            var item = wheel.querySelector('.survey-wheel-item');
+            var h = item ? item.offsetHeight : SURVEY_WHEEL_ITEM_HEIGHT;
+            var pad = wheel.querySelector('.survey-wheel-spacer');
+            var padding = pad ? pad.offsetHeight : SURVEY_WHEEL_PADDING;
+            var v = Math.max(0, Math.min(100, parseInt(value, 10) || 50));
+            wheel.scrollTop = padding + v * h;
+        }
+
+        function snapSurveyWheel() {
+            var wheel = document.getElementById('survey-wheel');
+            if (!wheel) return;
+            var v = getSurveyWheelValue();
+            setSurveyWheelValue(v);
+            updateSurveyFromWheel(v);
         }
 
         function getSurveyFace(value) {
@@ -2194,12 +2193,10 @@
             return '😍';
         }
 
-        function updateSurveyFromSlider(value) {
+        function updateSurveyFromWheel(value) {
             var v = parseInt(value, 10) || 50;
             selectedRating = v;
-            var scoreEl = document.getElementById('survey-score-value');
             var faceEl = document.getElementById('survey-big-face');
-            if (scoreEl) scoreEl.textContent = v;
             if (faceEl) faceEl.textContent = getSurveyFace(v);
         }
 
