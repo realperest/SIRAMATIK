@@ -1006,13 +1006,13 @@
                 console.log('🔊 Test sesi çalındı');
             }, 300);
 
-            // Ortalama bekleme süresini hesapla
-            await fetchAverageWaitTime();
+            // Ortalama bekleme süresini arka planda hesapla (bloklamaz; tahmin hazır olunca güncellenir)
+            fetchAverageWaitTime();
 
             // WebSocket bağlantısını başlat
             initWebSocket();
 
-            // İlk durumu güncelle
+            // İlk durumu hemen güncelle (erteleme butonu + yaklaşık süre daha çabuk görünsün)
             updateStatus();
 
             // Polling başlat (fallback)
@@ -1278,6 +1278,8 @@
                 console.error('Ortalama süre hatası:', e);
                 avgProcessTime = 5; // Fallback
             }
+            // Tahmini süre alanını güncelle (önceden 5 dk gösteriliyorsa gerçek ortalamayla yenile)
+            if (typeof updateEstimatedTime === 'function' && lastCount >= 0) updateEstimatedTime(lastCount);
         }
 
         // Bugünün ortalamasını manuel hesapla (fallback)
@@ -1329,25 +1331,35 @@
             try {
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
+                const firmaIdFromUrl = ticketSpecs.firma_id || null;
 
-                // 1. Kendi bilet bilgilerimizi çekelim (firma_id erteleme için biletten de alınacak)
-                const myTicket = await _supabase
+                // 1. Bilet + erteleme ayarını paralel çek (firma_id URL'de varsa daha hızlı)
+                const promiseMyTicket = _supabase
                     .schema('siramatik')
                     .from('siralar')
                     .select('durum, oncelik, olusturulma, etkin_olusturulma, erteleme_sayisi, firma_id')
                     .eq('id', sid)
                     .single();
 
+                let promiseErteleme = null;
+                if (firmaIdFromUrl && !firmaErtelemeAyarFetched) {
+                    firmaErtelemeAyarFetched = true;
+                    const base = getApiBase();
+                    promiseErteleme = fetch(base + '/api/public/firma/' + firmaIdFromUrl + '/erteleme-ayarlari').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+                }
+
+                const myTicket = await promiseMyTicket;
                 if (myTicket.error) throw myTicket.error;
                 const me = myTicket.data;
 
-                // Erteleme ayarları: firma_id URL'de yoksa bileti kullan (GitHub Pages vb. için)
-                const firmaIdForErteleme = ticketSpecs.firma_id || (me && me.firma_id);
-                if (firmaIdForErteleme && !firmaErtelemeAyarFetched) {
+                if (promiseErteleme) {
+                    const j = await promiseErteleme;
+                    if (j) firmaErtelemeAyar = { erteleme: !!j.erteleme, erteleme_sayisi: parseInt(j.erteleme_sayisi, 10) || 0 };
+                } else if ((me && me.firma_id) && !firmaErtelemeAyarFetched) {
                     firmaErtelemeAyarFetched = true;
                     try {
                         const base = getApiBase();
-                        const r = await fetch(base + '/api/public/firma/' + firmaIdForErteleme + '/erteleme-ayarlari');
+                        const r = await fetch(base + '/api/public/firma/' + me.firma_id + '/erteleme-ayarlari');
                         if (r.ok) {
                             const j = await r.json();
                             firmaErtelemeAyar = { erteleme: !!j.erteleme, erteleme_sayisi: parseInt(j.erteleme_sayisi, 10) || 0 };
@@ -1380,24 +1392,14 @@
                     return;
                 }
 
-                // Önünüzdekileri saymak için 2 ayrı sorgu
-                const highPriority = await _supabase
-                    .schema('siramatik')
-                    .from('siralar')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('kuyruk_id', kid)
-                    .eq('durum', 'waiting')
-                    .gt('oncelik', me.oncelik);
-
+                // Önünüzdekileri saymak için 2 sorguyu paralel çalıştır
                 const etkinOlusturulma = me.etkin_olusturulma || me.olusturulma;
-                const samePriorityBefore = await _supabase
-                    .schema('siramatik')
-                    .from('siralar')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('kuyruk_id', kid)
-                    .eq('durum', 'waiting')
-                    .eq('oncelik', me.oncelik)
-                    .lt('etkin_olusturulma', etkinOlusturulma);
+                const [highPriority, samePriorityBefore] = await Promise.all([
+                    _supabase.schema('siramatik').from('siralar').select('*', { count: 'exact', head: true })
+                        .eq('kuyruk_id', kid).eq('durum', 'waiting').gt('oncelik', me.oncelik),
+                    _supabase.schema('siramatik').from('siralar').select('*', { count: 'exact', head: true })
+                        .eq('kuyruk_id', kid).eq('durum', 'waiting').eq('oncelik', me.oncelik).lt('etkin_olusturulma', etkinOlusturulma)
+                ]);
 
                 if (highPriority.error) throw highPriority.error;
                 if (samePriorityBefore.error) throw samePriorityBefore.error;
@@ -1485,11 +1487,11 @@
                     updateEstimatedTime(count, oldMinutesForEst);
                 }
 
-                // Metin değiştiyse sesli olarak oku
-                const currentStatusText = statusEl.textContent;
-                if (currentStatusText && currentStatusText !== lastSpokenStatus) {
-                    lastSpokenStatus = currentStatusText;
-                    setTimeout(() => speakTr(currentStatusText), 250);
+                // Metin değiştiyse sesli olarak oku (ertelenmiş bilette sadece güncel sıra sayısını söyle)
+                const textForSpeech = showErtelemeDiff ? ('Önünüzde ' + count + ' kişi var') : statusEl.textContent;
+                if (textForSpeech && textForSpeech !== lastSpokenStatus) {
+                    lastSpokenStatus = textForSpeech;
+                    setTimeout(() => speakTr(textForSpeech), 250);
                 }
 
                 sessionDurum = 'waiting';
@@ -1676,11 +1678,20 @@
             var base = getApiBase();
             if (base) {
                 setBackendStatus('Sunucu durumu: kontrol ediliyor…', null);
-                fetch(base + '/health', { method: 'GET', mode: 'cors' }).then(function (r) {
-                    if (r.ok) setBackendStatus('Sunucu erişilebilir ✓ (bu ortamdan bağlantı var)', true);
+                var healthTimeout = 12000;
+                var healthAbort = new AbortController();
+                var timeoutId = setTimeout(function () {
+                    healthAbort.abort();
+                    setBackendStatus('Bağlantı gecikiyor; ertelemeyi yine de deneyebilirsiniz.', false);
+                }, healthTimeout);
+                fetch(base + '/health', { method: 'GET', mode: 'cors', signal: healthAbort.signal }).then(function (r) {
+                    clearTimeout(timeoutId);
+                    if (r.ok) setBackendStatus('Sunucu erişilebilir ✓', true);
                     else setBackendStatus('Sunucu yanıt veremedi (HTTP ' + r.status + ')', false);
-                }).catch(function () {
-                    setBackendStatus('Sunucuya bu ortamdan ulaşılamıyor (ağ / CORS kontrol edin)', false);
+                }).catch(function (e) {
+                    clearTimeout(timeoutId);
+                    if (e.name === 'AbortError') return;
+                    setBackendStatus('Ağ hatası; ertelemeyi yine de deneyebilirsiniz.', false);
                 });
                 fetch(base + '/api/public/db-check', { method: 'GET' }).then(function (r) {
                     if (!r.ok) r.json().then(function (d) { if (d.detail && (String(d.detail).indexOf('yazma') !== -1 || String(d.detail).indexOf('permission') !== -1)) showErtelemeError(d.detail); }).catch(function () {});
