@@ -1459,11 +1459,11 @@
                 const sid = parseInt(sira_id);
                 const firmaIdFromUrl = ticketSpecs.firma_id || null;
 
-                // 1. Bilet + erteleme ayarını paralel çek (firma_id URL'de varsa daha hızlı)
+                // 1. Bilet + erteleme ayarını paralel çek (numara dahil — URL/localStorage'da yoksa API'den doldurulur)
                 const promiseMyTicket = _supabase
                     .schema('siramatik')
                     .from('siralar')
-                    .select('durum, oncelik, olusturulma, etkin_olusturulma, erteleme_sayisi, firma_id')
+                    .select('durum, oncelik, olusturulma, etkin_olusturulma, erteleme_sayisi, firma_id, numara')
                     .eq('id', sid)
                     .single();
 
@@ -1477,6 +1477,15 @@
                 const myTicket = await promiseMyTicket;
                 if (myTicket.error) throw myTicket.error;
                 const me = myTicket.data;
+
+                // Bilet numarasını her zaman API'den güncelle (URL maskeleme veya eksik localStorage'da "---" kalmasın)
+                var ticketNumEl = document.getElementById('ticket-number');
+                if (ticketNumEl && me && me.numara != null && String(me.numara).trim() !== '') {
+                    ticketNumEl.textContent = me.numara;
+                    if (!ticketSpecs.numara || ticketSpecs.numara === '---') {
+                        try { localStorage.setItem('bt_numara', String(me.numara)); } catch (e) {}
+                    }
+                }
 
                 if (promiseErteleme) {
                     const j = await promiseErteleme;
