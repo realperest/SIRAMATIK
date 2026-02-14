@@ -1446,9 +1446,21 @@ class Database:
             
             if result:
                 print("[OK] memnuniyet_anketleri tablosu zaten var")
+                try:
+                    session.execute(text("""
+                        ALTER TABLE siramatik.memnuniyet_anketleri
+                        DROP CONSTRAINT IF EXISTS memnuniyet_anketleri_puan_check;
+                        ALTER TABLE siramatik.memnuniyet_anketleri
+                        ADD CONSTRAINT memnuniyet_anketleri_puan_check CHECK (puan >= 0 AND puan <= 100);
+                    """))
+                    session.commit()
+                    print("[OK] memnuniyet_anketleri puan kısıtı 0-100 olarak güncellendi")
+                except Exception as alter_e:
+                    session.rollback()
+                    print(f"[WARN] Puan kısıtı güncellenemedi (zaten 0-100 olabilir): {alter_e}")
                 return
             
-            # Tabloyu oluştur
+            # Tabloyu oluştur (puan 0-100, 100 üzerinden değerlendirme)
             create_table_query = text("""
                 CREATE TABLE IF NOT EXISTS siramatik.memnuniyet_anketleri (
                     id SERIAL PRIMARY KEY,
@@ -1457,7 +1469,7 @@ class Database:
                     servis_id INTEGER,
                     firma_id INTEGER NOT NULL,
                     cagiran_kullanici_id INTEGER,
-                    puan INTEGER NOT NULL CHECK (puan >= 1 AND puan <= 5),
+                    puan INTEGER NOT NULL CHECK (puan >= 0 AND puan <= 100),
                     yorum TEXT,
                     anket_tarihi TIMESTAMPTZ DEFAULT NOW(),
                     ip_adresi VARCHAR(45),

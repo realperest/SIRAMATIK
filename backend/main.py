@@ -791,8 +791,8 @@ async def save_memnuniyet_anketi(request: MemnuniyetAnketRequest):
     """
     try:
         # Puan validasyonu
-        if request.puan < 1 or request.puan > 5:
-            raise HTTPException(status_code=400, detail="Puan 1-5 arasında olmalıdır")
+        if request.puan < 0 or request.puan > 100:
+            raise HTTPException(status_code=400, detail="Puan 0-100 arasında olmalıdır")
         
         # Database'e kaydet
         result = db.execute_query("""

@@ -212,7 +212,7 @@ class MemnuniyetAnketRequest(BaseModel):
     servis_id: int
     firma_id: int
     cagiran_kullanici_id: Optional[int] = None
-    puan: int  # 1-5 arası
+    puan: int  # 0-100 arası (100 üzerinden değerlendirme)
     yorum: Optional[str] = None
     hizmet_suresi_dk: Optional[int] = None
 

@@ -814,8 +814,8 @@
             </div>
         </div>
     </div>
-    <!-- Sağ Üst Geri Dön Butonu -->
-    <button class="exit-button" id="exit-btn" onclick="location.reload()" title="Ana sayfaya dön">
+    <!-- Sağ Üst Geri Dön Butonu (reload yok; WebSocket kopmasın) -->
+    <button class="exit-button" id="exit-btn" onclick="anaSayfayaDon()" title="Ana sayfaya dön">
         <span class="x-icon">✕</span>
         <span>Geri Dön</span>
     </button>
@@ -900,7 +900,7 @@
             </div>
             <div style="font-size: 11px; margin-top: 10px; opacity: 0.6;" id="fis-tarih">2026-02-07 18:30</div>
 
-            <button onclick="location.reload()" class="back-btn"
+            <button onclick="anaSayfayaDon()" class="back-btn"
                 style="color: #333; border-color: #333; margin-top: 15px; padding: 10px 20px; font-size: 14px;">
                 ANA SAYFAYA DÖN
             </button>
@@ -927,7 +927,7 @@
                 <p>Karekod Okut</p>
                 <div class="qr-aciklama">Sıranızı telefondan canlı takip edin</div>
                 <div id="qr-sayac"></div>
-                <button onclick="location.reload()" class="back-btn">ANA SAYFAYA DÖN</button>
+                <button onclick="anaSayfayaDon()" class="back-btn">ANA SAYFAYA DÖN</button>
             </div>
         </div>
     </div>
@@ -996,6 +996,7 @@
         }
         
         let allQueues = [];
+        let lastServisler = [];
         let FIRMA_ID = localStorage.getItem('global_firma_id') || 1;
         let DEVICE_ID = localStorage.getItem('tablet_device_id') || null;
         let DEVICE_FINGERPRINT = localStorage.getItem('device_fingerprint') || null;
@@ -1742,7 +1743,8 @@
                 // Kiosk ayarlarına göre filtrele
                 const filtered = applyFilters(servisler || [], kuyruklar || []);
                 allQueues = filtered.kuyruklar;
-                renderServisler(filtered.servisler);
+                lastServisler = filtered.servisler || [];
+                renderServisler(lastServisler);
 
                 if (!silent) showLoading(false);
             } catch (error) {
@@ -1758,6 +1760,19 @@
                 document.body.appendChild(errorDiv);
                 
                 setTimeout(() => errorDiv.remove(), 10000);
+            }
+        }
+
+        /** Ana sayfaya sayfa yenilemeden dön (WebSocket kopmasın). */
+        function anaSayfayaDon() {
+            const numEkrani = document.getElementById('numara-ekrani');
+            const fisModal = document.getElementById('fis-modal');
+            if (numEkrani) numEkrani.style.display = 'none';
+            if (fisModal) fisModal.style.display = 'none';
+            if (lastServisler && lastServisler.length > 0) {
+                renderServisler(lastServisler);
+            } else {
+                verileriYukle(true);
             }
         }
 

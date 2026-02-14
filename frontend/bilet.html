@@ -138,6 +138,11 @@
             box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
             border: 4px solid white;
         }
+        .ticket.bilet-completed {
+            opacity: 0.78;
+            filter: saturate(0.75);
+            pointer-events: auto;
+        }
 
         .calling-status {
             background: #22c55e !important;
@@ -606,53 +611,86 @@
             flex-direction: column;
         }
 
-        .rating-faces {
+        .survey-rating-row {
             display: flex;
-            justify-content: space-between;
-            gap: 2px;
-            margin: 8px 0 12px 0;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            margin: 12px 0 16px 0;
             flex-shrink: 0;
         }
 
-        .face-option {
-            flex: 1;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            padding: 3px 0px;
+        .survey-wheel-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .survey-slider-vertical-wrap {
+            transform: rotate(-90deg);
+            width: 200px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .survey-slider-vertical {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 200px;
+            height: 12px;
+            padding: 0;
+            background: linear-gradient(to right, #94a3b8 0%, #667eea 50%, #764ba2 100%);
             border-radius: 6px;
-            border: 2px solid transparent;
+            outline: none;
         }
 
-        .face-option:hover {
-            background: rgba(102, 126, 234, 0.05);
+        .survey-slider-vertical::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+            border: 3px solid #667eea;
+        }
+
+        .survey-slider-vertical::-moz-range-thumb {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+            border: 3px solid #667eea;
+        }
+
+        .survey-score-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #764ba2;
+            min-width: 2.2em;
+        }
+
+        .survey-big-face-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+        }
+
+        .survey-big-face {
+            font-size: 80px;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .survey-big-face:hover {
             transform: scale(1.05);
-        }
-
-        .face-option.selected {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-            transform: scale(1.1);
-        }
-
-        .face {
-            font-size: 24px;
-            margin-bottom: 2px;
-            transition: all 0.3s ease;
-        }
-
-        .face-option:hover .face {
-            transform: scale(1.15);
-        }
-
-        .face-label {
-            font-size: 7px;
-            color: #7f8c8d;
-            font-weight: 600;
-            line-height: 1.2;
-        }
-
-        .face-option.selected .face-label {
-            color: #667eea;
         }
 
         .survey-submit-btn {
@@ -766,27 +804,16 @@
                 Görüşünüz bizim için değerli!
             </p>
 
-            <!-- Yüz İfadeleri -->
-            <div class="rating-faces">
-                <div class="face-option" data-rating="1" onclick="selectRating(1)">
-                    <div class="face">😞</div>
-                    <div class="face-label">Çok Kötü</div>
+            <!-- Dikey çark (0-100) + büyük surat -->
+            <div class="survey-rating-row">
+                <div class="survey-wheel-wrap">
+                    <div class="survey-slider-vertical-wrap">
+                        <input type="range" id="survey-slider" class="survey-slider-vertical" min="0" max="100" value="50" oninput="updateSurveyFromSlider(this.value)">
+                    </div>
+                    <span id="survey-score-value" class="survey-score-value">50</span>
                 </div>
-                <div class="face-option" data-rating="2" onclick="selectRating(2)">
-                    <div class="face">😕</div>
-                    <div class="face-label">Kötü</div>
-                </div>
-                <div class="face-option" data-rating="3" onclick="selectRating(3)">
-                    <div class="face">😐</div>
-                    <div class="face-label">Normal</div>
-                </div>
-                <div class="face-option" data-rating="4" onclick="selectRating(4)">
-                    <div class="face">😊</div>
-                    <div class="face-label">İyi</div>
-                </div>
-                <div class="face-option" data-rating="5" onclick="selectRating(5)">
-                    <div class="face">😍</div>
-                    <div class="face-label">Mükemmel</div>
+                <div class="survey-big-face-wrap">
+                    <div id="survey-big-face" class="survey-big-face" aria-hidden="true">😐</div>
                 </div>
             </div>
 
@@ -973,7 +1000,12 @@
         }
 
         async function startNotifications() {
-            // iOS için ses kilidi açma yöntemi
+            await updateStatus();
+            if (sessionDurum === 'completed') {
+                document.getElementById('activation-overlay').style.display = 'none';
+                isAudioUnlocked = true;
+                return;
+            }
             alertSound.volume = 0.5;
             tickSound.volume = 0.5;
 
@@ -996,11 +1028,12 @@
             // Test titreşimi
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
-            // Test sesi çal
-            setTimeout(() => {
-                tickSound.play().catch(e => console.log('Test sesi hatası:', e));
-                console.log('🔊 Test sesi çalındı');
-            }, 300);
+            if (sessionDurum !== 'completed') {
+                setTimeout(() => {
+                    tickSound.play().catch(e => console.log('Test sesi hatası:', e));
+                    console.log('🔊 Test sesi çalındı');
+                }, 300);
+            }
 
             // Ortalama bekleme süresini arka planda hesapla (bloklamaz; tahmin hazır olunca güncellenir)
             fetchAverageWaitTime();
@@ -1363,6 +1396,8 @@
                     statusEl.classList.remove('calling-status');
                     statusEl.style.background = "#94a3b8";
                 }
+                var ticketEl = document.querySelector('.ticket');
+                if (ticketEl) ticketEl.classList.add('bilet-completed');
                 document.body.classList.remove('calling-active-body');
                 if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
                 showSurvey();
@@ -1422,6 +1457,8 @@
                     statusEl.classList.remove('calling-status');
                     document.body.classList.remove('calling-active-body');
                     statusEl.style.background = "#94a3b8";
+                    var ticketEl = document.querySelector('.ticket');
+                    if (ticketEl) ticketEl.classList.add('bilet-completed');
                     notificationPlayed = false;
                     sessionDurum = 'completed';
                     if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
@@ -1841,8 +1878,8 @@
         });
 
         // ===== MEMNUNİYET ANKETİ =====
-        let selectedRating = 0;
         let surveyShown = false;
+        let selectedRating = 50;
 
         // Ses efektleri fonksiyonları
         let audioContextInstance = null;
@@ -2017,38 +2054,45 @@
                 });
             }, 300);
 
+            selectedRating = 50;
+            var slider = document.getElementById('survey-slider');
+            if (slider) { slider.value = 50; }
+            updateSurveyFromSlider(50);
+            document.getElementById('survey-submit-btn').disabled = false;
             console.log('📋 Memnuniyet anketi gösterildi');
         }
 
-        function selectRating(rating) {
-            selectedRating = rating;
+        function getSurveyFace(value) {
+            var v = parseInt(value, 10) || 50;
+            if (v <= 9) return '😢';
+            if (v <= 19) return '😞';
+            if (v <= 29) return '😕';
+            if (v <= 39) return '😑';
+            if (v <= 49) return '😐';
+            if (v <= 59) return '🙂';
+            if (v <= 69) return '😊';
+            if (v <= 79) return '😄';
+            if (v <= 89) return '🤩';
+            return '😍';
+        }
 
-            // Tüm seçimleri temizle
-            document.querySelectorAll('.face-option').forEach(option => {
-                option.classList.remove('selected');
-            });
-
-            // Seçilen yüzü vurgula
-            document.querySelector(`.face-option[data-rating="${rating}"]`).classList.add('selected');
-
-            // Gönder butonunu aktif et
-            document.getElementById('survey-submit-btn').disabled = false;
-
-            console.log(`⭐ Puan seçildi: ${rating}/5`);
+        function updateSurveyFromSlider(value) {
+            var v = parseInt(value, 10) || 50;
+            selectedRating = v;
+            var scoreEl = document.getElementById('survey-score-value');
+            var faceEl = document.getElementById('survey-big-face');
+            if (scoreEl) scoreEl.textContent = v;
+            if (faceEl) faceEl.textContent = getSurveyFace(v);
         }
 
         async function submitSurvey() {
-            if (selectedRating === 0) {
-                alert('Lütfen bir puan seçin');
-                return;
-            }
-
             const submitBtn = document.getElementById('survey-submit-btn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Gönderiliyor...';
 
             try {
                 const comment = document.getElementById('survey-comment').value.trim();
+                var puan100 = Math.min(100, Math.max(0, parseInt(selectedRating, 10) || 50));
 
                 // Hizmet süresi hesapla (şu anki zaman - oluşturulma zamanı)
                 const hizmetSuresiDk = localStorage.getItem(`bt_hizmet_suresi_dk`) || null;
@@ -2057,11 +2101,9 @@
                 const servis_id = ticketSpecs.servis_id || localStorage.getItem('bt_servis_id') || null;
                 const firma_id = ticketSpecs.firma_id || localStorage.getItem('bt_firma_id') || 1;
                 
-                console.log(' Anket verileri:', {
-                    sira_id, kuyruk_id, servis_id, firma_id
-                });
+                console.log(' Anket verileri:', { sira_id, kuyruk_id, servis_id, firma_id, puan: puan100 });
 
-                // Supabase'e kaydet
+                // Supabase'e kaydet (puan 0-100)
                 const { data, error } = await _supabase
                     .schema('siramatik')
                     .from('memnuniyet_anketleri')
@@ -2071,7 +2113,7 @@
                         servis_id: servis_id ? parseInt(servis_id) : null,
                         firma_id: parseInt(firma_id),
                         cagiran_kullanici_id: null,
-                        puan: selectedRating,
+                        puan: puan100,
                         yorum: comment || null,
                         hizmet_suresi_dk: hizmetSuresiDk ? parseInt(hizmetSuresiDk) : null
                     }]);
