@@ -177,45 +177,39 @@
             margin-top: 20px;
         }
 
-        /* Bağlantı Durumu Badge - Sağ Alt */
-        .connection-status {
+        /* Bağlantı durumu: sol üst, iki küçük balon W / P */
+        .connection-badges {
             position: fixed;
-            bottom: 20px;
-            right: 15px;
-            width: 32px;
-            height: 32px;
+            top: 12px;
+            left: 12px;
+            display: flex;
+            gap: 6px;
+            z-index: 1000;
+        }
+        .connection-badge {
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
-            transition: all 0.3s;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             color: white;
+            transition: background 0.3s, opacity 0.3s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
         }
-
-        .connection-status.online {
+        .connection-badge.active {
             background: #22c55e;
+            opacity: 1;
         }
-
-        .connection-status.offline {
-            background: #ef4444;
-            animation: pulse 2s infinite;
+        .connection-badge.inactive {
+            background: #94a3b8;
+            opacity: 0.5;
         }
-
-        .connection-status.connecting {
+        .connection-badge.connecting {
             background: #f59e0b;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.5;
-            }
+            opacity: 0.8;
         }
 
         /* Sayı Azalma Animasyonu */
@@ -693,9 +687,10 @@
 </head>
 
 <body>
-    <!-- Bağlantı Durumu -->
-    <div id="connection-status" class="connection-status connecting" title="Bağlantı durumu">
-        <span id="connection-text">P</span>
+    <!-- Bağlantı durumu: sol üst, W = WebSocket / P = Polling (yeşil = bağlı, sönük = değil) -->
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling (yeşil = bağlı)">
+        <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
+        <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
     </div>
 
     <!-- Aktivasyon Katmanı -->
@@ -1040,16 +1035,18 @@
             function connect() {
                 try {
                     ws = new WebSocket(wsUrl);
-
-                    ws.onopen = () => {
-                        console.log('[OK] WebSocket bağlandı! Gerçek zamanlı mod aktif.');
-                        updateConnectionStatus('online', true); // W göster
-                        // WebSocket başarılı, polling'i durdur
-                        if (pollingInterval) {
-                            console.log('[SYNC] Polling durduruldu (WebSocket aktif)');
-                            clearInterval(pollingInterval);
-                            pollingInterval = null;
+                    var connectTimeout = setTimeout(function () {
+                        if (ws && ws.readyState === WebSocket.CONNECTING) {
+                            console.warn('[WS] Bağlantı zaman aşımı, polling ile devam.');
+                            ws.close();
                         }
+                    }, 10000);
+
+                    ws.onopen = function () {
+                        clearTimeout(connectTimeout);
+                        console.log('[OK] WebSocket bağlandı! Gerçek zamanlı mod aktif.');
+                        updateConnectionStatus('online', true);
+                        // Polling zaten çalışıyor (yedek); durdurmuyoruz
                     };
 
                     ws.onmessage = (event) => {
@@ -1062,19 +1059,13 @@
                         }
                     };
 
-                    ws.onclose = () => {
-                        console.warn('[WARN] WebSocket koptu. Polling fallback aktif.');
-                        updateConnectionStatus('online', false); // P göster
+                    ws.onclose = function () {
+                        clearTimeout(connectTimeout);
+                        console.warn('[WARN] WebSocket koptu. Polling zaten çalışıyor.');
+                        updateConnectionStatus('online', false);
                         ws = null;
-                        
-                        // Polling'i tekrar başlat (eğer durdurulmuşsa)
-                        if (!pollingInterval) {
-                            console.log('[SYNC] Polling yeniden başlatılıyor...');
-                            startPolling();
-                        }
-                        
-                        // Yeniden bağlanmayı dene (3 saniye sonra)
-                        setTimeout(connect, 3000);
+                        if (!pollingInterval) startPolling();
+                        setTimeout(connect, 5000);
                     };
 
                     ws.onerror = (err) => {
@@ -1091,35 +1082,40 @@
             connect();
         }
 
-        // WebSocket mesajlarını işle
+        // WebSocket mesajlarını işle (bilet sayfası her kuyruk haberiyle güncellenir)
         function handleWebSocketMessage(data) {
-            // ÖNCE: call_ticket mesajını kontrol et (içeriden çağrıldığında)
+            var msgKuyrukId = data.kuyruk_id != null ? data.kuyruk_id : (data.sira && data.sira.kuyruk_id != null ? data.sira.kuyruk_id : null);
+            var bizimKuyruk = msgKuyrukId != null && String(msgKuyrukId) === String(kuyruk_id);
+
+            // ÖNCE: call_ticket — biletimiz çağrıldıysa "Sıra sizde" göster
             if (data.type === 'call_ticket' && data.sira) {
                 const calledSiraId = data.sira.id || data.sira.sira_id;
                 if (calledSiraId && String(calledSiraId) === String(sira_id)) {
                     console.log('🎯 Biletimiz çağrıldı (içeriden):', data.sira);
-
-                    // Sadece durum "calling"e ilk geçildiğinde alarm + sesli duyuru çalışsın
                     if (sessionDurum !== 'calling') {
                         notificationPlayed = false;
                         sessionDurum = 'calling';
                     }
-
-                    // Durumu ve gerekiyorsa sesi güncelle
                     showCallingStatus(data.sira);
-                    return; // Diğer kontrollere gerek yok
+                    return;
                 }
+                // Başka biri çağrıldı ama aynı kuyruk — önümüzdeki sayı azaldı, güncelle
+                if (bizimKuyruk) {
+                    console.log('📩 Kuyrukta çağrı (bilet güncelle):', data.sira.numara);
+                    updateStatus();
+                }
+                return;
             }
-            
-            // Eğer bu biletimizle ilgili bir güncelleme ise
-            if (data.sira_id && data.sira_id == sira_id) {
+
+            // Bu bilet veya kuyrukla ilgili her türlü güncelleme
+            if (data.sira_id != null && String(data.sira_id) === String(sira_id)) {
                 console.log('🎯 Biletimiz için güncelleme:', data);
-                updateStatus(); // Durumu güncelle
+                updateStatus();
+                return;
             }
-            // Veya kuyruğumuzda bir değişiklik olduysa
-            else if (data.kuyruk_id && data.kuyruk_id == kuyruk_id) {
-                console.log(' Kuyruk güncellendi:', data);
-                updateStatus(); // Durumu güncelle
+            if (bizimKuyruk) {
+                console.log('📩 Kuyruk güncellendi:', data.type || data);
+                updateStatus();
             }
         }
         
@@ -1177,44 +1173,36 @@
             }
         }
 
-        // Bağlantı durumu göstergesini güncelle
+        // Bağlantı durumu: iki balon (W = WebSocket, P = Polling); yeşil = bağlı, sönük = değil
         let isWebSocketActive = false;
-        
-        function updateConnectionStatus(status, isWebSocket = false) {
-            const badge = document.getElementById('connection-status');
-            const text = document.getElementById('connection-text');
-            
-            isWebSocketActive = isWebSocket;
-            badge.className = `connection-status ${status}`;
-            
-            // Sadece online olduğunda göster (yeşil)
+        function updateConnectionStatus(status, isWebSocket) {
+            var wEl = document.getElementById('connection-w');
+            var pEl = document.getElementById('connection-p');
+            if (!wEl || !pEl) return;
+            isWebSocketActive = isWebSocket === true;
             if (status === 'online') {
-                // W = WebSocket, P = Polling
-                text.textContent = isWebSocket ? 'W' : 'P';
-                badge.title = isWebSocket ? 'WebSocket Bağlantısı' : 'Polling Bağlantısı';
+                wEl.className = 'connection-badge ' + (isWebSocketActive ? 'active' : 'inactive');
+                pEl.className = 'connection-badge active'; // Polling her zaman çalışıyor
+            } else if (status === 'connecting') {
+                wEl.className = 'connection-badge connecting';
+                pEl.className = 'connection-badge active';
             } else {
-                // Bağlı değilse gösterme
-                badge.style.display = 'none';
+                wEl.className = 'connection-badge inactive';
+                pEl.className = 'connection-badge active';
             }
         }
 
-        // Polling Mekanizması (Fallback & Yedek)
+        // Polling: Her 3 saniyede bir güncelle (WebSocket açık olsa da yedek / kayıp mesaj telafisi)
+        var POLLING_INTERVAL_MS = 3000;
         function startPolling() {
             if (pollingInterval) {
                 console.log('ℹ️ Polling zaten aktif');
                 return;
             }
-
-            console.log('[SYNC] Polling başlatılıyor (5 saniye aralık)');
-            pollingInterval = setInterval(() => {
-                // WebSocket bağlıysa polling'i geçici durdur (kaynak tasarrufu)
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    // WebSocket çalışırken polling sessizce bekler
-                    return;
-                }
-                // WebSocket yoksa veya kopuksa polling güncelleme yapar
+            console.log('[SYNC] Polling başlatılıyor (' + (POLLING_INTERVAL_MS / 1000) + ' saniye aralık, WebSocket olsa da çalışır)');
+            pollingInterval = setInterval(function () {
                 updateStatus();
-            }, 5000);
+            }, POLLING_INTERVAL_MS);
         }
 
         // Page Visibility API (Arka plan kontrolü)
