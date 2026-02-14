@@ -94,13 +94,14 @@ app = FastAPI(
     description="Queue Management System API - Sector Agnostic"
 )
 
-# CORS: personel paneli (localhost) + bilet sayfası (GitHub Pages)
+# CORS: personel paneli (localhost) + bilet/kiosk (GitHub Pages + özel domain)
 CORS_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://realperest.github.io",  # Bilet ekranı (erteleme vb. API çağrıları)
+    "https://realperest.github.io",
+    "https://siramatik.inovathinks.com",  # Özel domain (kiosk, bilet, personel)
 ]
 # GitHub Pages: tüm *.github.io origin'lerini kabul et (regex ile tam eşleşme)
 CORS_ORIGIN_REGEX = r"https://[a-zA-Z0-9-]+\.github\.io$"
