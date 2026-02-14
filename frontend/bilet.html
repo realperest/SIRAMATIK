@@ -1392,8 +1392,8 @@
                     return;
                 }
 
-                // Önünüzdekileri saymak için 2 sorguyu paralel çalıştır
-                const etkinOlusturulma = me.etkin_olusturulma || me.olusturulma;
+                // Önünüzdekileri saymak için 2 sorguyu paralel çalıştır (etkin_olusturulma null olmasın diye fallback)
+                const etkinOlusturulma = me.etkin_olusturulma || me.olusturulma || new Date().toISOString();
                 const [highPriority, samePriorityBefore] = await Promise.all([
                     _supabase.schema('siramatik').from('siralar').select('*', { count: 'exact', head: true })
                         .eq('kuyruk_id', kid).eq('durum', 'waiting').gt('oncelik', me.oncelik),
@@ -1439,12 +1439,11 @@
                     numEl.classList.add('animate-decrease');
                     setTimeout(() => numEl.classList.remove('animate-decrease'), 600);
 
-                    // Ses + Titreşim
-                    if (isAudioUnlocked) {
-                        tickSound.pause();
-                        tickSound.currentTime = 0;
-                        tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
-                    }
+                    // Ses + Titreşim (bir kez kullanıcı dokunduysa isAudioUnlocked true; yoksa yine dene)
+                    tickSound.pause();
+                    tickSound.currentTime = 0;
+                    tickSound.volume = 0.6;
+                    tickSound.play().catch(e => console.log("Tick sesi çalınamadı:", e));
                     if (navigator.vibrate) {
                         navigator.vibrate(200);
                     }
@@ -1487,11 +1486,11 @@
                     updateEstimatedTime(count, oldMinutesForEst);
                 }
 
-                // Metin değiştiyse sesli olarak oku (ertelenmiş bilette sadece güncel sıra sayısını söyle)
-                const textForSpeech = showErtelemeDiff ? ('Önünüzde ' + count + ' kişi var') : statusEl.textContent;
-                if (textForSpeech && textForSpeech !== lastSpokenStatus) {
+                // Sesli oku: her zaman güncel önündeki kişi sayısı (ertelenmemişte 1 sayı, ertelenmişte sadece yeni sayı)
+                const textForSpeech = 'Önünüzde ' + count + ' kişi var';
+                if (textForSpeech !== lastSpokenStatus) {
                     lastSpokenStatus = textForSpeech;
-                    setTimeout(() => speakTr(textForSpeech), 250);
+                    setTimeout(function() { speakTr(textForSpeech); }, 250);
                 }
 
                 sessionDurum = 'waiting';
