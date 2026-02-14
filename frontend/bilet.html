@@ -77,6 +77,55 @@
             letter-spacing: -2px;
         }
 
+        /* iPhone tarzı numara çarkı (tek göstergeli, ortada büyük) */
+        .bilet-numara-cark {
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 12px 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bilet-cark-mask {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            position: relative;
+        }
+
+        .bilet-cark-row {
+            flex-shrink: 0;
+            font-weight: 900;
+            color: #764ba2;
+            letter-spacing: -2px;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            line-height: 1.1;
+        }
+
+        .bilet-cark-row.cark-far {
+            font-size: 32px;
+            opacity: 0.35;
+        }
+
+        .bilet-cark-row.cark-near {
+            font-size: 52px;
+            opacity: 0.7;
+        }
+
+        .bilet-cark-row.cark-center {
+            font-size: 84px;
+            opacity: 1;
+        }
+
+        .bilet-cark-row.calling {
+            color: #22c55e !important;
+        }
+
         .label {
             color: #7f8c8d;
             font-size: 14px;
@@ -232,7 +281,8 @@
             }
         }
 
-        .number.animate-decrease {
+        .number.animate-decrease,
+        .bilet-cark-row.animate-decrease {
             animation: number-decrease 0.6s ease;
         }
 
@@ -785,7 +835,15 @@
         </div>
         <div class="content">
             <div class="label">Sıra Numaranız</div>
-            <div class="number" id="ticket-number">---</div>
+            <div class="bilet-numara-cark" id="ticket-wheel-wrap" aria-label="Sıra numarası">
+                <div class="bilet-cark-mask">
+                    <div class="bilet-cark-row cark-far" id="ticket-cark-n2" aria-hidden="true">-</div>
+                    <div class="bilet-cark-row cark-near" id="ticket-cark-n1" aria-hidden="true">-</div>
+                    <div class="bilet-cark-row cark-center" id="ticket-number">---</div>
+                    <div class="bilet-cark-row cark-near" id="ticket-cark-p1" aria-hidden="true">-</div>
+                    <div class="bilet-cark-row cark-far" id="ticket-cark-p2" aria-hidden="true">-</div>
+                </div>
+            </div>
             <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
             <div class="status" id="wait-info">Giriş Yapılıyor...</div>
             <div class="estimated-time" id="estimated-time" style="display: none;">
@@ -1157,6 +1215,10 @@
             var msgKuyrukId = data.kuyruk_id != null ? data.kuyruk_id : (data.sira && data.sira.kuyruk_id != null ? data.sira.kuyruk_id : null);
             var bizimKuyruk = msgKuyrukId != null && String(msgKuyrukId) === String(kuyruk_id);
 
+            function doUpdate() {
+                updateStatus().catch(function (e) { console.warn('Bilet güncelleme hatası:', e); });
+            }
+
             // ÖNCE: call_ticket — biletimiz çağrıldıysa "Sıra sizde" göster (id sayı veya string gelebilir)
             if (data.type === 'call_ticket' && data.sira) {
                 const rawId = data.sira.id != null ? data.sira.id : data.sira.sira_id;
@@ -1171,33 +1233,40 @@
                     showCallingStatus(data.sira);
                     return;
                 }
-                // Başka biri çağrıldı ama aynı kuyruk — önümüzdeki sayı azaldı, güncelle
                 if (bizimKuyruk) {
                     console.log('📩 Kuyrukta çağrı (bilet güncelle):', data.sira.numara);
-                    updateStatus();
+                    doUpdate();
                 }
                 return;
             }
-            // İşlem tamamlandı — DB gecikirse bile "0 kişi" ekranına dönmemek için önce session'ı completed yap
             if (data.type === 'complete_ticket' && data.sira) {
                 var completedId = data.sira.id != null ? String(data.sira.id) : (data.sira.sira_id != null ? String(data.sira.sira_id) : '');
                 if (completedId === String(sira_id)) {
                     console.log('🎯 Biletimiz tamamlandı, anket gösterilecek:', data.sira);
                     sessionDurum = 'completed';
-                    updateStatus();
+                    doUpdate();
                     return;
                 }
+                if (bizimKuyruk) doUpdate();
+                return;
             }
 
-            // Bu bilet veya kuyrukla ilgili her türlü güncelleme
+            // Aynı kuyrukla ilgili tüm event türlerinde anlık güncelle (new_ticket, start_ticket, cancel_ticket, ticket_transferred, delete_ticket)
+            var queueEvents = ['new_ticket', 'start_ticket', 'cancel_ticket', 'ticket_transferred', 'delete_ticket'];
+            if (queueEvents.indexOf(data.type) !== -1 && bizimKuyruk) {
+                console.log('📩 Kuyruk haberi:', data.type, '- bilet güncelleniyor');
+                doUpdate();
+                return;
+            }
+
             if (data.sira_id != null && String(data.sira_id) === String(sira_id)) {
                 console.log('🎯 Biletimiz için güncelleme:', data);
-                updateStatus();
+                doUpdate();
                 return;
             }
             if (bizimKuyruk) {
                 console.log('📩 Kuyruk güncellendi:', data.type || data);
-                updateStatus();
+                doUpdate();
             }
         }
         
@@ -1210,7 +1279,7 @@
             statusEl.textContent = "SIRA SİZDE!";
             statusEl.classList.add('calling-status');
             document.body.classList.add('calling-active-body');
-            numEl.style.color = "#22c55e";
+            if (numEl) { numEl.style.color = "#22c55e"; numEl.classList.add('calling'); }
             
             // Bildirim oynat (her çağrıldığında - notificationPlayed WebSocket'te reset edildi)
             if (!notificationPlayed) {
@@ -1327,8 +1396,21 @@
             }
         });
 
-        // İlk verileri URL'den bas
-        document.getElementById('ticket-number').textContent = numara;
+        // İlk verileri URL'den bas (numara çarkı + diğer alanlar)
+        function updateBiletNumaraCark(n) {
+            var centerEl = document.getElementById('ticket-number');
+            var n2 = document.getElementById('ticket-cark-n2');
+            var n1 = document.getElementById('ticket-cark-n1');
+            var p1 = document.getElementById('ticket-cark-p1');
+            var p2 = document.getElementById('ticket-cark-p2');
+            var num = parseInt(n, 10);
+            if (centerEl) centerEl.textContent = (n != null && n !== '' && !isNaN(num)) ? num : '---';
+            if (n2) n2.textContent = (!isNaN(num)) ? Math.max(0, num - 2) : '-';
+            if (n1) n1.textContent = (!isNaN(num)) ? Math.max(0, num - 1) : '-';
+            if (p1) p1.textContent = (!isNaN(num)) ? (num + 1) : '-';
+            if (p2) p2.textContent = (!isNaN(num)) ? (num + 2) : '-';
+        }
+        updateBiletNumaraCark(numara);
         document.getElementById('queue-name').textContent = kuyruk_ad;
         document.getElementById('hospital-name').textContent = firma_ad;
         document.getElementById('wait-info').innerHTML = 'Önünüzde <span class="value-bubble">' + (ticketSpecs.bekleyen || '0') + '</span> kişi var';
@@ -1577,7 +1659,7 @@
                 // Durum mesajı güncelle (waiting durumu)
                 document.body.classList.remove('calling-active-body');
                 statusEl.classList.remove('calling-status');
-                numEl.style.color = "#764ba2";
+                if (numEl) { numEl.style.color = "#764ba2"; numEl.classList.remove('calling'); }
 
                 if (count === 0) {
                     statusEl.textContent = "Sıradaki kişi sizsiniz!";
