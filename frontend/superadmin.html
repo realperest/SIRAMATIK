@@ -754,7 +754,7 @@
 
         async function fetchFirmalar() {
             try {
-                allFirmalar = await apiCall('/admin/all-firmalar');
+                allFirmalar = await apiCall('/api/admin/all-firmalar');
                 const fSelect = document.getElementById('user-firma-id');
                 fSelect.innerHTML = '<option value="">Lütfen Firma Seçin</option>' +
                     allFirmalar.map(f => `<option value="${f.id}">${f.ad}</option>`).join('');
@@ -957,10 +957,10 @@
             };
             try {
                 if (id) {
-                    await apiCall(`/admin/firma/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                    await apiCall(`/api/admin/firma/${id}`, { method: 'PUT', body: JSON.stringify(data) });
                     showToast("Firma güncellendi");
                 } else {
-                    await apiCall(`/admin/firma`, { method: 'POST', body: JSON.stringify(data) });
+                    await apiCall(`/api/admin/firma`, { method: 'POST', body: JSON.stringify(data) });
                     showToast("Firma oluşturuldu");
                 }
                 closeFirmaModal();
@@ -971,7 +971,7 @@
 
         async function fetchAndRenderUsers() {
             try {
-                allUsers = await apiCall('/admin/all-users');
+                allUsers = await apiCall('/api/admin/all-users');
                 const tbody = document.getElementById('users-body');
                 tbody.innerHTML = allUsers.map(u => `
                     <tr class="tr-row">
@@ -1113,7 +1113,7 @@
             try {
                 if (!id) {
                     data.password = document.getElementById('user-password').value;
-                    await apiCall('/admin/user', {
+                    await apiCall('/api/admin/user', {
                         method: 'POST',
                         body: JSON.stringify(data)
                     });
@@ -1121,7 +1121,7 @@
                 } else {
                     const pwd = document.getElementById('user-password').value;
                     if (pwd) data.password = pwd;
-                    await apiCall(`/admin/user/${id}`, {
+                    await apiCall(`/api/admin/user/${id}`, {
                         method: 'PUT',
                         body: JSON.stringify(data)
                     });
