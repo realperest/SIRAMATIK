@@ -1119,8 +1119,16 @@
         }
 
         async function startNotifications() {
-            // ÖNCE: Kullanıcı tıklamasıyla ses ve TTS kilidini aç (await YOK — tarayıcı "user gesture" olarak görsün)
             var overlay = document.getElementById('activation-overlay');
+            // Önce durumu al: tamamlanmış biletse sayfa yenilense bile ses çalma
+            await updateStatus();
+            if (sessionDurum === 'completed') {
+                isAudioUnlocked = true;
+                if (overlay) overlay.style.display = 'none';
+                return;
+            }
+
+            // Aktif bilet: kullanıcı tıklamasıyla ses kilidini aç, ding çal
             alertSound.volume = 0.7;
             tickSound.volume = 0.6;
             alertSound.currentTime = 0;
@@ -1139,11 +1147,6 @@
             if (overlay) overlay.style.display = 'none';
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
-            // Sonra: durum güncellemesi (tamamlandıysa çık)
-            await updateStatus();
-            if (sessionDurum === 'completed') return;
-
-            // Test ding kısa süre sonra dursun (tek ses)
             setTimeout(function () { alertSound.pause(); alertSound.currentTime = 0; }, 500);
 
             fetchAverageWaitTime();
