@@ -1,9 +1,10 @@
 // Sıramatik - Ortak JavaScript Fonksiyonları
 
-// API adresi: localhost'ta 127.0.0.1 kullan (IPv6/bağlantı sorunlarını önlemek için). Diğer hostlarda aynı host.
+// API adresi: localhost'ta 127.0.0.1:8000; web'de (siramatik.inovathinks.com / github.io) Railway backend.
 const currentHost = window.location.hostname || 'localhost';
-const apiHost = (currentHost === 'localhost' || currentHost === '127.0.0.1') ? '127.0.0.1' : currentHost;
-const API_URL = `http://${apiHost}:8000`;
+const isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1';
+const PRODUCTION_API_URL = 'https://siramatik-production.up.railway.app';
+const API_URL = isLocal ? `http://127.0.0.1:8000` : PRODUCTION_API_URL;
 
 // API çağrısı yardımcı fonksiyonu
 async function apiCall(endpoint, options = {}) {
@@ -131,11 +132,10 @@ function initWebSocket(callback) {
         return;
     }
 
-    // API_URL global olarak app.js başında tanımlı
-    // WS URL'sini buradan türetelim: ws://localhost:8000/ws
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname || 'localhost';
-    const wsUrl = `${protocol}//${host}:8000/ws`;
+    // API_URL global; production'da Railway, local'de 127.0.0.1:8000
+    const wsUrl = isLocal
+        ? 'ws://127.0.0.1:8000/ws'
+        : 'wss://siramatik-production.up.railway.app/ws';
 
     console.log('🔗 WebSocket Bağlanıyor:', wsUrl);
 

@@ -1023,9 +1023,9 @@
         // ===== WEBSOCKET YÖNETİMİ =====
         function initWebSocket() {
             // ====== BACKEND SUNUCU AYARI ======
-            // Backend'i sunucuya koyduğunda buraya URL'ini yaz:
-            // Örnek: 'wss://api.yourdomain.com/ws' veya 'wss://siramatik.herokuapp.com/ws'
-            const PRODUCTION_WS_URL = '';
+            // Production'da Railway backend kullanılıyor (siramatik.inovathinks.com / github.io dışında local)
+            const PRODUCTION_WS_URL = (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+                ? 'wss://siramatik-production.up.railway.app/ws' : '';
             // ==================================
 
             let wsUrl;
