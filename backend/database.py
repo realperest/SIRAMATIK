@@ -737,14 +737,16 @@ class Database:
 
     
     def get_tum_bekleyen_siralar(self, firma_id: int) -> List[Dict]:
-        """Firmaya ait tüm bekleyen sıraları getir"""
-        return self.execute_query("""
+        """Firmaya ait bugün oluşturulmuş bekleyen sıraları getir (gece yarısından sonra oluşturulanlar)."""
+        today_filter = self._today_filter_sql("s.olusturulma")
+        return self.execute_query(f"""
             SELECT s.* 
             FROM siramatik.siralar s
             JOIN siramatik.kuyruklar k ON s.kuyruk_id = k.id
             JOIN siramatik.servisler sv ON k.servis_id = sv.id
             WHERE sv.firma_id = :firma_id 
             AND s.durum = 'waiting'
+            {today_filter}
             ORDER BY COALESCE(s.oncelik, 0) DESC, COALESCE(s.etkin_olusturulma, s.olusturulma) ASC
         """, {"firma_id": firma_id})
 

@@ -636,9 +636,9 @@
 </head>
 
 <body onload="init()">
-    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling">
-        <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
-        <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling" style="position:fixed;top:8px;right:8px;display:flex;gap:4px;z-index:10000;">
+        <span id="connection-w" class="connection-badge inactive" title="WebSocket" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">W</span>
+        <span id="connection-p" class="connection-badge inactive" title="Polling" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">P</span>
     </div>
     <div id="page-loader">
         <div class="loader-spinner"></div>
@@ -3226,26 +3226,18 @@
         }
         
         function startCihazlarPolling() {
-            // Eğer zaten çalışıyorsa durdur
-            if (cihazlarPollingInterval) {
-                clearInterval(cihazlarPollingInterval);
-            }
-            
-            // En fazla 10 saniyede bir güncelle (yedek mekanizma)
+            if (isWebSocketConnected()) return;
+            if (cihazlarPollingInterval) clearInterval(cihazlarPollingInterval);
             cihazlarPollingInterval = setInterval(() => {
                 const currentView = document.querySelector('.view.active')?.id;
-                if (currentView === 'view-cihazlar') {
-                    // Polling sırasında da WebSocket durumunu kontrol et
-                    if (!isWebSocketConnected()) {
-                        console.log('[POLL] Cihaz listesi güncelleniyor (polling - WebSocket yok)...');
-                        loadCihazlar();
-                    } else {
-                        // WebSocket bağlandıysa polling'i durdur
-                        console.log('[WS] WebSocket bağlandı, polling durduruluyor');
-                        stopCihazlarPolling();
-                    }
+                if (currentView === 'view-cihazlar' && !isWebSocketConnected()) {
+                    loadCihazlar();
+                } else if (isWebSocketConnected()) {
+                    stopCihazlarPolling();
                 }
-            }, 10000); // 10 saniye (maksimum tazeleme süresi)
+            }, 5000);
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge active'; pEl.style.background = '#22c55e'; pEl.style.opacity = '1'; }
         }
         
         function stopCihazlarPolling() {
@@ -3253,7 +3245,18 @@
                 clearInterval(cihazlarPollingInterval);
                 cihazlarPollingInterval = null;
             }
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge inactive'; pEl.style.background = '#94a3b8'; pEl.style.opacity = '0.5'; }
         }
+        
+        window.addEventListener('siramatik-ws-open', function() {
+            stopCihazlarPolling();
+            lastWsState = true;
+        });
+        window.addEventListener('siramatik-ws-close', function() {
+            lastWsState = false;
+            checkAndManagePolling();
+        });
 
 
     </script>

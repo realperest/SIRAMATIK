@@ -648,9 +648,9 @@
 </head>
 
 <body>
-    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling">
-        <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
-        <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling" style="position:fixed;top:8px;right:8px;display:flex;gap:4px;z-index:10000;">
+        <span id="connection-w" class="connection-badge inactive" title="WebSocket" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">W</span>
+        <span id="connection-p" class="connection-badge inactive" title="Polling" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">P</span>
     </div>
     <!-- Eski bağlantı metni (isteğe bağlı gizlenebilir) -->
     <div id="connection-status" style="position:fixed; top:15px; right:15px; display:none; background:#f39c12; color:white; text-align:center; padding:8px 12px; z-index:99999; font-weight:bold; font-size: 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display:none; min-width: 120px; transition: all 0.3s ease;">
@@ -2078,21 +2078,14 @@
         }
         
         function startPolling() {
-            // Eğer zaten çalışıyorsa durdur
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
-            
-            // WebSocket bağlı değilse polling başlat (10 saniyede bir)
+            if (isWebSocketConnected()) return;
+            if (pollingInterval) clearInterval(pollingInterval);
             pollingInterval = setInterval(() => {
-                if (!isWebSocketConnected()) {
-                    // WebSocket yoksa polling ile güncelle
-                    verileriYukle(true); // Sessiz güncelleme (loader göstermeden)
-                } else {
-                    // WebSocket bağlandıysa polling'i durdur
-                    stopPolling();
-                }
-            }, 10000); // 10 saniye (maksimum tazeleme süresi)
+                if (!isWebSocketConnected()) verileriYukle(true);
+                else stopPolling();
+            }, 5000);
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge active'; pEl.style.background = '#22c55e'; pEl.style.opacity = '1'; }
         }
         
         function stopPolling() {
@@ -2100,18 +2093,17 @@
                 clearInterval(pollingInterval);
                 pollingInterval = null;
             }
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge inactive'; pEl.style.background = '#94a3b8'; pEl.style.opacity = '0.5'; }
         }
         
-        // WebSocket durumunu kontrol et ve polling'i yönet
         function checkWebSocketAndManagePolling() {
-            if (isWebSocketConnected()) {
-                // WebSocket bağlıysa polling'i durdur
-                stopPolling();
-            } else {
-                // WebSocket bağlı değilse polling'i başlat (yedek mekanizma)
-                startPolling();
-            }
+            if (isWebSocketConnected()) stopPolling();
+            else startPolling();
         }
+        
+        window.addEventListener('siramatik-ws-open', stopPolling);
+        window.addEventListener('siramatik-ws-close', function() { checkWebSocketAndManagePolling(); });
         
         baslat();
         
@@ -2126,15 +2118,8 @@
             }
         });
         
-        // İlk kontrol: WebSocket durumunu kontrol et ve polling'i başlat/durdur
-        setTimeout(() => {
-            checkWebSocketAndManagePolling();
-        }, 2000); // 2 saniye sonra kontrol et (WebSocket bağlantısı için zaman tanı)
-        
-        // Periyodik kontrol: Her 5 saniyede bir WebSocket durumunu kontrol et
-        setInterval(() => {
-            checkWebSocketAndManagePolling();
-        }, 5000);
+        setTimeout(() => checkWebSocketAndManagePolling(), 2000);
+        setInterval(() => checkWebSocketAndManagePolling(), 5000);
 
 
     </script>

@@ -689,9 +689,9 @@
 
 <body>
     <!-- Bağlantı durumu: sağ üst, W = WebSocket / P = Polling (yeşil = bağlı) -->
-    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling">
-        <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
-        <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling" style="position:fixed;top:8px;right:8px;display:flex;gap:4px;z-index:10000;">
+        <span id="connection-w" class="connection-badge inactive" title="WebSocket" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">W</span>
+        <span id="connection-p" class="connection-badge inactive" title="Polling" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">P</span>
     </div>
 
     <!-- Aktivasyon Katmanı -->
@@ -1005,13 +1005,13 @@
             // Ortalama bekleme süresini arka planda hesapla (bloklamaz; tahmin hazır olunca güncellenir)
             fetchAverageWaitTime();
 
-            // WebSocket bağlantısını başlat
+            // WebSocket bağlantısını başlat (açılınca polling kapatılacak)
             initWebSocket();
 
             // İlk durumu hemen güncelle (erteleme butonu + yaklaşık süre daha çabuk görünsün)
             updateStatus();
 
-            // Polling başlat (fallback)
+            // Polling başlat (WebSocket açılmazsa veya koparsa kullanılır; WS açıkken kapatılır)
             startPolling();
         }
 
@@ -1045,9 +1045,9 @@
 
                     ws.onopen = function () {
                         clearTimeout(connectTimeout);
-                        console.log('[OK] WebSocket bağlandı! Gerçek zamanlı mod aktif.');
+                        console.log('[OK] WebSocket bağlandı! Gerçek zamanlı mod aktif, polling kapatıldı.');
+                        stopPolling();
                         updateConnectionStatus('online', true);
-                        // Polling zaten çalışıyor (yedek); durdurmuyoruz
                     };
 
                     ws.onmessage = (event) => {
@@ -1062,7 +1062,7 @@
 
                     ws.onclose = function () {
                         clearTimeout(connectTimeout);
-                        console.warn('[WARN] WebSocket koptu. Polling zaten çalışıyor.');
+                        console.warn('[WARN] WebSocket koptu. Polling yedek olarak başlatılıyor.');
                         updateConnectionStatus('online', false);
                         ws = null;
                         if (!pollingInterval) startPolling();
@@ -1109,11 +1109,12 @@
                 }
                 return;
             }
-            // İşlem tamamlandı — anket göstermek için durumu yeniden çek
+            // İşlem tamamlandı — DB gecikirse bile "0 kişi" ekranına dönmemek için önce session'ı completed yap
             if (data.type === 'complete_ticket' && data.sira) {
                 var completedId = data.sira.id != null ? String(data.sira.id) : (data.sira.sira_id != null ? String(data.sira.sira_id) : '');
                 if (completedId === String(sira_id)) {
                     console.log('🎯 Biletimiz tamamlandı, anket gösterilecek:', data.sira);
+                    sessionDurum = 'completed';
                     updateStatus();
                     return;
                 }
@@ -1194,27 +1195,54 @@
             isWebSocketActive = isWebSocket === true;
             if (status === 'online') {
                 wEl.className = 'connection-badge ' + (isWebSocketActive ? 'active' : 'inactive');
-                pEl.className = 'connection-badge active'; // Polling her zaman çalışıyor
+                wEl.style.background = isWebSocketActive ? '#22c55e' : '#94a3b8';
+                wEl.style.opacity = isWebSocketActive ? '1' : '0.5';
+                pEl.className = 'connection-badge ' + (isWebSocketActive ? 'inactive' : 'active');
+                pEl.style.background = isWebSocketActive ? '#94a3b8' : '#22c55e';
+                pEl.style.opacity = isWebSocketActive ? '0.5' : '1';
             } else if (status === 'connecting') {
                 wEl.className = 'connection-badge connecting';
+                wEl.style.background = '#f59e0b';
+                wEl.style.opacity = '0.8';
                 pEl.className = 'connection-badge active';
+                pEl.style.background = '#22c55e';
+                pEl.style.opacity = '1';
             } else {
                 wEl.className = 'connection-badge inactive';
+                wEl.style.background = '#94a3b8';
+                wEl.style.opacity = '0.5';
                 pEl.className = 'connection-badge active';
+                pEl.style.background = '#22c55e';
+                pEl.style.opacity = '1';
             }
         }
 
-        // Polling: Her 3 saniyede bir güncelle (WebSocket açık olsa da yedek / kayıp mesaj telafisi)
+        // Polling: Sadece WebSocket kapalıyken çalışır (yedek); WS açıkken çalışmaz (çift güncelleme önlenir)
         var POLLING_INTERVAL_MS = 3000;
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+                var pEl = document.getElementById('connection-p');
+                if (pEl) { pEl.className = 'connection-badge inactive'; pEl.style.background = '#94a3b8'; pEl.style.opacity = '0.5'; }
+            }
+        }
         function startPolling() {
             if (pollingInterval) {
                 console.log('ℹ️ Polling zaten aktif');
                 return;
             }
-            console.log('[SYNC] Polling başlatılıyor (' + (POLLING_INTERVAL_MS / 1000) + ' saniye aralık, WebSocket olsa da çalışır)');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                console.log('ℹ️ WebSocket açık, polling başlatılmıyor.');
+                return;
+            }
+            console.log('[SYNC] Polling başlatılıyor (yedek, ' + (POLLING_INTERVAL_MS / 1000) + ' saniye aralık)');
             pollingInterval = setInterval(function () {
+                if (ws && ws.readyState === WebSocket.OPEN) return;
                 updateStatus();
             }, POLLING_INTERVAL_MS);
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge active'; pEl.style.background = '#22c55e'; pEl.style.opacity = '1'; }
         }
 
         // Page Visibility API (Arka plan kontrolü)
@@ -1328,6 +1356,19 @@
                 return;
             }
 
+            // Bilet zaten tamamlandı (WebSocket complete_ticket veya önceki poll) — DB gecikse bile "0 kişi" ekranına dönme
+            if (sessionDurum === 'completed') {
+                if (statusEl) {
+                    statusEl.textContent = "İŞLEM TAMAMLANDI";
+                    statusEl.classList.remove('calling-status');
+                    statusEl.style.background = "#94a3b8";
+                }
+                document.body.classList.remove('calling-active-body');
+                if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+                showSurvey();
+                return;
+            }
+
             try {
                 const kid = parseInt(kuyruk_id);
                 const sid = parseInt(sira_id);
@@ -1383,6 +1424,7 @@
                     statusEl.style.background = "#94a3b8";
                     notificationPlayed = false;
                     sessionDurum = 'completed';
+                    if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
                     showSurvey();
                     return;
                 } else if (durum === 'serving') {

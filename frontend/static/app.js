@@ -143,10 +143,11 @@ function initWebSocket(callback) {
         window.ws = ws; // Global erişim için
 
         ws.onopen = () => {
-            console.log('[OK] WebSocket Bağlandı!');
+            console.log('[OK] WebSocket Bağlandı! (Polling yedekte kalacak)');
             window.ws = ws;
             var w = document.getElementById('connection-w');
-            if (w) w.className = 'connection-badge active';
+            if (w) { w.className = 'connection-badge active'; w.style.background = '#22c55e'; w.style.opacity = '1'; }
+            try { window.dispatchEvent(new CustomEvent('siramatik-ws-open')); } catch (e) {}
         };
 
         ws.onmessage = (event) => {
@@ -164,7 +165,8 @@ function initWebSocket(callback) {
             ws = null;
             window.ws = null;
             var w = document.getElementById('connection-w');
-            if (w) w.className = 'connection-badge inactive';
+            if (w) { w.className = 'connection-badge inactive'; w.style.background = '#94a3b8'; w.style.opacity = '0.5'; }
+            try { window.dispatchEvent(new CustomEvent('siramatik-ws-close')); } catch (e) {}
             setTimeout(connect, wsReconnectDelay);
         };
 

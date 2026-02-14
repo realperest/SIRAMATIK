@@ -488,9 +488,9 @@
 </head>
 
 <body>
-    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling">
-        <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
-        <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling" style="position:fixed;top:8px;right:8px;display:flex;gap:4px;z-index:10000;">
+        <span id="connection-w" class="connection-badge inactive" title="WebSocket" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">W</span>
+        <span id="connection-p" class="connection-badge inactive" title="Polling" style="width:20px;height:20px;min-width:20px;min-height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;">P</span>
     </div>
     <div class="header">
         <h1 id="firma-adi">🏥 Yükleniyor...</h1>
@@ -1143,20 +1143,14 @@
         }
         
         function startPolling() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
-            
-            // WebSocket bağlı değilse polling başlat (biraz daha sık: 3 saniyede bir)
+            if (isWebSocketConnected()) return;
+            if (pollingInterval) clearInterval(pollingInterval);
             pollingInterval = setInterval(() => {
-                if (!isWebSocketConnected()) {
-                    // WebSocket yoksa polling ile güncelle
-                    cagrilariGuncelle();
-                } else {
-                    // WebSocket bağlandıysa polling'i durdur
-                    stopPolling();
-                }
-            }, 3000); // 3 saniye
+                if (!isWebSocketConnected()) cagrilariGuncelle();
+                else stopPolling();
+            }, 3000);
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge active'; pEl.style.background = '#22c55e'; pEl.style.opacity = '1'; }
         }
         
         function stopPolling() {
@@ -1164,15 +1158,17 @@
                 clearInterval(pollingInterval);
                 pollingInterval = null;
             }
+            var pEl = document.getElementById('connection-p');
+            if (pEl) { pEl.className = 'connection-badge inactive'; pEl.style.background = '#94a3b8'; pEl.style.opacity = '0.5'; }
         }
         
         function checkWebSocketAndManagePolling() {
-            if (isWebSocketConnected()) {
-                stopPolling();
-            } else {
-                startPolling();
-            }
+            if (isWebSocketConnected()) stopPolling();
+            else startPolling();
         }
+        
+        window.addEventListener('siramatik-ws-open', stopPolling);
+        window.addEventListener('siramatik-ws-close', function() { checkWebSocketAndManagePolling(); });
         
         initWebSocket((data) => {
             if (data.type === 'call_ticket') {
@@ -1182,15 +1178,8 @@
             }
         });
         
-        // İlk kontrol: WebSocket durumunu kontrol et ve polling'i başlat/durdur
-        setTimeout(() => {
-            checkWebSocketAndManagePolling();
-        }, 2000);
-        
-        // Periyodik kontrol: Her 5 saniyede bir WebSocket durumunu kontrol et
-        setInterval(() => {
-            checkWebSocketAndManagePolling();
-        }, 5000);
+        setTimeout(() => checkWebSocketAndManagePolling(), 2000);
+        setInterval(() => checkWebSocketAndManagePolling(), 5000);
     </script>
 </body>
 
