@@ -1,10 +1,10 @@
 // Sıramatik - Ortak JavaScript Fonksiyonları
+// API/WS adresi: config.js yüklüyse oradan (window.API_URL), yoksa hostname'e göre hesaplanır.
 
-// API adresi: localhost'ta 127.0.0.1:8000; web'de (siramatik.inovathinks.com / github.io) Railway backend.
 const currentHost = window.location.hostname || 'localhost';
-const isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1';
-const PRODUCTION_API_URL = 'https://siramatik-production.up.railway.app';
-const API_URL = isLocal ? `http://127.0.0.1:8000` : PRODUCTION_API_URL;
+const isLocal = typeof window.SIRAMATIK_IS_LOCAL !== 'undefined' ? window.SIRAMATIK_IS_LOCAL : (currentHost === 'localhost' || currentHost === '127.0.0.1');
+const API_URL = (typeof window.API_URL !== 'undefined' && window.API_URL) ? window.API_URL : (isLocal ? 'http://127.0.0.1:8000' : 'https://siramatik-production.up.railway.app');
+if (typeof window !== 'undefined') window.API_URL = API_URL;
 
 // API çağrısı yardımcı fonksiyonu
 async function apiCall(endpoint, options = {}) {
@@ -132,10 +132,9 @@ function initWebSocket(callback) {
         return;
     }
 
-    // API_URL global; production'da Railway, local'de 127.0.0.1:8000
-    const wsUrl = isLocal
-        ? 'ws://127.0.0.1:8000/ws'
-        : 'wss://siramatik-production.up.railway.app/ws';
+    const wsUrl = (typeof window.SIRAMATIK_WS_URL !== 'undefined' && window.SIRAMATIK_WS_URL)
+        ? window.SIRAMATIK_WS_URL
+        : (isLocal ? 'ws://127.0.0.1:8000/ws' : 'wss://siramatik-production.up.railway.app/ws');
 
     console.log('🔗 WebSocket Bağlanıyor:', wsUrl);
 

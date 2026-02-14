@@ -820,6 +820,7 @@
         </div>
     </div>
 
+    <script src="static/config.js"></script>
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
@@ -909,12 +910,10 @@
         let firmaErtelemeAyar = { erteleme: false, erteleme_sayisi: 0 };
         let firmaErtelemeAyarFetched = false;
 
-        // Bilet GitHub Pages'te (realperest.github.io) açıldığında kullanılacak backend adresi.
-        // Buraya backend adresinizi bir kez yazın; kullanıcının özel linke tıklaması gerekmez.
-        const BILET_BACKEND_URL = 'https://siramatik-production.up.railway.app';
+        // Backend adresi: config.js (window.API_URL) ile tüm sitede tek ayar
         function getApiBase() {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return '';
-            if (window.location.hostname.indexOf('github.io') !== -1 && BILET_BACKEND_URL) return BILET_BACKEND_URL.replace(/\/$/, '');
+            if (typeof window.API_URL !== 'undefined' && window.API_URL) return window.API_URL.replace(/\/$/, '');
             return window.location.origin;
         }
         // Sayfa açılır açılmaz backend’i uyandır (Railway cold start; erteleme tıklanınca hazır olsun)
@@ -1022,32 +1021,18 @@
 
         // ===== WEBSOCKET YÖNETİMİ =====
         function initWebSocket() {
-            // ====== BACKEND SUNUCU AYARI ======
-            // Production'da Railway backend kullanılıyor (siramatik.inovathinks.com / github.io dışında local)
-            const PRODUCTION_WS_URL = (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
-                ? 'wss://siramatik-production.up.railway.app/ws' : '';
-            // ==================================
-
-            let wsUrl;
-
-            // Production URL varsa kullan
-            if (PRODUCTION_WS_URL) {
-                wsUrl = PRODUCTION_WS_URL;
-                console.log('🔗 Production WebSocket bağlanıyor:', wsUrl);
-            }
-            // GitHub Pages'te ve production URL yoksa polling kullan
-            else if (window.location.hostname.includes('github.io')) {
+            // config.js ile tüm sitede tek WS adresi (window.SIRAMATIK_WS_URL)
+            let wsUrl = typeof window.SIRAMATIK_WS_URL !== 'undefined' ? window.SIRAMATIK_WS_URL : '';
+            if (!wsUrl && window.location.hostname.includes('github.io')) {
                 console.log('ℹ️ Backend sunucu bulunamadı, Polling modu aktif (5 saniye)');
-                updateConnectionStatus('online', false); // P göster
+                updateConnectionStatus('online', false);
                 return;
             }
-            // Local development
-            else {
+            if (!wsUrl) {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const host = window.location.hostname || 'localhost';
-                wsUrl = `${protocol}//${host}:8000/ws`;
-                console.log('🔗 Local WebSocket bağlanıyor:', wsUrl);
+                wsUrl = protocol + '//' + (window.location.hostname || 'localhost') + ':8000/ws';
             }
+            console.log('🔗 WebSocket bağlanıyor:', wsUrl);
 
             console.log('🔗 WebSocket bağlanıyor:', wsUrl);
             updateConnectionStatus('connecting');

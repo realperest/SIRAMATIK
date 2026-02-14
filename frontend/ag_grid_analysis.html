@@ -240,9 +240,10 @@
         </div>
     </div>
 
+    <script src="static/config.js"></script>
     <script>
-        const currentHost = window.location.hostname || 'localhost';
-        const API_URL = `http://${currentHost}:8000/api`;
+        // API base: config.js (window.API_URL) + /api
+        const API_URL = (typeof window.API_URL !== 'undefined' ? window.API_URL : 'http://127.0.0.1:8000') + '/api';
         let gridApi;
         let currentUser = null;
         try {
