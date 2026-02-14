@@ -1087,10 +1087,12 @@
             var msgKuyrukId = data.kuyruk_id != null ? data.kuyruk_id : (data.sira && data.sira.kuyruk_id != null ? data.sira.kuyruk_id : null);
             var bizimKuyruk = msgKuyrukId != null && String(msgKuyrukId) === String(kuyruk_id);
 
-            // ÖNCE: call_ticket — biletimiz çağrıldıysa "Sıra sizde" göster
+            // ÖNCE: call_ticket — biletimiz çağrıldıysa "Sıra sizde" göster (id sayı veya string gelebilir)
             if (data.type === 'call_ticket' && data.sira) {
-                const calledSiraId = data.sira.id || data.sira.sira_id;
-                if (calledSiraId && String(calledSiraId) === String(sira_id)) {
+                const rawId = data.sira.id != null ? data.sira.id : data.sira.sira_id;
+                const calledSiraId = rawId != null ? String(rawId) : '';
+                const myId = sira_id != null ? String(sira_id) : '';
+                if (calledSiraId && myId && calledSiraId === myId) {
                     console.log('🎯 Biletimiz çağrıldı (içeriden):', data.sira);
                     if (sessionDurum !== 'calling') {
                         notificationPlayed = false;
@@ -1355,19 +1357,16 @@
                     } catch (e) { console.warn('Erteleme ayarları alınamadı:', e); }
                 }
 
-                // Durum kontrolü
-                if (me.durum === 'calling') {
-                    // Sadece waiting → calling geçişinde alarm + sesli duyuru çalışsın
+                // Durum kontrolü (calling = sıra sizde; normalize et backend farklı dönebilir)
+                var durum = (me.durum && String(me.durum).toLowerCase()) || '';
+                if (durum === 'calling') {
                     if (sessionDurum !== 'calling') {
                         notificationPlayed = false;
                         sessionDurum = 'calling';
-                        showCallingStatus({ id: sid });
-                    } else {
-                        // Yine de görsel durumu koru
-                        showCallingStatus({ id: sid });
                     }
+                    showCallingStatus({ id: sid });
                     return;
-                } else if (me.durum === 'completed') {
+                } else if (durum === 'completed') {
                     statusEl.textContent = "İŞLEM TAMAMLANDI";
                     statusEl.classList.remove('calling-status');
                     document.body.classList.remove('calling-active-body');
@@ -1452,10 +1451,15 @@
                 numEl.style.color = "#764ba2";
 
                 if (count === 0) {
-                    statusEl.textContent = "Sıradaki sizsiniz!";
+                    statusEl.textContent = "Sıradaki kişi sizsiniz!";
                     statusEl.style.color = "#764ba2";
                     statusEl.style.fontWeight = "bold";
                     updateEstimatedTime(0);
+                    var textSiraSizsiniz = "Sıradaki kişi sizsiniz!";
+                    if (textSiraSizsiniz !== lastSpokenStatus) {
+                        lastSpokenStatus = textSiraSizsiniz;
+                        setTimeout(function () { speakTr(textSiraSizsiniz); }, 250);
+                    }
                 } else {
                     // Eski balon üstü çizili: ya az önce erteleme yapıldı (ertelemeJustApplied) ya da bilet zaten ertelenmiş (etkin_olusturulma > olusturulma)
                     const oldBekleyen = (ertelemeJustApplied && ertelemeJustApplied.oldBekleyen !== undefined)
