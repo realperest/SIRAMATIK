@@ -85,6 +85,11 @@ class Database:
                 "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS notlar TEXT",
                 "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS erteleme BOOLEAN DEFAULT FALSE",
                 "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS erteleme_sayisi INTEGER DEFAULT 0",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS fatura_adresi TEXT",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS sozlesme_baslangic TIMESTAMP",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS servis_alim_tarihi TIMESTAMP",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS rakip_inceleme TEXT",
+                "ALTER TABLE siramatik.firmalar ADD COLUMN IF NOT EXISTS erteleme_kilitli BOOLEAN DEFAULT FALSE",
                 "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS varsayilan_kuyruk_id INTEGER REFERENCES siramatik.kuyruklar(id) ON DELETE SET NULL",
                 "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS varsayilan_konum_id INTEGER REFERENCES siramatik.kuyruk_konumlar(id) ON DELETE SET NULL",
                 "ALTER TABLE siramatik.kullanicilar ADD COLUMN IF NOT EXISTS servis_ids INTEGER[]",
@@ -234,8 +239,8 @@ class Database:
     def create_firma(self, data: Dict) -> Dict:
         """Yeni firma oluştur"""
         result = self.execute_query("""
-            INSERT INTO siramatik.firmalar (ad, sektor, ekran_sifre, aktif, sifre_kilitli, sozlesme_bitis, lisans_tipi, max_cihaz, notlar)
-            VALUES (:ad, :sektor, :ekran_sifre, :aktif, :sifre_kilitli, :sozlesme_bitis, :lisans_tipi, :max_cihaz, :notlar)
+            INSERT INTO siramatik.firmalar (ad, sektor, ekran_sifre, aktif, sifre_kilitli, sozlesme_bitis, sozlesme_baslangic, lisans_tipi, max_cihaz, notlar, fatura_adresi, servis_alim_tarihi, rakip_inceleme)
+            VALUES (:ad, :sektor, :ekran_sifre, :aktif, :sifre_kilitli, :sozlesme_bitis, :sozlesme_baslangic, :lisans_tipi, :max_cihaz, :notlar, :fatura_adresi, :servis_alim_tarihi, :rakip_inceleme)
             RETURNING *
         """, {
             "ad": data.get("ad"),
@@ -244,9 +249,13 @@ class Database:
             "aktif": data.get("aktif", True),
             "sifre_kilitli": data.get("sifre_kilitli", False),
             "sozlesme_bitis": data.get("sozlesme_bitis"),
+            "sozlesme_baslangic": data.get("sozlesme_baslangic"),
             "lisans_tipi": data.get("lisans_tipi", "Kiralama"),
             "max_cihaz": data.get("max_cihaz", 10),
-            "notlar": data.get("notlar", "")
+            "notlar": data.get("notlar", ""),
+            "fatura_adresi": data.get("fatura_adresi") or "",
+            "servis_alim_tarihi": data.get("servis_alim_tarihi"),
+            "rakip_inceleme": data.get("rakip_inceleme") or ""
         })
         return result[0] if result else None
 
@@ -492,6 +501,14 @@ class Database:
         })
         return result[0] if result else None
     
+    def get_bekleyen_sayisi(self, kuyruk_id: int) -> int:
+        """Kuyruktaki bekleyen sıra sayısını döndür (hafif COUNT, sıra al endpoint'i için)."""
+        rows = self.execute_query("""
+            SELECT COUNT(*) AS cnt FROM siramatik.siralar
+            WHERE kuyruk_id = :kuyruk_id AND durum = 'waiting'
+        """, {"kuyruk_id": kuyruk_id})
+        return int(rows[0]["cnt"]) if rows else 0
+
     def get_bekleyen_siralar(self, kuyruk_id: int) -> List[Dict]:
         """Belirli bir kuyruktaki TÜM bekleyen sıraları getir.
 

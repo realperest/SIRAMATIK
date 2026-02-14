@@ -444,13 +444,15 @@
                             <th>Sektör</th>
                             <th>E. Şifresi</th>
                             <th>Sözleşme Bitiş</th>
+                            <th>Servis Alımı</th>
+                            <th>Fatura Adresi</th>
                             <th>Durum</th>
                             <th>İşlemler</th>
                         </tr>
                     </thead>
                     <tbody id="firmalar-body">
                         <tr>
-                            <td colspan="5" style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <td colspan="8" style="text-align:center; padding:40px; color:var(--text-muted);">
                                 Yükleniyor...</td>
                         </tr>
                     </tbody>
@@ -595,11 +597,32 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label>Sözleşme Başlangıç</label>
+                        <input type="date" id="edit-firma-sozlesme-baslangic">
+                    </div>
+                    <div class="form-group">
                         <label>Sözleşme Bitiş Tarihi</label>
                         <input type="date" id="edit-firma-sozlesme-bitis" required>
                     </div>
+                    <div class="form-group">
+                        <label>Servis Alım Tarihi</label>
+                        <input type="date" id="edit-firma-servis-alim-tarihi">
+                    </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Fatura Adresi</label>
+                    <textarea id="edit-firma-fatura-adresi"
+                        style="width: 100%; height: 70px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; color: white; padding: 12px; outline: none; resize: none;"
+                        placeholder="Fatura kesim adresi (unvan, adres, vergi no vb.)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" id="edit-firma-erteleme-kilitli" style="width:18px; height:18px;">
+                        <i class="fas fa-lock"></i> Erteleme kilitli (firma admini erteleme ayarını değiştiremesin)
+                    </label>
+                </div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Cihaz Limiti (Max Cihaz)</label>
@@ -614,6 +637,12 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Rakip İnceleme / Notlar</label>
+                    <textarea id="edit-firma-rakip-inceleme"
+                        style="width: 100%; height: 60px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; color: white; padding: 12px; outline: none; resize: none;"
+                        placeholder="Rakip analizi veya özel notlar"></textarea>
+                </div>
                 <div class="form-group">
                     <label>Notlar / Sözleşme Detayları</label>
                     <textarea id="edit-firma-notlar"
@@ -779,12 +808,14 @@
         function renderFirmalar() {
             const tbody = document.getElementById('firmalar-body');
             if (allFirmalar.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">Henüz firma tanımlanmamış.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">Henüz firma tanımlanmamış.</td></tr>';
                 return;
             }
             tbody.innerHTML = allFirmalar.map(f => {
-                const dateStr = f.olusturulma ? new Date(f.olusturulma).toLocaleDateString('tr-TR') : '-';
                 const sozlesmeDate = f.sozlesme_bitis ? new Date(f.sozlesme_bitis).toLocaleDateString('tr-TR') : '---';
+                const servisAlimDate = f.servis_alim_tarihi ? new Date(f.servis_alim_tarihi).toLocaleDateString('tr-TR') : '-';
+                const faturaShort = (f.fatura_adresi || '').trim();
+                const faturaDisplay = faturaShort.length > 35 ? faturaShort.substring(0, 35) + '…' : (faturaShort || '-');
 
                 // Sözleşme rengi
                 let sozlesmeStil = '';
@@ -801,11 +832,13 @@
                     <td style="font-weight:600; color:var(--accent-primary);">${f.ad}</td>
                     <td style="font-size:13px;">${f.sektor || 'Genel'}</td>
                     <td style="font-family:monospace; font-weight:700; color:#fbbf24; white-space:nowrap;">
-                        <span id="pwd-${f.id}" class="blur-pwd" data-pwd="${f.ekran_sifre || '---'}">****</span>
+                        <span id="pwd-${f.id}" class="blur-pwd" data-pwd="${(f.ekran_sifre || '---').replace(/"/g, '&quot;')}">****</span>
                         <i class="fas fa-eye" style="cursor:pointer; margin-left:8px; opacity:0.7; font-size:12px;" 
                            onclick="togglePassword('pwd-${f.id}', this)" title="Göster/Gizle"></i>
                     </td>
                     <td style="font-size:12px; ${sozlesmeStil}">${sozlesmeDate}</td>
+                    <td style="font-size:12px;">${servisAlimDate}</td>
+                    <td style="font-size:12px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(f.fatura_adresi || '').replace(/"/g, '&quot;')}">${faturaDisplay}</td>
                     <td><span class="status-badge" style="background:${f.aktif ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color:${f.aktif ? '#10b981' : '#ef4444'};">${f.aktif ? 'AKTİF' : 'PASİF'}</span></td>
                     <td>
                         <button class="action-btn" title="Düzenle" onclick="openFirmaModal(${f.id})"><i class="fas fa-edit"></i></button>
@@ -858,14 +891,27 @@
                 document.getElementById('edit-firma-lisans-tipi').value = f.lisans_tipi || "Kiralama";
                 document.getElementById('edit-firma-max-cihaz').value = f.max_cihaz || 10;
                 document.getElementById('edit-firma-notlar').value = f.notlar || "";
-
+                document.getElementById('edit-firma-fatura-adresi').value = f.fatura_adresi || "";
+                document.getElementById('edit-firma-rakip-inceleme').value = f.rakip_inceleme || "";
+                document.getElementById('edit-firma-erteleme-kilitli').checked = !!f.erteleme_kilitli;
                 if (f.sozlesme_bitis) {
                     const d = new Date(f.sozlesme_bitis);
                     document.getElementById('edit-firma-sozlesme-bitis').value = d.toISOString().split('T')[0];
                 } else {
                     document.getElementById('edit-firma-sozlesme-bitis').value = "";
                 }
-
+                if (f.sozlesme_baslangic) {
+                    const d = new Date(f.sozlesme_baslangic);
+                    document.getElementById('edit-firma-sozlesme-baslangic').value = d.toISOString().split('T')[0];
+                } else {
+                    document.getElementById('edit-firma-sozlesme-baslangic').value = "";
+                }
+                if (f.servis_alim_tarihi) {
+                    const d = new Date(f.servis_alim_tarihi);
+                    document.getElementById('edit-firma-servis-alim-tarihi').value = d.toISOString().split('T')[0];
+                } else {
+                    document.getElementById('edit-firma-servis-alim-tarihi').value = "";
+                }
                 document.getElementById('edit-firma-aktif').value = f.aktif.toString();
             } else {
                 document.getElementById('edit-firma-ad').value = "";
@@ -875,12 +921,14 @@
                 document.getElementById('edit-firma-lisans-tipi').value = "Kiralama";
                 document.getElementById('edit-firma-max-cihaz').value = 10;
                 document.getElementById('edit-firma-notlar').value = "";
-
-                // Varsayılan kiralama 1 yıl
+                document.getElementById('edit-firma-fatura-adresi').value = "";
+                document.getElementById('edit-firma-rakip-inceleme').value = "";
+                document.getElementById('edit-firma-erteleme-kilitli').checked = false;
+                document.getElementById('edit-firma-sozlesme-baslangic').value = "";
+                document.getElementById('edit-firma-servis-alim-tarihi').value = "";
                 const nextYear = new Date();
                 nextYear.setFullYear(nextYear.getFullYear() + 1);
                 document.getElementById('edit-firma-sozlesme-bitis').value = nextYear.toISOString().split('T')[0];
-
                 document.getElementById('edit-firma-aktif').value = "true";
             }
             document.getElementById('firma-modal').style.display = 'flex';
@@ -897,6 +945,11 @@
                 ekran_sifre: document.getElementById('edit-firma-ekran-sifre').value,
                 sifre_kilitli: document.getElementById('edit-firma-sifre-kilitli').checked,
                 sozlesme_bitis: document.getElementById('edit-firma-sozlesme-bitis').value,
+                sozlesme_baslangic: document.getElementById('edit-firma-sozlesme-baslangic').value || null,
+                servis_alim_tarihi: document.getElementById('edit-firma-servis-alim-tarihi').value || null,
+                fatura_adresi: document.getElementById('edit-firma-fatura-adresi').value,
+                rakip_inceleme: document.getElementById('edit-firma-rakip-inceleme').value,
+                erteleme_kilitli: document.getElementById('edit-firma-erteleme-kilitli').checked,
                 lisans_tipi: document.getElementById('edit-firma-lisans-tipi').value,
                 max_cihaz: parseInt(document.getElementById('edit-firma-max-cihaz').value),
                 notlar: document.getElementById('edit-firma-notlar').value,

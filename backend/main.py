@@ -283,12 +283,18 @@ async def update_firma(
         if user_rol != "admin" or user_firma_id != firma_id:
              raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok")
              
-        # Admin ise, şifre kilitli mi kontrol et
+        # Admin ise, şifre kilitli ve erteleme kilitli kontrolleri
         current_firma = db.get_firma(firma_id)
-        if current_firma and current_firma.get("sifre_kilitli") and "ekran_sifre" in data:
-            # Şifre değiştirilmeye çalışılıyor ama kilitli
-            if data["ekran_sifre"] != current_firma.get("ekran_sifre"):
-                raise HTTPException(status_code=403, detail="Müdahale şifresi kilitlendiği için değiştirilemez!")
+        if current_firma:
+            if current_firma.get("sifre_kilitli") and "ekran_sifre" in data:
+                if data["ekran_sifre"] != current_firma.get("ekran_sifre"):
+                    raise HTTPException(status_code=403, detail="Müdahale şifresi kilitlendiği için değiştirilemez!")
+            # Erteleme kilitliyse firma admini erteleme/erteleme_sayisi değiştiremesin
+            if current_firma.get("erteleme_kilitli"):
+                data = {k: v for k, v in data.items() if k not in ("erteleme", "erteleme_sayisi")}
+        # Firma admini erteleme_kilitli alanını değiştiremesin (sadece süper admin)
+        if user_rol != "superadmin":
+            data = {k: v for k, v in data.items() if k != "erteleme_kilitli"}
 
     # Veritabanı güncelleme
     res = db.update_firma(firma_id, data)
@@ -361,8 +367,8 @@ async def sira_al(request: SiraAlRequest):
             request.oncelik
         )
         
-        # Bekleyen sıra sayısını al
-        bekleyen_sayisi = len(db.get_bekleyen_siralar(request.kuyruk_id))
+        # Bekleyen sıra sayısını al (COUNT ile hızlı)
+        bekleyen_sayisi = db.get_bekleyen_sayisi(request.kuyruk_id)
         tahmini_bekleme = bekleyen_sayisi * 5  # Basit tahmin
         
         mesaj = f"{sira['numara']} numaralı sıranız alındı."

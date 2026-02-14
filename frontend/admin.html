@@ -1043,6 +1043,7 @@
                                 <span>Bilet erteleme açık (müşteri sırasını X dakika geciktirebilir)</span>
                             </label>
                             <small style="color:var(--accent-primary); opacity:0.7; display:block; margin-top:5px;">Açıksa müşteri bilet ekranında "Erteleme İste" ile sırasını 5–50 dk geciktirebilir.</small>
+                            <div id="setting-erteleme-kilitli-uyari" style="display:none; margin-top:8px; padding:8px 12px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); border-radius:8px; color:#fca5a5; font-size:13px;"><i class="fas fa-lock"></i> Erteleme ayarı süper admin tarafından kilitlendi; değiştiremezsiniz.</div>
                         </div>
                         <div class="form-group" id="setting-erteleme-sayisi-wrap" style="margin-bottom: 20px; display:none;">
                             <label style="display:block; margin-bottom:8px; opacity:0.8;">Bilet başına erteleme hakkı (kaç kez)</label>
@@ -1565,11 +1566,18 @@
                     const ertelemeCb = document.getElementById('setting-firma-erteleme');
                     const ertelemeSayisiWrap = document.getElementById('setting-erteleme-sayisi-wrap');
                     const ertelemeSayisiInput = document.getElementById('setting-firma-erteleme-sayisi');
+                    const ertelemeKilitliUyari = document.getElementById('setting-erteleme-kilitli-uyari');
+                    const kilitli = !!firma.erteleme_kilitli;
+                    if (ertelemeKilitliUyari) ertelemeKilitliUyari.style.display = kilitli ? 'block' : 'none';
                     if (ertelemeCb) {
                         ertelemeCb.checked = !!firma.erteleme;
+                        ertelemeCb.disabled = kilitli;
                         if (ertelemeSayisiWrap) ertelemeSayisiWrap.style.display = firma.erteleme ? 'block' : 'none';
                     }
-                    if (ertelemeSayisiInput) ertelemeSayisiInput.value = Math.max(0, parseInt(firma.erteleme_sayisi, 10) || 0);
+                    if (ertelemeSayisiInput) {
+                        ertelemeSayisiInput.value = Math.max(0, parseInt(firma.erteleme_sayisi, 10) || 0);
+                        ertelemeSayisiInput.disabled = kilitli;
+                    }
                 }
             } catch (err) { console.error("Firma settings load error", err); }
             const ertelemeCb2 = document.getElementById('setting-firma-erteleme');
@@ -1586,13 +1594,16 @@
             e.preventDefault();
             try {
                 // Firma bilgilerini kaydet
+                const ertelemeCb = document.getElementById('setting-firma-erteleme');
                 const firmaData = {
                     ad: document.getElementById('setting-firma-ad').value,
                     sektor: document.getElementById('setting-firma-sektor').value,
                     ekran_sifre: document.getElementById('setting-firma-ekran-sifre').value,
-                    erteleme: document.getElementById('setting-firma-erteleme').checked,
-                    erteleme_sayisi: Math.max(0, parseInt(document.getElementById('setting-firma-erteleme-sayisi').value, 10) || 0)
+                    erteleme: ertelemeCb.disabled ? undefined : ertelemeCb.checked,
+                    erteleme_sayisi: ertelemeCb.disabled ? undefined : Math.max(0, parseInt(document.getElementById('setting-firma-erteleme-sayisi').value, 10) || 0)
                 };
+                if (firmaData.erteleme === undefined) delete firmaData.erteleme;
+                if (firmaData.erteleme_sayisi === undefined) delete firmaData.erteleme_sayisi;
                 await apiCall(`/api/admin/firma/${currentUser.firma_id}`, {
                     method: 'PUT',
                     body: JSON.stringify(firmaData)

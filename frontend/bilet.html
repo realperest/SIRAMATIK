@@ -690,7 +690,7 @@
             content: '';
             position: absolute;
             left: 0; right: 0;
-            height: 40px;
+            height: 24px;
             pointer-events: none;
             z-index: 1;
         }
@@ -710,21 +710,20 @@
             overflow-x: hidden;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
-            padding: 40px 0;
+            padding: 24px 0;
         }
 
         .survey-wheel-spacer {
-            height: 40px;
+            height: 24px;
             scroll-snap-align: center;
             flex-shrink: 0;
         }
 
         .survey-wheel-item {
-            height: 40px;
-            line-height: 40px;
+            height: 24px;
+            line-height: 24px;
             scroll-snap-align: center;
-            scroll-snap-stop: always;
-            font-size: 20px;
+            font-size: 12px;
             font-weight: 700;
             color: #94a3b8;
             flex-shrink: 0;
@@ -733,7 +732,7 @@
         }
 
         .survey-wheel-item--selected {
-            font-size: 28px;
+            font-size: 16px;
             font-weight: 800;
             color: #5b21b6;
         }
@@ -772,11 +771,11 @@
         @media (min-width: 380px) {
             .survey-wheel-container { width: 76px; min-width: 76px; }
             .survey-wheel-mask { height: 220px; width: 56px; }
-            .survey-wheel-item { height: 44px; line-height: 44px; font-size: 22px; }
-            .survey-wheel-item--selected { font-size: 32px; }
-            .survey-wheel-spacer { height: 44px; }
-            .survey-wheel-mask::before, .survey-wheel-mask::after { height: 44px; }
-            .survey-wheel { padding: 44px 0; }
+            .survey-wheel-item { height: 26px; line-height: 26px; font-size: 13px; }
+            .survey-wheel-item--selected { font-size: 17px; }
+            .survey-wheel-spacer { height: 26px; }
+            .survey-wheel-mask::before, .survey-wheel-mask::after { height: 26px; }
+            .survey-wheel { padding: 26px 0; }
             .survey-right { gap: 18px; padding-left: 24px; }
             .survey-label { font-size: 19px; }
             .survey-big-face { font-size: 64px; }
@@ -786,11 +785,11 @@
             .survey-rating-row { max-width: 360px; }
             .survey-wheel-container { width: 82px; min-width: 82px; }
             .survey-wheel-mask { height: 240px; width: 60px; }
-            .survey-wheel-item { height: 48px; line-height: 48px; font-size: 24px; }
-            .survey-wheel-item--selected { font-size: 36px; }
-            .survey-wheel-spacer { height: 48px; }
-            .survey-wheel-mask::before, .survey-wheel-mask::after { height: 48px; }
-            .survey-wheel { padding: 48px 0; }
+            .survey-wheel-item { height: 28px; line-height: 28px; font-size: 14px; }
+            .survey-wheel-item--selected { font-size: 18px; }
+            .survey-wheel-spacer { height: 28px; }
+            .survey-wheel-mask::before, .survey-wheel-mask::after { height: 28px; }
+            .survey-wheel { padding: 28px 0; }
             .survey-right { gap: 22px; padding-left: 28px; }
             .survey-label { font-size: 21px; }
             .survey-big-face { font-size: 72px; }
@@ -1135,7 +1134,6 @@
                     speechSynthesis.speak(wake);
                     speechSynthesis.cancel();
                 }
-                speakTr('Bildirimler açıldı.');
             }
             isAudioUnlocked = true;
             if (overlay) overlay.style.display = 'none';
@@ -2215,8 +2213,8 @@
             console.log('📋 Memnuniyet anketi gösterildi');
         }
 
-        var SURVEY_WHEEL_ITEM_HEIGHT = 40;
-        var SURVEY_WHEEL_PADDING = 40;
+        var SURVEY_WHEEL_ITEM_HEIGHT = 24;
+        var SURVEY_WHEEL_PADDING = 24;
         var lastSurveyWheelValue = -1;
 
         function getSurveyLabel(value) {
@@ -2231,14 +2229,32 @@
         var lastSurveyTickTime = 0;
         function playSurveyTick() {
             var now = Date.now();
-            if (now - lastSurveyTickTime < 70) return;
+            if (now - lastSurveyTickTime < 55) return;
             lastSurveyTickTime = now;
             try {
-                surveyWheelSound.pause();
-                surveyWheelSound.currentTime = 0;
-                surveyWheelSound.volume = 0.2;
-                surveyWheelSound.play().catch(function() {});
-                setTimeout(function() { surveyWheelSound.pause(); surveyWheelSound.currentTime = 0; }, 40);
+                var ctx = initAudioContext();
+                if (!ctx) {
+                    surveyWheelSound.pause();
+                    surveyWheelSound.currentTime = 0;
+                    surveyWheelSound.volume = 0.4;
+                    surveyWheelSound.play().catch(function() {});
+                    setTimeout(function() { surveyWheelSound.pause(); surveyWheelSound.currentTime = 0; }, 35);
+                    return;
+                }
+                if (ctx.state === 'suspended') ctx.resume();
+                var t = ctx.currentTime;
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(140, t);
+                osc.frequency.exponentialRampToValueAtTime(70, t + 0.018);
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.14, t + 0.0015);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.032);
+                osc.start(t);
+                osc.stop(t + 0.032);
             } catch (e) {}
         }
 
@@ -2248,7 +2264,7 @@
             wheel.innerHTML = '';
             var mask = wheel.closest('.survey-wheel-mask');
             var maskH = mask ? mask.offsetHeight : 200;
-            var spacerH = Math.max(50, Math.floor(maskH / 2));
+            var spacerH = Math.max(24, Math.floor(maskH / 2));
 
             var topPad = document.createElement('div');
             topPad.className = 'survey-wheel-spacer';
@@ -2279,6 +2295,15 @@
             }
 
             wheel.addEventListener('scroll', onWheelChange);
+            wheel.addEventListener('wheel', function (e) {
+                if (e.deltaY === 0) return;
+                var item = wheel.querySelector('.survey-wheel-item');
+                var h = item ? item.offsetHeight : SURVEY_WHEEL_ITEM_HEIGHT;
+                var step = Math.max(1, Math.round(Math.abs(e.deltaY) / 20)) * (e.deltaY > 0 ? 1 : -1);
+                var jump = step * h * 4;
+                wheel.scrollTop = Math.max(0, Math.min(wheel.scrollHeight - wheel.clientHeight, wheel.scrollTop + jump));
+                e.preventDefault();
+            }, { passive: false });
             wheel.addEventListener('touchmove', function () {
                 var v = getSurveyWheelValue();
                 if (v !== lastSurveyWheelValue) {

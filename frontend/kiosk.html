@@ -1922,7 +1922,8 @@
                     }
                 }
 
-                karekodGoster();
+                // QR'ı bir sonraki frame'de çiz ki numara/mesaj önce ekrana düşsün (lag hissini azaltır)
+                requestAnimationFrame(function () { karekodGoster(); });
             } catch (error) {
                 console.error("Sıra alma hatası:", error);
                 showToast('Hata: ' + error.message, 'error');
