@@ -611,29 +611,32 @@
             flex-direction: column;
         }
 
+        /* İki sütun: sol = çark (sabit genişlik), sağ = etiket + surat (yazı büyük, boşluk fazla) */
         .survey-rating-row {
             display: flex;
             flex-direction: row;
-            align-items: center;
-            justify-content: center;
+            align-items: stretch;
+            justify-content: flex-start;
             margin: 16px 0 20px 0;
             flex-shrink: 0;
-            gap: 16px;
+            gap: 0;
+            width: 100%;
+            max-width: 320px;
         }
 
-        /* Dar çark solda, sağda etiket + yüz */
+        /* Sol sütun: çark (yerinden oynamaz, yazı uzun olsa bile) */
         .survey-wheel-container {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 72px;
-            min-width: 72px;
+            width: 70px;
+            min-width: 70px;
             flex-shrink: 0;
         }
 
         .survey-wheel-mask {
-            height: 160px;
-            width: 56px;
+            height: 200px;
+            width: 52px;
             overflow: hidden;
             position: relative;
             border-radius: 12px;
@@ -700,25 +703,29 @@
             color: #5b21b6;
         }
 
+        /* Sağ sütun: etiket + surat (büyük, arada boşluk fazla) */
         .survey-right {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            flex: 1;
             min-width: 0;
+            padding-left: 20px;
+            gap: 14px;
         }
 
         .survey-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #764ba2;
+            font-size: 17px;
+            font-weight: 700;
+            color: #5b21b6;
             text-align: center;
-            margin-bottom: 4px;
-            line-height: 1.3;
+            line-height: 1.35;
+            margin: 0;
         }
 
         .survey-big-face {
-            font-size: 48px;
+            font-size: 56px;
             line-height: 1;
             transition: transform 0.2s ease;
         }
@@ -728,27 +735,30 @@
         }
 
         @media (min-width: 380px) {
-            .survey-wheel-container { width: 80px; min-width: 80px; }
-            .survey-wheel-mask { height: 180px; width: 64px; }
+            .survey-wheel-container { width: 76px; min-width: 76px; }
+            .survey-wheel-mask { height: 220px; width: 56px; }
             .survey-wheel-item { height: 44px; line-height: 44px; font-size: 22px; }
             .survey-wheel-item--selected { font-size: 32px; }
             .survey-wheel-spacer { height: 44px; }
             .survey-wheel-mask::before, .survey-wheel-mask::after { height: 44px; }
             .survey-wheel { padding: 44px 0; }
-            .survey-label { font-size: 14px; }
-            .survey-big-face { font-size: 56px; }
+            .survey-right { gap: 18px; padding-left: 24px; }
+            .survey-label { font-size: 19px; }
+            .survey-big-face { font-size: 64px; }
         }
 
         @media (min-width: 480px) {
-            .survey-wheel-container { width: 88px; min-width: 88px; }
-            .survey-wheel-mask { height: 200px; width: 72px; }
+            .survey-rating-row { max-width: 360px; }
+            .survey-wheel-container { width: 82px; min-width: 82px; }
+            .survey-wheel-mask { height: 240px; width: 60px; }
             .survey-wheel-item { height: 48px; line-height: 48px; font-size: 24px; }
             .survey-wheel-item--selected { font-size: 36px; }
             .survey-wheel-spacer { height: 48px; }
             .survey-wheel-mask::before, .survey-wheel-mask::after { height: 48px; }
             .survey-wheel { padding: 48px 0; }
-            .survey-label { font-size: 15px; }
-            .survey-big-face { font-size: 64px; }
+            .survey-right { gap: 22px; padding-left: 28px; }
+            .survey-label { font-size: 21px; }
+            .survey-big-face { font-size: 72px; }
         }
 
         .survey-submit-btn {
@@ -1010,13 +1020,15 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dXJzamRybm5qYWJwZmV1Y3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzcwOTEsImV4cCI6MjA4NTQ1MzA5MX0.uacZI2vB1pfDyk_UO0lvJBgftJl_R04YX9Bv9kWOLd4';
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // ===== UPGRADE: HTML5 Audio — ding ve tick ayrı instance (mobil otomatik oynatma için) =====
+        // ===== UPGRADE: HTML5 Audio — ding, tick, çark dönme ayrı =====
         const ALERT_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
         const tickSound = new Audio(ALERT_SOUND_URL);
-        const alertSound = new Audio(ALERT_SOUND_URL); // Bitiş alarmı ayrı instance (3x ding için)
+        const alertSound = new Audio(ALERT_SOUND_URL);
+        var surveyWheelSound = new Audio(ALERT_SOUND_URL); // Çark dönme: kısa tick (ding değil)
 
         tickSound.preload = 'auto';
         alertSound.preload = 'auto';
+        surveyWheelSound.preload = 'auto';
 
         tickSound.addEventListener('loadeddata', () => { console.log('[OK] Tick sesi yüklendi'); });
         tickSound.addEventListener('error', (e) => { console.warn('[WARN] Tick sesi yüklenemedi:', e); });
@@ -1061,26 +1073,12 @@
         }
 
         async function startNotifications() {
-            await updateStatus();
-            if (sessionDurum === 'completed') {
-                document.getElementById('activation-overlay').style.display = 'none';
-                isAudioUnlocked = true;
-                return;
-            }
-            alertSound.volume = 0.6;
+            // ÖNCE: Kullanıcı tıklamasıyla ses ve TTS kilidini aç (await YOK — tarayıcı "user gesture" olarak görsün)
+            var overlay = document.getElementById('activation-overlay');
+            alertSound.volume = 0.7;
             tickSound.volume = 0.6;
-            // Kullanıcı tıklamasıyla her iki sesi de çal (tarayıcı sonraki play'e izin verir)
-            alertSound.play().then(function() {
-                setTimeout(function() { alertSound.pause(); alertSound.currentTime = 0; }, 400);
-            }).catch(function(e) { console.warn('Alarm sesi kilidi:', e); });
-            tickSound.play().then(function() {
-                setTimeout(function() { tickSound.pause(); tickSound.currentTime = 0; }, 400);
-            }).catch(function(e) { console.warn('Tick sesi kilidi:', e); });
-
-            isAudioUnlocked = true;
-            document.getElementById('activation-overlay').style.display = 'none';
-
-            // TTS'i kullanıcı tıklamasıyla ısındır (sıra sizde konuşması sonra çalabilsin)
+            alertSound.currentTime = 0;
+            alertSound.play().catch(function (e) { console.warn('Test ding kilidi:', e); });
             if ('speechSynthesis' in window) {
                 cacheVoices();
                 if (isIOS) {
@@ -1090,32 +1088,22 @@
                     speechSynthesis.speak(wake);
                     speechSynthesis.cancel();
                 }
-                // Kısa TTS ile sesli kanalı aç (mobil izin)
-                setTimeout(function() {
-                    speakTr('Bildirimler açıldı.');
-                }, 500);
+                speakTr('Bildirimler açıldı.');
             }
-
-            // Test titreşimi
+            isAudioUnlocked = true;
+            if (overlay) overlay.style.display = 'none';
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
-            if (sessionDurum !== 'completed') {
-                setTimeout(() => {
-                    tickSound.play().catch(e => console.log('Test sesi hatası:', e));
-                    console.log('🔊 Test sesi çalındı');
-                }, 300);
-            }
+            // Sonra: durum güncellemesi (tamamlandıysa çık)
+            await updateStatus();
+            if (sessionDurum === 'completed') return;
 
-            // Ortalama bekleme süresini arka planda hesapla (bloklamaz; tahmin hazır olunca güncellenir)
+            // Test ding kısa süre sonra dursun (tek ses)
+            setTimeout(function () { alertSound.pause(); alertSound.currentTime = 0; }, 500);
+
             fetchAverageWaitTime();
-
-            // WebSocket bağlantısını başlat (açılınca polling kapatılacak)
             initWebSocket();
-
-            // İlk durumu hemen güncelle (erteleme butonu + yaklaşık süre daha çabuk görünsün)
             updateStatus();
-
-            // Polling başlat (WebSocket açılmazsa veya koparsa kullanılır; WS açıkken kapatılır)
             startPolling();
         }
 
@@ -2183,13 +2171,14 @@
         var lastSurveyTickTime = 0;
         function playSurveyTick() {
             var now = Date.now();
-            if (now - lastSurveyTickTime < 80) return;
+            if (now - lastSurveyTickTime < 70) return;
             lastSurveyTickTime = now;
             try {
-                tickSound.pause();
-                tickSound.currentTime = 0;
-                tickSound.volume = 0.22;
-                tickSound.play().catch(function() {});
+                surveyWheelSound.pause();
+                surveyWheelSound.currentTime = 0;
+                surveyWheelSound.volume = 0.2;
+                surveyWheelSound.play().catch(function() {});
+                setTimeout(function() { surveyWheelSound.pause(); surveyWheelSound.currentTime = 0; }, 40);
             } catch (e) {}
         }
 

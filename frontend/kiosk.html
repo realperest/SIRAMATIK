@@ -1872,9 +1872,28 @@
 
         async function siraAl(kuyrukId, servisId) {
             console.log("Sıra alınıyor: Kuyruk", kuyrukId);
+            var depSecimi = document.getElementById('departman-secimi');
+            var numEkrani = document.getElementById('numara-ekrani');
+            var exitBtn = document.getElementById('exit-btn');
+            var numaraEl = document.getElementById('numara');
+            var mesajEl = document.getElementById('mesaj');
+            var beklemeInfoEl = document.getElementById('bekleme-info');
+            var tahminiEl = document.getElementById('tahmini-bekleme');
+            var qrDiv = document.getElementById('qrcode');
+
+            // Anında numara ekranına geç (takılma hissi olmasın)
+            if (depSecimi) depSecimi.style.display = 'none';
+            document.getElementById('alt-secenekler-konteynir').style.display = 'none';
+            if (numEkrani) numEkrani.style.display = 'flex';
+            if (exitBtn) exitBtn.classList.add('show');
+            if (numaraEl) numaraEl.innerHTML = '<span style="opacity:0.8;"><i class="fas fa-spinner fa-spin"></i></span>';
+            if (mesajEl) mesajEl.textContent = 'Sıra alınıyor...';
+            if (beklemeInfoEl) beklemeInfoEl.textContent = '';
+            if (tahminiEl) { tahminiEl.textContent = ''; tahminiEl.style.display = 'none'; }
+            if (qrDiv) qrDiv.innerHTML = '<div style="color:#94a3b8; font-size:14px;"><i class="fas fa-spinner fa-spin"></i> Hazırlanıyor...</div>';
+
             try {
-                showLoading(true);
-                const response = await apiCall('/api/sira/al', {
+                var response = await apiCall('/api/sira/al', {
                     method: 'POST',
                     body: JSON.stringify({
                         kuyruk_id: kuyrukId,
@@ -1888,18 +1907,14 @@
                 lastSiraResponse.servis_id = servisId;
                 lastSiraResponse.kuyruk_id = kuyrukId;
 
-                const numaraEl = document.getElementById('numara');
                 if (numaraEl) numaraEl.textContent = response.numara;
-                const mesajEl = document.getElementById('mesaj');
                 if (mesajEl) mesajEl.textContent = response.mesaj || (response.numara + " numaralı sıranız alındı.");
-                const beklemeInfoEl = document.getElementById('bekleme-info');
-                if (beklemeInfoEl) beklemeInfoEl.textContent = `Sıranızdan önce ${Math.max(0, response.bekleyen_sayisi - 1)} kişi var.`;
+                if (beklemeInfoEl) beklemeInfoEl.textContent = "Sıranızdan önce " + Math.max(0, response.bekleyen_sayisi - 1) + " kişi var.";
 
-                const tahminiEl = document.getElementById('tahmini-bekleme');
                 if (tahminiEl) {
-                    const dk = response.tahmini_sure_dk;
+                    var dk = response.tahmini_sure_dk;
                     if (dk != null && dk > 0) {
-                        tahminiEl.textContent = `Yaklaşık bekleme süresi: ${dk} dakika`;
+                        tahminiEl.textContent = "Yaklaşık bekleme süresi: " + dk + " dakika";
                         tahminiEl.style.display = '';
                     } else {
                         tahminiEl.textContent = '';
@@ -1907,25 +1922,13 @@
                     }
                 }
 
-                const depSecimi = document.getElementById('departman-secimi');
-                const numEkrani = document.getElementById('numara-ekrani');
-                const exitBtn = document.getElementById('exit-btn');
-
-                if (depSecimi) depSecimi.style.display = 'none';
-                if (numEkrani) {
-                    numEkrani.style.display = 'flex'; // Overlay olduğu için flex yap
-                }
-                if (exitBtn) exitBtn.classList.add('show');
-
-                // Gecikmeyi kaldırdık, anında gösteriyoruz
                 karekodGoster();
-
             } catch (error) {
                 console.error("Sıra alma hatası:", error);
-                showLoading(false);
                 showToast('Hata: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
+                if (numaraEl) numaraEl.textContent = '---';
+                if (mesajEl) mesajEl.textContent = 'Sıra alınamadı. Lütfen tekrar deneyin.';
+                if (qrDiv) qrDiv.innerHTML = '<div style="color:#ef4444; font-size:14px;">Hata</div>';
             }
         }
 
