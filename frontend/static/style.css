@@ -114,3 +114,29 @@ body {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* Bağlantı göstergesi: sağ üst W/P (tüm sayfalarda, küçük) */
+.connection-badges {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 1000;
+}
+.connection-badge {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    transition: background 0.3s, opacity 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.connection-badge.active { background: #22c55e; opacity: 1; }
+.connection-badge.inactive { background: #94a3b8; opacity: 0.5; }
+.connection-badge.connecting { background: #f59e0b; opacity: 0.8; }

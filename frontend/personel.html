@@ -1121,6 +1121,10 @@
 </head>
 
 <body>
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling">
+        <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
+        <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
+    </div>
     <!-- Login formu kaldırıldı - Giriş artık index.html'den yapılıyor -->
 
     <!-- Ana Panel -->
@@ -2425,57 +2429,7 @@
                 }
 
                 bekleyenSiralar = siralar;
-                const container = document.getElementById('sira-liste-container');
-
-                if (siralar.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="icon">✅</div>
-                            <h3>Bekleyen işlem yok</h3>
-                            <p>${isFilterActive ? 'Seçili bölümlerde' : 'Hastanede'} bekleyen sıra kalmadı.</p>
-                        </div>
-                    `;
-                } else {
-                    container.innerHTML = siralar.map(sira => {
-                        const isPriority = sira.oncelik && sira.oncelik > 0;
-                        const priorityClass = isPriority ? 'priority' : '';
-                        const isErtelendi = (sira.erteleme_sayisi && parseInt(sira.erteleme_sayisi, 10) > 0);
-                        
-                        // Kuyruk koduna göre renk belirle (sıra numarasının ilk harfi)
-                        let colorClass = 'color-default';
-                        if (sira.numara && sira.numara.length > 0) {
-                            const firstChar = sira.numara.charAt(0).toUpperCase();
-                            if (/[A-Z]/.test(firstChar)) {
-                                colorClass = `color-${firstChar}`;
-                            }
-                        }
-                        
-                        return `
-                        <div class="sira-item ${colorClass} ${priorityClass}" onclick="hastaCagir('${sira.id}', '${sira.numara}')">
-                            <div class="sira-info">
-                                <div class="numara">${sira.numara || 'HATA'}</div>
-                                <div class="sira-info-right">
-                                    <div class="zaman">
-                                        <span>🕐</span> ${formatTarih(sira.olusturulma)}
-                                    </div>
-                                    <div class="servis-kuyruk">
-                                        ${sira.servis_ad || '?'} - ${sira.kuyruk_ad || '?'}
-                                    </div>
-                                    ${isPriority ? '<div style="font-size:12px; color:#ef4444; font-weight:600; margin-top:2px;">⭐ ÖNCELİKLİ</div>' : ''}
-                                    ${isErtelendi ? '<div class="erteleme-badge">⏱ Ertelenmiş sıra</div>' : ''}
-                                </div>
-                            </div>
-                            <div class="sira-actions">
-                                <button class="btn-cagir" onclick="event.stopPropagation(); hastaCagir('${sira.id}', '${sira.numara}')">
-                                    📢 ÇAĞIR
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    }).join('');
-                }
-
-                document.getElementById('stat-bekleyen').textContent = siralar.length;
+                renderBekleyenListesi(isFilterActive);
                 updateActiveSettingsDisplay();
 
                 try {
@@ -2500,6 +2454,50 @@
                     console.error("Sıra yükleme hatası", error);
                 }
             }
+        }
+
+        function renderBekleyenListesi(isFilterActive) {
+            const siralar = bekleyenSiralar || [];
+            const container = document.getElementById('sira-liste-container');
+            if (!container) return;
+            if (siralar.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">✅</div>
+                        <h3>Bekleyen işlem yok</h3>
+                        <p>${isFilterActive ? 'Seçili bölümlerde' : 'Hastanede'} bekleyen sıra kalmadı.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = siralar.map(sira => {
+                    const isPriority = sira.oncelik && sira.oncelik > 0;
+                    const priorityClass = isPriority ? 'priority' : '';
+                    const isErtelendi = (sira.erteleme_sayisi && parseInt(sira.erteleme_sayisi, 10) > 0);
+                    let colorClass = 'color-default';
+                    if (sira.numara && sira.numara.length > 0) {
+                        const firstChar = sira.numara.charAt(0).toUpperCase();
+                        if (/[A-Z]/.test(firstChar)) colorClass = 'color-' + firstChar;
+                    }
+                    return `
+                    <div class="sira-item ${colorClass} ${priorityClass}" onclick="hastaCagir('${sira.id}', '${sira.numara}')">
+                        <div class="sira-info">
+                            <div class="numara">${sira.numara || 'HATA'}</div>
+                            <div class="sira-info-right">
+                                <div class="zaman"><span>🕐</span> ${formatTarih(sira.olusturulma)}</div>
+                                <div class="servis-kuyruk">${sira.servis_ad || '?'} - ${sira.kuyruk_ad || '?'}</div>
+                                ${isPriority ? '<div style="font-size:12px; color:#ef4444; font-weight:600; margin-top:2px;">⭐ ÖNCELİKLİ</div>' : ''}
+                                ${isErtelendi ? '<div class="erteleme-badge">⏱ Ertelenmiş sıra</div>' : ''}
+                            </div>
+                        </div>
+                        <div class="sira-actions">
+                            <button class="btn-cagir" onclick="event.stopPropagation(); hastaCagir(\'${sira.id}\', \'${sira.numara}\')">📢 ÇAĞIR</button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+            const statEl = document.getElementById('stat-bekleyen');
+            if (statEl) statEl.textContent = siralar.length;
         }
 
         let pendingCall = null;
@@ -3114,6 +3112,10 @@
                     if (q) bilet.kuyruk_ad = q.ad;
                 }
                 openActiveTicketUI(bilet);
+                // Çağrılan bileti bekleyen listesinden çıkar, işlemde üstte görünsün
+                bekleyenSiralar = (bekleyenSiralar || []).filter(x => String(x.id) !== String(siraId));
+                const validServisIds = (activeSettings.servisIds || []).map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+                renderBekleyenListesi(validServisIds.length > 0);
             }
 
             // SONRA API'yi arka planda gönder (await YOK)

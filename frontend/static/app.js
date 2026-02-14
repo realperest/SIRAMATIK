@@ -144,7 +144,9 @@ function initWebSocket(callback) {
 
         ws.onopen = () => {
             console.log('[OK] WebSocket Bağlandı!');
-            window.ws = ws; // Bağlantı açıldığında güncelle
+            window.ws = ws;
+            var w = document.getElementById('connection-w');
+            if (w) w.className = 'connection-badge active';
         };
 
         ws.onmessage = (event) => {
@@ -160,7 +162,9 @@ function initWebSocket(callback) {
         ws.onclose = () => {
             console.warn('[WARN] WebSocket koptu. Yeniden bağlanılıyor...');
             ws = null;
-            window.ws = null; // Global referansı da temizle
+            window.ws = null;
+            var w = document.getElementById('connection-w');
+            if (w) w.className = 'connection-badge inactive';
             setTimeout(connect, wsReconnectDelay);
         };
 

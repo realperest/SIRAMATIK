@@ -177,27 +177,28 @@
             margin-top: 20px;
         }
 
-        /* Bağlantı durumu: sol üst, iki küçük balon W / P */
+        /* Bağlantı durumu: sağ üst, iki ufak balon W / P (kullanıcıyı ilgilendirmez) */
         .connection-badges {
             position: fixed;
-            top: 12px;
-            left: 12px;
+            top: 8px;
+            right: 8px;
+            left: auto;
             display: flex;
-            gap: 6px;
+            gap: 4px;
             z-index: 1000;
         }
         .connection-badge {
-            width: 28px;
-            height: 28px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             color: white;
             transition: background 0.3s, opacity 0.3s;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
         .connection-badge.active {
             background: #22c55e;
@@ -687,8 +688,8 @@
 </head>
 
 <body>
-    <!-- Bağlantı durumu: sol üst, W = WebSocket / P = Polling (yeşil = bağlı, sönük = değil) -->
-    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling (yeşil = bağlı)">
+    <!-- Bağlantı durumu: sağ üst, W = WebSocket / P = Polling (yeşil = bağlı) -->
+    <div id="connection-badges" class="connection-badges" title="W: WebSocket, P: Polling">
         <span id="connection-w" class="connection-badge inactive" title="WebSocket">W</span>
         <span id="connection-p" class="connection-badge inactive" title="Polling">P</span>
     </div>
@@ -1108,6 +1109,15 @@
                 }
                 return;
             }
+            // İşlem tamamlandı — anket göstermek için durumu yeniden çek
+            if (data.type === 'complete_ticket' && data.sira) {
+                var completedId = data.sira.id != null ? String(data.sira.id) : (data.sira.sira_id != null ? String(data.sira.sira_id) : '');
+                if (completedId === String(sira_id)) {
+                    console.log('🎯 Biletimiz tamamlandı, anket gösterilecek:', data.sira);
+                    updateStatus();
+                    return;
+                }
+            }
 
             // Bu bilet veya kuyrukla ilgili her türlü güncelleme
             if (data.sira_id != null && String(data.sira_id) === String(sira_id)) {
@@ -1373,11 +1383,15 @@
                     statusEl.style.background = "#94a3b8";
                     notificationPlayed = false;
                     sessionDurum = 'completed';
-
-                    // Anket göster (sadece bir kez)
                     showSurvey();
                     return;
+                } else if (durum === 'serving') {
+                    statusEl.textContent = "SIRA SİZDE! (İşleminiz devam ediyor)";
+                    statusEl.classList.add('calling-status');
+                    document.body.classList.add('calling-active-body');
+                    return;
                 }
+                // Sadece durum === 'waiting' iken aşağıdaki sayım ve "önünüzde X kişi" gösterilir
 
                 // Önünüzdekileri saymak için 2 sorguyu paralel çalıştır (etkin_olusturulma null olmasın diye fallback)
                 const etkinOlusturulma = me.etkin_olusturulma || me.olusturulma || new Date().toISOString();
@@ -1471,18 +1485,20 @@
                     const showErtelemeDiff = oldBekleyen !== null;
                     if (showErtelemeDiff) {
                         statusEl.innerHTML = 'Önünüzde <span class="value-bubble value-bubble-old">' + oldBekleyen + '</span> <span class="value-bubble value-bubble-new">' + count + '</span> kişi var';
-                    } else {
-                        statusEl.innerHTML = 'Önünüzde <span class="value-bubble">' + count + '</span> kişi var';
+                } else {
+                    statusEl.innerHTML = 'Önünüzde <span class="value-bubble">' + count + '</span> kişi var';
                     }
                     statusEl.style.color = "#667eea";
                     updateEstimatedTime(count, oldMinutesForEst);
                 }
 
-                // Sesli oku: her zaman güncel önündeki kişi sayısı (ertelenmemişte 1 sayı, ertelenmişte sadece yeni sayı)
-                const textForSpeech = 'Önünüzde ' + count + ' kişi var';
-                if (textForSpeech !== lastSpokenStatus) {
-                    lastSpokenStatus = textForSpeech;
-                    setTimeout(function() { speakTr(textForSpeech); }, 250);
+                // Sesli oku: sadece count > 0 iken "Önünüzde X kişi var"; count === 0 zaten yukarıda "Sıradaki kişi sizsiniz!" (tek sefer)
+                if (count > 0) {
+                    var textForSpeech = 'Önünüzde ' + count + ' kişi var';
+                    if (textForSpeech !== lastSpokenStatus) {
+                        lastSpokenStatus = textForSpeech;
+                        setTimeout(function() { speakTr(textForSpeech); }, 250);
+                    }
                 }
 
                 sessionDurum = 'waiting';
