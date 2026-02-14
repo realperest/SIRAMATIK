@@ -1012,7 +1012,7 @@
                 if (latest && lastCagriId !== latest.id) {
                     if (!isFirstLoad && !isMuted) {
                         playDingDong();
-                        setTimeout(() => announceSira(latest.numara), 2400);
+                        setTimeout(() => announceSira(latest.numara), 1800);
                     }
                     lastCagriId = latest.id;
                 }
@@ -1033,7 +1033,7 @@
             displayedCalls.unshift(sira);
             renderUI();
             playDingDong();
-            setTimeout(() => announceSira(sira.numara), 2400);
+            setTimeout(() => announceSira(sira.numara), 1800);
             lastCagriId = sira.id;
         }
 
@@ -1157,7 +1157,7 @@
             if (ekranPollingInterval) return;
             ekranPollingInterval = setInterval(function() {
                 if (!window.ws || window.ws.readyState !== WebSocket.OPEN) cagrilariGuncelle();
-            }, 4000);
+            }, 2500);
             var pEl = document.getElementById('connection-p');
             if (pEl) { pEl.className = 'connection-badge active'; pEl.style.background = '#22c55e'; pEl.style.opacity = '1'; }
         }

@@ -139,9 +139,44 @@
             border: 4px solid white;
         }
         .ticket.bilet-completed {
-            opacity: 0.78;
-            filter: saturate(0.75);
+            opacity: 0.72;
+            filter: saturate(0.6);
             pointer-events: auto;
+        }
+        .ticket.bilet-completed::before,
+        .ticket.bilet-completed::after {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f0f2f5;
+            box-shadow: inset 0 0 0 2px rgba(0,0,0,0.08);
+        }
+        .ticket.bilet-completed .content {
+            position: relative;
+        }
+        .ticket.bilet-completed .content::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.12);
+            box-shadow: 12px 0 0 rgba(0,0,0,0.1), 24px 0 0 rgba(0,0,0,0.1);
+        }
+        .ticket.bilet-completed .content::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.12);
+            box-shadow: -12px 0 0 rgba(0,0,0,0.1), -24px 0 0 rgba(0,0,0,0.1);
         }
 
         .calling-status {
@@ -816,6 +851,7 @@
             <div style="font-size: 14px; opacity: 0.8;">Sıra Takip Sistemi</div>
         </div>
         <div class="content">
+            <div id="current-serving-wrap" style="display:none; font-size:11px; color:#94a3b8; margin-bottom:4px;">Şu anda işlemdeki numara: <span id="current-serving-num">—</span></div>
             <div class="label">Sıra Numaranız</div>
             <div class="number" id="ticket-number">---</div>
             <div class="label" id="queue-name">Bölüm Yükleniyor...</div>
@@ -1050,22 +1086,33 @@
             speechSynthesis.onvoiceschanged = cacheVoices;
         }
 
-        // Türkçe sesli duyuru (Web Speech API) — iOS uyumlu. rateOpsiyonel: boşsa 1.02
+        // Türkçe sesli duyuru (Web Speech API) — bayan ses tercihi (ekran ile aynı)
+        function isFemaleVoice(v) {
+            if (v.gender === 'female') return true;
+            var n = (v.name || '').toLowerCase();
+            return n.indexOf('female') !== -1 || n.indexOf('kadın') !== -1 || n.indexOf('kadin') !== -1 ||
+                n.indexOf('woman') !== -1 || n.indexOf('ayşe') !== -1 || n.indexOf('ayse') !== -1 ||
+                n.indexOf('filiz') !== -1 || n.indexOf('yelda') !== -1 || n.indexOf('zeynep') !== -1 ||
+                (n.indexOf('microsoft') !== -1 && n.indexOf('female') !== -1);
+        }
         function speakTr(metin, rateOpsiyonel) {
             if (!metin || !('speechSynthesis' in window)) return;
             speechSynthesis.cancel();
 
-            const sesler = cachedVoices.length > 0 ? cachedVoices : speechSynthesis.getVoices();
-            const trSes = sesler.find(v => v.lang.startsWith('tr'));
-            const u = new SpeechSynthesisUtterance(metin);
+            var sesler = cachedVoices.length > 0 ? cachedVoices : speechSynthesis.getVoices();
+            var trVoices = sesler.filter(function(v) { return (v.lang || '').toLowerCase().startsWith('tr'); });
+            var trFemale = trVoices.find(function(v) { return isFemaleVoice(v); });
+            var anyFemale = sesler.find(function(v) { return isFemaleVoice(v); });
+            var ses = trFemale || anyFemale || trVoices[0] || sesler.find(function(v) { return (v.lang || '').startsWith('tr'); });
+
+            var u = new SpeechSynthesisUtterance(metin);
             u.lang = 'tr-TR';
             u.rate = rateOpsiyonel != null ? rateOpsiyonel : 1.02;
             u.volume = 1;
-            if (trSes) u.voice = trSes;
+            if (ses) u.voice = ses;
 
             if (isIOS && sesler.length === 0) {
-                // iOS: sesler henüz yoksa kısa gecikmeyle tekrar dene
-                setTimeout(() => speakTr(metin, rateOpsiyonel), 150);
+                setTimeout(function() { speakTr(metin, rateOpsiyonel); }, 150);
                 return;
             }
 
@@ -1510,6 +1557,19 @@
                 const myTicket = await promiseMyTicket;
                 if (myTicket.error) throw myTicket.error;
                 const me = myTicket.data;
+
+                // Şu anda işlemdeki numara (aynı kuyrukta calling/serving)
+                _supabase.schema('siramatik').from('siralar').select('numara').eq('kuyruk_id', kid).in('durum', ['calling', 'serving']).not('cagirilma', 'is', null).order('cagirilma', { ascending: false }).limit(1).maybeSingle().then(function(r) {
+                    var wrap = document.getElementById('current-serving-wrap');
+                    var span = document.getElementById('current-serving-num');
+                    if (!wrap || !span) return;
+                    if (r.data && r.data.numara) {
+                        span.textContent = r.data.numara;
+                        wrap.style.display = 'block';
+                    } else {
+                        wrap.style.display = 'none';
+                    }
+                }).catch(function() {});
 
                 // Bilet numarasını her zaman API'den güncelle (URL maskeleme veya eksik localStorage'da "---" kalmasın)
                 var ticketNumEl = document.getElementById('ticket-number');
@@ -2186,10 +2246,15 @@
             var wheel = document.getElementById('survey-wheel');
             if (!wheel || wheel.dataset.built === '1') return;
             wheel.innerHTML = '';
+            var mask = wheel.closest('.survey-wheel-mask');
+            var maskH = mask ? mask.offsetHeight : 200;
+            var spacerH = Math.max(50, Math.floor(maskH / 2));
+
             var topPad = document.createElement('div');
             topPad.className = 'survey-wheel-spacer';
+            topPad.style.height = spacerH + 'px';
             wheel.appendChild(topPad);
-            for (var i = 0; i <= 100; i++) {
+            for (var i = 100; i >= 0; i--) {
                 var div = document.createElement('div');
                 div.className = 'survey-wheel-item';
                 div.setAttribute('data-value', i);
@@ -2198,6 +2263,7 @@
             }
             var bottomPad = document.createElement('div');
             bottomPad.className = 'survey-wheel-spacer';
+            bottomPad.style.height = spacerH + 'px';
             wheel.appendChild(bottomPad);
             wheel.dataset.built = '1';
 
@@ -2233,7 +2299,8 @@
             var pad = wheel.querySelector('.survey-wheel-spacer');
             var padding = pad ? pad.offsetHeight : SURVEY_WHEEL_PADDING;
             var st = wheel.scrollTop;
-            var value = Math.round((st - padding) / h);
+            var index = Math.round((st - padding) / h);
+            var value = 100 - index;
             return Math.max(0, Math.min(100, value));
         }
 
@@ -2245,7 +2312,7 @@
             var pad = wheel.querySelector('.survey-wheel-spacer');
             var padding = pad ? pad.offsetHeight : SURVEY_WHEEL_PADDING;
             var v = Math.max(0, Math.min(100, parseInt(value, 10) || 50));
-            wheel.scrollTop = padding + v * h;
+            wheel.scrollTop = padding + (100 - v) * h;
         }
 
         function snapSurveyWheel() {
